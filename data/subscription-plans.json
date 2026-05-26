@@ -1,0 +1,14 @@
+[
+  {
+    "id": "free_trial",
+    "name": "14일 체험",
+    "priceMonthly": 0,
+    "features": ["하루 메시지 제한", "기본 캐릭터 1명"]
+  },
+  {
+    "id": "premium_monthly",
+    "name": "프리미엄 월 구독",
+    "priceMonthly": 9900,
+    "features": ["무제한 메시지", "캐릭터 음성·감정팩", "아침 인사 이벤트"]
+  }
+]

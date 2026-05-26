@@ -1,0 +1,7 @@
+[
+  { "id": "coffee", "name": "커피", "emoji": "☕", "affectionBonus": 5, "description": "따뜻한 한 잔" },
+  { "id": "dessert", "name": "디저트", "emoji": "🍰", "affectionBonus": 8, "description": "달콤한 선물" },
+  { "id": "perfume", "name": "향수", "emoji": "🌸", "affectionBonus": 12, "description": "은은한 향" },
+  { "id": "doll", "name": "인형", "emoji": "🧸", "affectionBonus": 10, "description": "귀여운 인형" },
+  { "id": "necklace", "name": "목걸이", "emoji": "📿", "affectionBonus": 15, "description": "특별한 마음" }
+]

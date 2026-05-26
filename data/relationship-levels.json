@@ -1,0 +1,7 @@
+[
+  { "level": 1, "name": "어색함", "minAffection": 0, "description": "아직 서로 알아가는 중" },
+  { "level": 2, "name": "친해짐", "minAffection": 20, "description": "편하게 말하게 됨" },
+  { "level": 3, "name": "썸", "minAffection": 40, "description": "설레는 분위기" },
+  { "level": 4, "name": "연인", "minAffection": 60, "description": "연인 같은 말투" },
+  { "level": 5, "name": "깊은 관계", "minAffection": 80, "description": "특별 대사·이벤트 해금" }
+]
