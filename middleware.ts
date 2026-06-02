@@ -1,11 +1,9 @@
-/**
- * Supabase 세션 갱신 + 보호 라우트
- * 구현 시: /chat, /gifts 등 (main) 그룹 보호
- */
-import { type NextRequest, NextResponse } from "next/server";
+import { type NextRequest } from "next/server";
+import { updateSession } from "@/lib/supabase/middleware";
 
-export async function middleware(_request: NextRequest) {
-  return NextResponse.next();
+/** 모든 요청에서 Supabase 세션 갱신 (로그인 유지) */
+export async function middleware(request: NextRequest) {
+  return updateSession(request);
 }
 
 export const config = {

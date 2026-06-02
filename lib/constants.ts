@@ -5,11 +5,11 @@ export const ABSENCE_EVENT_DAYS = 3;
 export const AFFECTION_MAX = 100;
 export const RELATIONSHIP_LEVELS = [1, 2, 3, 4, 5] as const;
 
-/** 호감도 → 관계 레벨 (예시 임계값, 조정 가능) */
+/** 호감도 → 관계 레벨 (0~20 Lv1 … 91~100 Lv5) */
 export const AFFECTION_TO_LEVEL: Record<number, number> = {
   0: 1,
-  20: 2,
-  40: 3,
-  60: 4,
-  80: 5,
+  21: 2,
+  41: 3,
+  71: 4,
+  91: 5,
 };

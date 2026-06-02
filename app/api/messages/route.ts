@@ -1,8 +1,10 @@
-import { mapCharacterState } from "@/lib/db/mappers";
+import { mapMessage } from "@/lib/db/mappers";
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
-/** GET — 호감도·관계·감정 상태 */
+const MESSAGE_LIMIT = 30;
+
+/** GET — 최근 메시지 30개 (user/assistant만) */
 export async function GET(request: Request) {
   const supabase = await createClient();
   const {
@@ -21,19 +23,21 @@ export async function GET(request: Request) {
   }
 
   const { data, error } = await supabase
-    .from("user_character_states")
+    .from("messages")
     .select("*")
     .eq("user_id", user.id)
     .eq("character_id", characterId)
-    .maybeSingle();
+    .in("role", ["user", "assistant"])
+    .order("created_at", { ascending: false })
+    .limit(MESSAGE_LIMIT);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  if (!data) {
-    return NextResponse.json({ state: null });
-  }
+  const messages = (data ?? [])
+    .map((row) => mapMessage(row))
+    .reverse();
 
-  return NextResponse.json({ state: mapCharacterState(data) });
+  return NextResponse.json({ messages });
 }

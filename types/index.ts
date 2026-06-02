@@ -1,11 +1,12 @@
-/** 감정 상태 — 캐릭터 말투·표정·인사에 반영 */
+/** 감정 상태 — 캐릭터 말투·표정·UI에 반영 */
 export type EmotionState =
   | "happy"
-  | "pouty"
-  | "hurt"
   | "excited"
-  | "jealous"
-  | "miss_you";
+  | "hurt"
+  | "pouty"
+  | "miss_you"
+  | "bored"
+  | "special_day";
 
 /** 관계 레벨 1~5 */
 export type RelationshipLevel = 1 | 2 | 3 | 4 | 5;
@@ -19,9 +20,22 @@ export type ExpressionState =
   | "angry"
   | "wink";
 
+/** 감정별 이 캐릭터만의 말투 힌트 */
+export type CharacterEmotionToneGuide = Partial<
+  Record<EmotionState, string>
+>;
+
 export interface CharacterPersonality {
-  traits: string[];
+  /** 한 줄 성격 (예: 귀엽고 다정한 연하녀) */
+  core: string;
+  /** 결핍·상처 */
+  wound: string;
   speechStyle: string;
+  exampleLines: string[];
+  emotionToneGuide: CharacterEmotionToneGuide;
+  prohibitions: string[];
+  /** 하위 호환·상황별 예시 멘트 */
+  traits: string[];
   jealousyStyle: string;
   noReply3h: string;
   otherAiPraise: string;
