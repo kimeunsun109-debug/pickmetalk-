@@ -26,6 +26,8 @@ export type CharacterEmotionToneGuide = Partial<
 >;
 
 export interface CharacterPersonality {
+  /** 프롬프트 [역할] 한 줄 (선택) */
+  role?: string;
   /** 한 줄 성격 (예: 귀엽고 다정한 연하녀) */
   core: string;
   /** 결핍·상처 */
@@ -34,6 +36,10 @@ export interface CharacterPersonality {
   exampleLines: string[];
   emotionToneGuide: CharacterEmotionToneGuide;
   prohibitions: string[];
+  /** 메시지 유형별 대화 규칙 (선택) */
+  conversationRules?: string[];
+  /** 멀티턴 예시 대화 (선택) */
+  dialogueExamples?: string[];
   /** 하위 호환·상황별 예시 멘트 */
   traits: string[];
   jealousyStyle: string;

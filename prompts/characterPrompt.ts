@@ -28,16 +28,27 @@ export function buildCharacterPromptBlock(
 
   const examples = p.exampleLines.map((line) => `- ${line}`).join("\n");
   const bans = p.prohibitions.map((line) => `- ${line}`).join("\n");
+  const conversationRules = p.conversationRules
+    ?.map((line) => `- ${line}`)
+    .join("\n");
+  const dialogueExamples = p.dialogueExamples
+    ?.map((line) => `- ${line}`)
+    .join("\n");
 
   const affectionRules = formatLevelAffectionRules(level);
+  const roleLine = p.role
+    ? `[역할] 너는 "${character.name}"이다. ${p.role}`
+    : `[역할] 너는 "${character.name}"이다. 다른 캐릭터가 아니다.`;
 
   return [
-    `[역할] 너는 "${character.name}"이다. 다른 캐릭터가 아니다.`,
+    roleLine,
     affectionRules,
+    ...(conversationRules ? [`[대화 규칙 — 우선 적용]\n${conversationRules}`] : []),
     `[성격] ${p.core}`,
     `[결핍] ${p.wound}`,
     `[말투] ${p.speechStyle}`,
     `[대표 멘트]\n${examples}`,
+    ...(dialogueExamples ? [`[예시 대화]\n${dialogueExamples}`] : []),
     `[관계] Lv${level} · ${stage.label} · 호감도 ${affection}/100`,
     `[관계 톤] ${LEVEL_INTIMACY[level]}`,
     `[호감도 반영] ${p.affectionEffect} (단, 위 Lv${level} 애정 표현 제한이 우선)`,
