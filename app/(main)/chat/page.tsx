@@ -1,4 +1,5 @@
 import { ChatScreen } from "@/components/chat/ChatScreen";
+import { ChatProvider } from "@/contexts/ChatProvider";
 import { getCharacterById } from "@/data";
 import { mapCharacterState } from "@/lib/db/mappers";
 import { createClient } from "@/lib/supabase/server";
@@ -16,6 +17,7 @@ export default async function ChatPage() {
 
   if (!user) redirect("/login");
 
+  // 가장 최근에 대화한 캐릭터 상태 조회
   const { data: states } = await supabase
     .from("user_character_states")
     .select("*")
@@ -49,5 +51,18 @@ export default async function ChatPage() {
     );
   }
 
-  return <ChatScreen character={character} />;
+  // 프리미엄 여부 — profiles 테이블에서 직접 조회
+  const { data: profileRow } = await supabase
+    .from("profiles")
+    .select("is_premium")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  const isPremiumUser = profileRow?.is_premium ?? false;
+
+  return (
+    <ChatProvider character={character} isPremiumUser={isPremiumUser}>
+      <ChatScreen />
+    </ChatProvider>
+  );
 }

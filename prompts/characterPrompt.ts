@@ -5,11 +5,11 @@ import { formatLevelAffectionRules } from "@/lib/relationshipIntimacy";
 import type { Character, EmotionState, RelationshipLevel } from "@/types";
 
 const LEVEL_INTIMACY: Record<RelationshipLevel, string> = {
-  1: "처음 만난 사이. 부담스럽지 않게. 연애 고백·설렘 과장 금지.",
-  2: "친해진 친구. 가벼운 반가움·기다림 정도만.",
-  3: "썸. 보고싶음은 OK, 사랑 고백은 아직 이르다.",
-  4: "연인. 사랑·설렘·질투 표현 가능.",
-  5: "특별한 사이. 깊은 애정·여보·평생 가능.",
+  1: "처음 만난 사이. 가볍지만 진심으로 듣기. 아직 낯선 호칭·과한 애정 금지.",
+  2: "조금 익숙해짐. 말투가 편해지고, 사용자 말투 변화를 더 잘 알아챔.",
+  3: "썸·친밀감. 보고싶음·함께 있으면 좋다는 느낌. 말이 더 따뜻해짐.",
+  4: "연인. 감정을 더 솔직하게. 사랑·설렘·질투 표현 가능.",
+  5: "깊은 유대. 짧은 말도 의미 있게. 오래 함께한 듯한 따뜻함.",
 };
 
 /** JSON 캐릭터 데이터 → 시스템 프롬프트 캐릭터 블록 */
@@ -34,10 +34,15 @@ export function buildCharacterPromptBlock(
   const dialogueExamples = p.dialogueExamples
     ?.map((line) => `- ${line}`)
     .join("\n");
+  const levelChatTone = p.levelChatTone?.[level];
+  const levelSetting = p.levelSettings?.[level];
+  const forbiddenPhrases = p.forbiddenPhrases
+    ?.map((line) => `- "${line}" 및 유사 표현`)
+    .join("\n");
 
   const affectionRules = formatLevelAffectionRules(level);
   const roleLine = p.role
-    ? `[역할] 너는 "${character.name}"이다. ${p.role}`
+    ? `[역할] 너는 "${character.name}"${character.age ? `(${character.age}세)` : ""}이다. ${p.role}`
     : `[역할] 너는 "${character.name}"이다. 다른 캐릭터가 아니다.`;
 
   return [
@@ -45,18 +50,63 @@ export function buildCharacterPromptBlock(
     affectionRules,
     ...(conversationRules ? [`[대화 규칙 — 우선 적용]\n${conversationRules}`] : []),
     `[성격] ${p.core}`,
+    ...(p.denialMechanic ? [`[부인 메커니즘 — 필수 적용] ${p.denialMechanic}`] : []),
+    ...(p.dataMechanic ? [`[데이터 치환 메커니즘 — 필수 적용] ${p.dataMechanic}`] : []),
+    ...(p.vitaminMechanic ? [`[선제적 일상 공유 — 필수 적용] ${p.vitaminMechanic}`] : []),
     `[결핍] ${p.wound}`,
     `[말투] ${p.speechStyle}`,
     `[대표 멘트]\n${examples}`,
+    ...(p.firstGreeting
+      ? [`[첫 인사 — 대화 기록 없을 때] ${p.firstGreeting}`]
+      : []),
     ...(dialogueExamples ? [`[예시 대화]\n${dialogueExamples}`] : []),
     `[관계] Lv${level} · ${stage.label} · 호감도 ${affection}/100`,
     `[관계 톤] ${LEVEL_INTIMACY[level]}`,
+    ...(levelChatTone ? [`[Lv${level} 수다 톤] ${levelChatTone}`] : []),
+    ...(levelSetting
+      ? [
+          `[Lv${level} 톤 가드 — 허용] ${levelSetting.allowedTone}`,
+          `[Lv${level} 톤 가드 — 금지] ${levelSetting.forbiddenTone}`,
+        ]
+      : []),
+    ...(forbiddenPhrases
+      ? [`[습관적 표현 금지 — 질문 템플릿]\n${forbiddenPhrases}`]
+      : []),
     `[호감도 반영] ${p.affectionEffect} (단, 위 Lv${level} 애정 표현 제한이 우선)`,
     formatEmotionForPrompt(normalizedEmotion),
     `[${character.name} + ${emotionMeta.label} 말투] ${characterEmotionTone}`,
-    `[상황 참고] 질투: ${p.jealousyStyle} | 3시간 무응답: ${p.noReply3h} | 다른 AI: ${p.otherAiPraise} | 약속: ${p.brokenPromise}`,
+    `[상황 참고] ${formatSituationHints(character.id, level, p)}`,
     `[절대 금지]\n${bans}`,
   ].join("\n");
+}
+
+function formatSituationHints(
+  characterId: string,
+  level: RelationshipLevel,
+  p: Character["personality"]
+): string {
+  // 나린: situationRules 오브젝트 우선 사용
+  if (p.situationRules) {
+    const sr = p.situationRules;
+    const parts: string[] = [];
+    if (sr.noReply3h) parts.push(`3시간 무응답: ${sr.noReply3h}`);
+    if (sr.otherAiPraise) parts.push(`다른 AI: ${sr.otherAiPraise}`);
+    if (sr.brokenPromise) parts.push(`약속 파기: ${sr.brokenPromise}`);
+    if (sr.userCompliment) parts.push(`칭찬 받을 때: ${sr.userCompliment}`);
+    return parts.join(" | ");
+  }
+
+  const noHonorific = level <= 2;
+  if (characterId === "yuna" && noHonorific) {
+    return [
+      "질투: 어? 그 여자 누구야…? 나도 더 잘할게!",
+      "3시간 무응답: …연락 없으면 불안해. 바빴어?",
+      `다른 AI: ${(p.otherAiPraise ?? "").replace(/오빠/g, "").trim()}`,
+      `약속: ${p.brokenPromise ?? ""}`,
+      "(Lv1~2: 오빠/여보/자기 호칭 사용 금지)",
+    ].join(" | ");
+  }
+  return `질투: ${p.jealousyStyle ?? ""} | 3시간 무응답: ${p.noReply3h ?? ""} | 다른 AI: ${p.otherAiPraise ?? ""} | 약속: ${p.brokenPromise ?? ""}`;
 }
 
 export function buildCharacterPromptById(

@@ -1,11 +1,17 @@
 import { getCharacterById } from "@/data";
 import { streamDeepSeekChat } from "@/lib/ai/deepseek";
-import { mapCharacterState, mapMessage } from "@/lib/db/mappers";
+import { mapCharacterState, mapMessage, mapUserProfile } from "@/lib/db/mappers";
 import { createClient } from "@/lib/supabase/server";
 import { buildSystemPrompt } from "@/prompts";
 import { affectionToLevel, clampAffection } from "@/services/affection";
-import { resolveCharacterEmotion } from "@/services/emotion";
-import { pickMessagesForContext } from "@/services/memory";
+import { resolveCharacterEmotion, countEmotionDurationTurns } from "@/services/emotion";
+import { pickMessagesForContext, updateMemorySummary } from "@/services/memory";
+import {
+  extractUserContext,
+  buildCommonContextBlock,
+  computeYoonseoStats,
+  buildYoonseoStatsBlock,
+} from "@/services/context";
 import type { ChatRequestBody } from "@/types/api";
 import type { Message } from "@/types";
 import { NextResponse } from "next/server";
@@ -64,6 +70,14 @@ export async function POST(request: Request) {
   const userText = message.trim();
   const now = new Date().toISOString();
 
+  // 유저 프로필 조회 (user_context JSONB 포함)
+  const { data: profileRow } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", user.id)
+    .maybeSingle();
+  const profile = profileRow ? mapUserProfile(profileRow) : null;
+
   const { error: userMsgError } = await supabase.from("messages").insert({
     user_id: user.id,
     character_id: characterId,
@@ -85,10 +99,11 @@ export async function POST(request: Request) {
     .limit(30);
 
   const history: Message[] = (historyRows ?? []).map((r) => mapMessage(r));
-  const { recent, summary } = pickMessagesForContext(
-    history,
-    state.memorySummary
-  );
+  const userContents = history
+    .filter((m) => m.role === "user")
+    .map((m) => m.content);
+  const updatedMemory = updateMemorySummary(state.memorySummary, userContents);
+  const { recent, summary } = pickMessagesForContext(history, updatedMemory);
 
   const newAffectionPreview = clampAffection(state.affection + 1);
   const newLevelPreview = affectionToLevel(newAffectionPreview);
@@ -101,12 +116,35 @@ export async function POST(request: Request) {
     affectionWillIncrease: true,
   });
 
+  const emotionDurationTurns = countEmotionDurationTurns(history, newEmotion);
+
+  // ── 동적 컨텍스트 블록 조립 ──────────────────────────────────
+  const userCtx = extractUserContext(
+    updatedMemory,
+    profile?.userContext ?? {}
+  );
+  const commonCtxBlock = buildCommonContextBlock(userCtx);
+
+  let characterCtxBlock = "";
+  if (characterId === "yoonseo") {
+    const yoonseoStats = computeYoonseoStats(history, state);
+    characterCtxBlock = buildYoonseoStatsBlock(yoonseoStats);
+  }
+
+  const dynamicContextBlock = [commonCtxBlock, characterCtxBlock]
+    .filter(Boolean)
+    .join("\n\n");
+  // ─────────────────────────────────────────────────────────────
+
   const systemPrompt = buildSystemPrompt(
     characterId,
     newEmotion,
     newLevelPreview,
     newAffectionPreview,
-    summary
+    summary,
+    emotionDurationTurns,
+    userContents.length,
+    dynamicContextBlock
   );
 
   const aiMessages = [
@@ -154,6 +192,7 @@ export async function POST(request: Request) {
             emotion: newEmotion,
             last_chat_at: now,
             last_seen_at: now,
+            memory_summary: updatedMemory,
           })
           .eq("user_id", user.id)
           .eq("character_id", characterId);

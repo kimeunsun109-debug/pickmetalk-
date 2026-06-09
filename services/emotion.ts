@@ -1,5 +1,5 @@
 import { normalizeEmotion } from "@/lib/emotions";
-import type { EmotionState } from "@/types";
+import type { EmotionState, Message } from "@/types";
 
 const PRAISE_PATTERN =
   /예쁘|멋|최고|고마워|잘했|칭찬|대단|훌륭|잘한다|대박|짱|최고야/i;
@@ -85,4 +85,21 @@ export function resolveCharacterEmotion(
   if (input.affectionWillIncrease) return "happy";
 
   return "happy";
+}
+
+/** 연속 assistant 턴 기준, 현재 감정 유지 턴 수 (이번 답변 포함) */
+export function countEmotionDurationTurns(
+  history: Message[],
+  emotion: EmotionState
+): number {
+  if (emotion !== "hurt" && emotion !== "pouty") return 1;
+
+  let streak = 0;
+  for (let i = history.length - 1; i >= 0; i--) {
+    const msg = history[i];
+    if (msg.role !== "assistant") continue;
+    if (msg.emotion === emotion) streak++;
+    else if (msg.emotion) break;
+  }
+  return streak + 1;
 }

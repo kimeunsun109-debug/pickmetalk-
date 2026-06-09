@@ -1,3 +1,4 @@
+import { Footer } from "@/components/layout/Footer";
 import Link from "next/link";
 
 /**
@@ -7,11 +8,11 @@ import Link from "next/link";
 export default function HomePage() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-6 p-6">
-      <h1 className="text-2xl font-bold text-pink-accent">AI 여자친구</h1>
+      <h1 className="text-2xl font-bold text-pink-accent">픽미픽미</h1>
       <p className="text-center text-sm text-gray-600">
-        나를 기다리는 존재와의 감성 채팅 (MVP 구조 준비 중)
+        나를 기다리는 그녀와 나누는 감성 대화
       </p>
-      <div className="flex flex-col gap-3 w-full max-w-xs">
+      <div className="flex w-full max-w-xs flex-col gap-3">
         <Link
           href="/login"
           className="rounded-full bg-pink-accent py-3 text-center text-white"
@@ -25,6 +26,8 @@ export default function HomePage() {
           캐릭터 보기
         </Link>
       </div>
+
+      <Footer className="absolute bottom-0 w-full" />
     </main>
   );
 }

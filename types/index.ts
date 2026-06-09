@@ -40,12 +40,38 @@ export interface CharacterPersonality {
   conversationRules?: string[];
   /** 멀티턴 예시 대화 (선택) */
   dialogueExamples?: string[];
+  /** 첫 대화 시 인사말 (대화 기록 없을 때) */
+  firstGreeting?: string;
+  /** 관계 Lv별 수다·말투 힌트 (선택) */
+  levelChatTone?: Partial<Record<RelationshipLevel, string>>;
+  /** 습관적 질문·표현 금지 (선택) */
+  forbiddenPhrases?: string[];
+  /** Lv별 톤 허용·금지 격리 (선택) */
+  levelSettings?: Partial<
+    Record<
+      RelationshipLevel,
+      { allowedTone: string; forbiddenTone: string }
+    >
+  >;
+  /** 부인(Denial) 메커니즘 설명 (나린 전용, 선택) */
+  denialMechanic?: string;
+  /** 데이터·수치 언어 치환 메커니즘 (윤서 전용, 선택) */
+  dataMechanic?: string;
+  /** 선제적 일상 공유 메커니즘 (지유 전용, 선택) */
+  vitaminMechanic?: string;
+  /** 상황별 반응 룰 오브젝트 (나린 전용, 선택) */
+  situationRules?: {
+    noReply3h?: string;
+    otherAiPraise?: string;
+    brokenPromise?: string;
+    userCompliment?: string;
+  };
   /** 하위 호환·상황별 예시 멘트 */
   traits: string[];
-  jealousyStyle: string;
-  noReply3h: string;
-  otherAiPraise: string;
-  brokenPromise: string;
+  jealousyStyle?: string;
+  noReply3h?: string;
+  otherAiPraise?: string;
+  brokenPromise?: string;
   affectionEffect: string;
   premiumHook: string;
 }
@@ -53,6 +79,8 @@ export interface CharacterPersonality {
 export interface Character {
   id: string;
   name: string;
+  /** 캐릭터 나이 (프롬프트·UI 참고, 선택) */
+  age?: number;
   tagline: string;
   avatar: string;
   personality: CharacterPersonality;
@@ -70,6 +98,8 @@ export interface UserProfile {
   isPremium: boolean;
   dailyMessageCount: number;
   dailyMessageResetAt: string;
+  /** profiles.user_context JSONB — 유저 이름·나이·직업 등 명시적 메타 */
+  userContext: Record<string, string>;
 }
 
 export interface UserCharacterState {
@@ -84,7 +114,32 @@ export interface UserCharacterState {
   lastSeenAt: string;
   lastChatAt: string | null;
   memorySummary: string | null;
+  /** 윤서 전용 — 약속 이행 횟수 */
+  promiseKeptCount: number;
+  /** 윤서 전용 — 약속 불이행 횟수 */
+  promiseBrokenCount: number;
+  /** 마지막 부재 푸시 발송 시각 (쿨다운 체크용) */
+  lastPushSentAt: string | null;
   createdAt: string;
+}
+
+// ─────────────────────────────────────────────
+// Absence Push Event
+// ─────────────────────────────────────────────
+
+export type PushTriggerType =
+  | "no_reply_3h"       // 나린 — 3시간 무응답
+  | "no_reply_24h"      // 유나 — 24시간 미접속
+  | "morning_workout"   // 지유 — 오전 7시 운동 타임
+  | "evening_workout"   // 지유 — 오후 8시 운동 타임
+  | "night_quiet"       // 은하 — 오후 10시 야심한 밤
+  | "data_gap_yoonseo"; // 윤서 — 정밀 시간 간격 고지
+
+export interface PushEvent {
+  characterId: string;
+  triggerType: PushTriggerType;
+  message: string;
+  emotion: EmotionState;
 }
 
 export interface Message {

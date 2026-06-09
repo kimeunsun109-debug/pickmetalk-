@@ -1,5 +1,6 @@
 "use client";
 
+import { Footer } from "@/components/layout/Footer";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -146,9 +147,12 @@ export default function LoginPage() {
           : "처음이에요 — 회원가입"}
       </button>
 
-      <Link href="/" className="mt-8 text-center text-xs text-gray-400">
+      <Link href="/" className="mt-8 block text-center text-xs text-gray-400">
         홈으로
       </Link>
+
+      {/* 개인정보처리방침 링크 */}
+      <Footer className="mt-4" />
     </main>
   );
 }

@@ -23,6 +23,7 @@ const config: Config = {
         "pulse-soft": "pulse-soft 2s ease-in-out infinite",
         "heart-float": "heart-float 1.5s ease-out forwards",
         "typing-dot": "typing-dot 1.4s infinite ease-in-out both",
+        "fadeIn": "fade-in 0.25s ease-out both",
       },
       keyframes: {
         "pulse-soft": {
@@ -36,6 +37,10 @@ const config: Config = {
         "typing-dot": {
           "0%, 80%, 100%": { transform: "scale(0.6)", opacity: "0.4" },
           "40%": { transform: "scale(1)", opacity: "1" },
+        },
+        "fade-in": {
+          "0%": { opacity: "0", transform: "translateY(-4px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
         },
       },
     },

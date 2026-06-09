@@ -1,14 +1,37 @@
 "use client";
 
-import { ABSENCE_EVENT_DAYS } from "@/lib/constants";
+import { getAbsenceTier, getReturnVisitData, type ReturnVisitData } from "@/lib/returnVisit";
 
-/** lastSeenAt 기준 3일+ 미접속 이벤트 트리거 */
-export function useAbsenceEvent(lastSeenAt: string | null) {
-  if (!lastSeenAt) return { shouldShow: false, daysAway: 0 };
-  const days =
-    (Date.now() - new Date(lastSeenAt).getTime()) / (1000 * 60 * 60 * 24);
+export interface AbsenceEventResult {
+  shouldShow: boolean;
+  data: ReturnVisitData | null;
+  gapHours: number;
+}
+
+/**
+ * useAbsenceEvent — lastChatAt 기준으로 재방문 티어를 계산한다.
+ *
+ * @param lastChatAt  마지막 대화 시각 ISO string (null = 미대화)
+ * @param characterId 캐릭터 ID (메시지 풀 선택용)
+ */
+export function useAbsenceEvent(
+  lastChatAt: string | null,
+  characterId: string
+): AbsenceEventResult {
+  if (!lastChatAt) {
+    return { shouldShow: false, data: null, gapHours: 0 };
+  }
+
+  const gapHours = (Date.now() - new Date(lastChatAt).getTime()) / (1000 * 60 * 60);
+  const tier = getAbsenceTier(gapHours);
+
+  if (!tier) {
+    return { shouldShow: false, data: null, gapHours };
+  }
+
   return {
-    shouldShow: days >= ABSENCE_EVENT_DAYS,
-    daysAway: Math.floor(days),
+    shouldShow: true,
+    data: getReturnVisitData(characterId, tier),
+    gapHours,
   };
 }

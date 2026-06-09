@@ -5,6 +5,14 @@ export const ABSENCE_EVENT_DAYS = 3;
 export const AFFECTION_MAX = 100;
 export const RELATIONSHIP_LEVELS = [1, 2, 3, 4, 5] as const;
 
+// ── 재방문 감지 티어 (시간 단위) ──────────────────────────────
+/** 1일 이상 미접속 (첫 번째 그리움 표현) */
+export const ABSENCE_TIER1_HOURS = 24;
+/** 3일 이상 미접속 (걱정·보고싶음 레벨업) */
+export const ABSENCE_TIER2_HOURS = 72;
+/** 7일 이상 미접속 (재회 이벤트) */
+export const ABSENCE_TIER3_HOURS = 168;
+
 /** 호감도 → 관계 레벨 (0~20 Lv1 … 91~100 Lv5) */
 export const AFFECTION_TO_LEVEL: Record<number, number> = {
   0: 1,

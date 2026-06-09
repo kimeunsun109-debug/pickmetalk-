@@ -6,6 +6,11 @@
   --bg-ivory: #fff8f0;
   --accent-pink: #ff8fab;
   --text-main: #1a1a1a;
+  /* 노치·홈바 safe area */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
 }
 
 html,
@@ -14,9 +19,69 @@ body {
   overflow-x: hidden;
   background: var(--bg-ivory);
   color: var(--text-main);
+  /* 모바일 탭 하이라이트 제거 */
+  -webkit-tap-highlight-color: transparent;
 }
 
-/* 모바일 앱 느낌 — 최대 너비 제한 */
+/* 모바일 앱 껍데기 — 최대 너비 제한 */
 .app-shell {
-  @apply mx-auto min-h-screen w-full max-w-md bg-ivory shadow-sm;
+  @apply mx-auto min-h-[100dvh] w-full max-w-md bg-ivory shadow-sm;
+}
+
+/* Safe area 패딩 유틸 */
+.pt-safe { padding-top: var(--safe-top); }
+.pb-safe { padding-bottom: var(--safe-bottom); }
+.pl-safe { padding-left: var(--safe-left); }
+.pr-safe { padding-right: var(--safe-right); }
+
+/* 전체 화면 높이 (iOS Safari 100vh 버그 대응) */
+.h-screen-dvh { height: 100dvh; }
+.min-h-screen-dvh { min-height: 100dvh; }
+
+/* 버튼·링크 터치 최적화 */
+button, a, [role="button"] {
+  touch-action: manipulation;
+  cursor: pointer;
+}
+
+/* 텍스트 드래그 방지 (캐릭터 카드 등) */
+.no-select {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* 스크롤 관성 (iOS) */
+.scroll-ios {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+/* 채팅 말풍선 애니메이션 */
+@keyframes bubble-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.bubble-enter {
+  animation: bubble-in 0.18s ease-out both;
+}
+
+/* 감정 뱃지 페이드인 */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fadeIn {
+  animation: fade-in 0.25s ease-out both;
+}
+
+/* 스켈레톤 shimmer */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+  border-radius: 0.5rem;
 }
