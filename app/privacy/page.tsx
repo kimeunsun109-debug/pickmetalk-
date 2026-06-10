@@ -2,8 +2,8 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "개인정보처리방침 — 픽미픽미",
-  description: "픽미픽미 개인정보처리방침",
+  title: "개인정보처리방침 — 픽미톡",
+  description: "픽미톡 개인정보처리방침",
 };
 
 /**
@@ -36,11 +36,11 @@ export default function PrivacyPage() {
         <Section title="운영자 정보">
           <Table
             rows={[
-              ["서비스명", "픽미픽미"],
-              ["운영사(상호)", "______________________"],
-              ["대표자", "______________________"],
-              ["사업자등록번호", "______________________ (해당 시)"],
-              ["이메일", "______________________"],
+              ["서비스명", "픽미톡"],
+              ["운영사(상호)", "픽미톡"],
+              ["대표자", "김은선"],
+              ["사업자등록번호", "219-19-66194"],
+              ["이메일", "kimeunsun109@gmail.com"],
             ]}
           />
         </Section>
@@ -49,9 +49,9 @@ export default function PrivacyPage() {
         <Section title="개인정보보호책임자 (CPO)">
           <Table
             rows={[
-              ["성명", "______________________"],
-              ["직책", "______________________"],
-              ["이메일", "______________________"],
+              ["성명", "김은선"],
+              ["직책", "대표"],
+              ["이메일", "kimeunsun109@gmail.com"],
             ]}
           />
         </Section>
