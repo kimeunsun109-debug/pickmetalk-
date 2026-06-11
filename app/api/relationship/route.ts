@@ -1,8 +1,8 @@
-import { mapCharacterState } from "@/lib/db/mappers";
+import { getConversationForUser } from "@/lib/db/conversations";
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
-/** GET — 호감도·관계·감정 상태 */
+/** GET — 대화방별 호감도·관계·감정 상태 */
 export async function GET(request: Request) {
   const supabase = await createClient();
   const {
@@ -14,26 +14,31 @@ export async function GET(request: Request) {
   }
 
   const { searchParams } = new URL(request.url);
-  const characterId = searchParams.get("characterId");
+  const conversationId = searchParams.get("conversationId");
 
-  if (!characterId) {
-    return NextResponse.json({ error: "characterId 필요" }, { status: 400 });
+  if (!conversationId) {
+    return NextResponse.json({ error: "conversationId 필요" }, { status: 400 });
   }
 
-  const { data, error } = await supabase
-    .from("user_character_states")
-    .select("*")
-    .eq("user_id", user.id)
-    .eq("character_id", characterId)
-    .maybeSingle();
+  const conversation = await getConversationForUser(
+    supabase,
+    user.id,
+    conversationId
+  );
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  if (!data) {
+  if (!conversation) {
     return NextResponse.json({ state: null });
   }
 
-  return NextResponse.json({ state: mapCharacterState(data) });
+  return NextResponse.json({
+    state: {
+      affection: conversation.affection,
+      relationshipLevel: conversation.relationshipLevel,
+      emotion: conversation.emotion,
+      memorySummary: conversation.summary,
+      lastChatAt: conversation.lastMessageAt,
+      characterId: conversation.characterId,
+      conversationId: conversation.id,
+    },
+  });
 }

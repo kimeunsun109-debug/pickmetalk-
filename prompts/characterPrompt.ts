@@ -41,6 +41,8 @@ export function buildCharacterPromptBlock(
     .join("\n");
 
   const affectionRules = formatLevelAffectionRules(level);
+  const narinAffectionTier =
+    character.id === "narin" ? formatNarinAffectionTier(affection, level) : null;
   const roleLine = p.role
     ? `[역할] 너는 "${character.name}"${character.age ? `(${character.age}세)` : ""}이다. ${p.role}`
     : `[역할] 너는 "${character.name}"이다. 다른 캐릭터가 아니다.`;
@@ -48,6 +50,7 @@ export function buildCharacterPromptBlock(
   return [
     roleLine,
     affectionRules,
+    ...(narinAffectionTier ? [narinAffectionTier] : []),
     ...(conversationRules ? [`[대화 규칙 — 우선 적용]\n${conversationRules}`] : []),
     `[성격] ${p.core}`,
     ...(p.denialMechanic ? [`[부인 메커니즘 — 필수 적용] ${p.denialMechanic}`] : []),
@@ -77,6 +80,34 @@ export function buildCharacterPromptBlock(
     `[${character.name} + ${emotionMeta.label} 말투] ${characterEmotionTone}`,
     `[상황 참고] ${formatSituationHints(character.id, level, p)}`,
     `[절대 금지]\n${bans}`,
+  ].join("\n");
+}
+
+/** 나린 전용 — 호감도 구간별 톤 (공격적 츤데레 방지) */
+function formatNarinAffectionTier(
+  affection: number,
+  level: RelationshipLevel
+): string {
+  if (level === 1 || affection < 30) {
+    return [
+      `[나린 호감도 ${affection} — 낯가림+호기심 · 최우선]`,
+      "조금 어색하지만 예의 있게 대화한다.",
+      "인사에는 정상적으로 답하고, 사용자를 비난·무시·공격하지 않는다.",
+      "공격적 츤데레·싸우는 톤·냉담 반응 절대 금지.",
+      "다정함이 속으로 있어도 말로는 부끄러워 숨긴다. '…안녕. 편하게 말해 봐.' 수준.",
+    ].join("\n");
+  }
+  if (affection < 70) {
+    return [
+      `[나린 호감도 ${affection} — 장난 밀당]`,
+      "걱정·관심이 먼저 나오고, 바로 부인하거나 회피한다.",
+      "사용자를 비난하거나 무시하지 않는다. '감기 걸리면 귀찮아지니까 조심해.' 패턴.",
+    ].join("\n");
+  }
+  return [
+    `[나린 호감도 ${affection} — 실수 고백]`,
+    "자기도 모르게 애정 표현이 튀어나왔다가 부끄러워 번복한다.",
+    "예) '…보고 싶었어. 아니, 방금 말은 취소.'",
   ].join("\n");
 }
 

@@ -83,42 +83,42 @@ const POOLS: Record<
     tier1: [
       {
         message: "…24시간 만이네.",
-        subMessage: "뭐, 별로 기다리진 않았는데.",
-        emoji: "😑",
+        subMessage: "뭐, 기다린 건 아닌데… 그냥 확인한 거야.",
+        emoji: "😊",
       },
       {
-        message: "이제 왔어?",
-        subMessage: "늦었네. 뭐, 내 알 바는 아니지만.",
-        emoji: "😒",
+        message: "…왔네.",
+        subMessage: "늦었네. 딱히 기다린 건 아닌데, 괜찮아?",
+        emoji: "😊",
       },
       {
         message: "…핸드폰이 마침 울려서 봤어.",
-        subMessage: "딱히 기다린 건 아니야.",
-        emoji: "😒",
+        subMessage: "기다린 건 아니야. 그냥 확인한 거야.",
+        emoji: "😊",
       },
     ],
     tier2: [
       {
         message: "…사흘이야.",
-        subMessage: "아니, 뭐 별로 기다리진 않았는데 그냥 핸드폰이 울려서 봤어.",
+        subMessage: "별로 기다리진 않았는데… 그냥 좀 신경 쓰였어.",
         emoji: "😶",
       },
       {
-        message: "3일이나 됐어. 참나.",
-        subMessage: "…다친 건 아닌 거지? 내 알 바 아니지만.",
-        emoji: "😑",
+        message: "3일이나 됐어.",
+        subMessage: "…다친 건 아닌 거지? 괜찮아?",
+        emoji: "😟",
       },
     ],
     tier3: [
       {
         message: "…7일이나 됐어?",
-        subMessage: "뭐, 내 알 바는 아니지만. 그래도... 별일 없었던 거 맞지?",
+        subMessage: "뭐, 신경 쓰인 건 맞는데… 별일 없었던 거 맞지?",
         emoji: "😶",
       },
       {
-        message: "일주일이네. 참나.",
-        subMessage: "뭐, 어쩔 수 없이 신경 쓰였다고. 흥.",
-        emoji: "😒",
+        message: "일주일이네.",
+        subMessage: "…어쩔 수 없이 걱정됐어. 착각하지 마.",
+        emoji: "😊",
       },
     ],
   },

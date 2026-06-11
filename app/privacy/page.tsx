@@ -1,9 +1,10 @@
+import { BRAND } from "@/lib/brand";
 import Link from "next/link";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "개인정보처리방침 — 픽미톡",
-  description: "픽미톡 개인정보처리방침",
+  title: `개인정보처리방침 — ${BRAND.name}`,
+  description: `${BRAND.name} 개인정보처리방침`,
 };
 
 /**
@@ -27,7 +28,7 @@ export default function PrivacyPage() {
         개인정보처리방침
       </h1>
       <p className="mb-8 text-sm text-gray-400">
-        픽미픽미 · 시행일: 2026년 6월 9일
+        픽미톡 · 시행일: 2026년 6월 9일
       </p>
 
       <div className="prose prose-sm max-w-none space-y-8 text-gray-700">
@@ -177,7 +178,7 @@ export default function PrivacyPage() {
 
       {/* 하단 */}
       <div className="mt-10 border-t pt-6 text-center text-xs text-gray-400">
-        <p>픽미픽미 · 시행일 2026년 6월 9일</p>
+        <p>픽미톡 · 시행일 2026년 6월 9일</p>
         <Link href="/" className="mt-2 block text-pink-accent">
           홈으로 돌아가기
         </Link>

@@ -1,5 +1,13 @@
 import { normalizeEmotion } from "@/lib/emotions";
-import type { EmotionState, ExpressionState, Message, RelationshipLevel, UserCharacterState, UserProfile } from "@/types";
+import type {
+  Conversation,
+  EmotionState,
+  ExpressionState,
+  Message,
+  RelationshipLevel,
+  UserCharacterState,
+  UserProfile,
+} from "@/types";
 
 // ─────────────────────────────────────────────
 // characters 마스터 테이블 row 타입
@@ -68,11 +76,28 @@ export function mapUserProfile(row: Record<string, unknown>): UserProfile {
   };
 }
 
+export function mapConversation(row: Record<string, unknown>): Conversation {
+  return {
+    id: row.id as string,
+    userId: row.user_id as string,
+    characterId: row.character_id as string,
+    title: row.title as string,
+    summary: (row.summary as string | null) ?? null,
+    emotion: normalizeEmotion(row.emotion as string),
+    affection: (row.affection as number) ?? 0,
+    relationshipLevel: (row.relationship_level as RelationshipLevel) ?? 1,
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
+    lastMessageAt: (row.last_message_at as string | null) ?? null,
+  };
+}
+
 export function mapMessage(row: Record<string, unknown>): Message {
   return {
     id: row.id as string,
     userId: row.user_id as string,
     characterId: row.character_id as string,
+    conversationId: (row.conversation_id as string | null) ?? undefined,
     role: row.role as Message["role"],
     content: row.content as string,
     emotion: row.emotion

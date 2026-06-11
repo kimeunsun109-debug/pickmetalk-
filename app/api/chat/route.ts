@@ -1,6 +1,11 @@
 import { getCharacterById } from "@/data";
 import { streamDeepSeekChat } from "@/lib/ai/deepseek";
+import { getConversationForUser } from "@/lib/db/conversations";
 import { mapCharacterState, mapMessage, mapUserProfile } from "@/lib/db/mappers";
+import {
+  isDefaultConversationTitle,
+  titleFromFirstMessage,
+} from "@/lib/conversationTitle";
 import { createClient } from "@/lib/supabase/server";
 import { buildSystemPrompt } from "@/prompts";
 import { affectionToLevel, clampAffection } from "@/services/affection";
@@ -13,14 +18,14 @@ import {
   buildYoonseoStatsBlock,
 } from "@/services/context";
 import type { ChatRequestBody } from "@/types/api";
-import type { Message } from "@/types";
+import type { Message, UserCharacterState } from "@/types";
 import { NextResponse } from "next/server";
 
 const CONTEXT_LIMIT = 12;
 
 /**
- * POST /api/chat — DeepSeek 스트리밍 + 메시지·호감도 저장
- * Body: { characterId, message }
+ * POST /api/chat — DeepSeek 스트리밍 + 대화방별 메시지·호감도 저장
+ * Body: { conversationId, message }
  */
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -39,38 +44,32 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "잘못된 요청" }, { status: 400 });
   }
 
-  const { characterId, message } = body;
-  if (!characterId || !message?.trim()) {
+  const { conversationId, message } = body;
+  if (!conversationId || !message?.trim()) {
     return NextResponse.json(
-      { error: "characterId와 message가 필요합니다." },
+      { error: "conversationId와 message가 필요합니다." },
       { status: 400 }
     );
   }
 
+  const conversation = await getConversationForUser(
+    supabase,
+    user.id,
+    conversationId
+  );
+  if (!conversation) {
+    return NextResponse.json({ error: "대화방을 찾을 수 없습니다." }, { status: 404 });
+  }
+
+  const characterId = conversation.characterId;
   const character = getCharacterById(characterId);
   if (!character) {
     return NextResponse.json({ error: "캐릭터 없음" }, { status: 404 });
   }
 
-  const { data: stateRow, error: stateError } = await supabase
-    .from("user_character_states")
-    .select("*")
-    .eq("user_id", user.id)
-    .eq("character_id", characterId)
-    .maybeSingle();
-
-  if (stateError || !stateRow) {
-    return NextResponse.json(
-      { error: "캐릭터를 먼저 선택해 주세요." },
-      { status: 400 }
-    );
-  }
-
-  const state = mapCharacterState(stateRow);
   const userText = message.trim();
   const now = new Date().toISOString();
 
-  // 유저 프로필 조회 (user_context JSONB 포함)
   const { data: profileRow } = await supabase
     .from("profiles")
     .select("*")
@@ -81,6 +80,7 @@ export async function POST(request: Request) {
   const { error: userMsgError } = await supabase.from("messages").insert({
     user_id: user.id,
     character_id: characterId,
+    conversation_id: conversationId,
     role: "user",
     content: userText,
   });
@@ -89,11 +89,30 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: userMsgError.message }, { status: 500 });
   }
 
+  // 첫 메시지면 제목 자동 생성
+  const { count: msgCount } = await supabase
+    .from("messages")
+    .select("*", { count: "exact", head: true })
+    .eq("conversation_id", conversationId)
+    .eq("role", "user");
+
+  if (
+    msgCount === 1 &&
+    isDefaultConversationTitle(conversation.title)
+  ) {
+    await supabase
+      .from("conversations")
+      .update({
+        title: titleFromFirstMessage(userText),
+        updated_at: now,
+      })
+      .eq("id", conversationId);
+  }
+
   const { data: historyRows } = await supabase
     .from("messages")
     .select("*")
-    .eq("user_id", user.id)
-    .eq("character_id", characterId)
+    .eq("conversation_id", conversationId)
     .in("role", ["user", "assistant"])
     .order("created_at", { ascending: true })
     .limit(30);
@@ -102,23 +121,25 @@ export async function POST(request: Request) {
   const userContents = history
     .filter((m) => m.role === "user")
     .map((m) => m.content);
-  const updatedMemory = updateMemorySummary(state.memorySummary, userContents);
+  const updatedMemory = updateMemorySummary(
+    conversation.summary,
+    userContents
+  );
   const { recent, summary } = pickMessagesForContext(history, updatedMemory);
 
-  const newAffectionPreview = clampAffection(state.affection + 1);
+  const newAffectionPreview = clampAffection(conversation.affection + 1);
   const newLevelPreview = affectionToLevel(newAffectionPreview);
 
   const newEmotion = resolveCharacterEmotion({
     userMessage: userText,
-    lastChatAt: state.lastChatAt,
-    lastSeenAt: state.lastSeenAt,
-    currentEmotion: state.emotion,
+    lastChatAt: conversation.lastMessageAt,
+    lastSeenAt: conversation.updatedAt,
+    currentEmotion: conversation.emotion,
     affectionWillIncrease: true,
   });
 
   const emotionDurationTurns = countEmotionDurationTurns(history, newEmotion);
 
-  // ── 동적 컨텍스트 블록 조립 ──────────────────────────────────
   const userCtx = extractUserContext(
     updatedMemory,
     profile?.userContext ?? {}
@@ -127,14 +148,25 @@ export async function POST(request: Request) {
 
   let characterCtxBlock = "";
   if (characterId === "yoonseo") {
-    const yoonseoStats = computeYoonseoStats(history, state);
+    const { data: ucsRow } = await supabase
+      .from("user_character_states")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("character_id", characterId)
+      .maybeSingle();
+    const ucs: UserCharacterState = ucsRow
+      ? mapCharacterState(ucsRow)
+      : ({
+          promiseKeptCount: 0,
+          promiseBrokenCount: 0,
+        } as UserCharacterState);
+    const yoonseoStats = computeYoonseoStats(history, ucs);
     characterCtxBlock = buildYoonseoStatsBlock(yoonseoStats);
   }
 
   const dynamicContextBlock = [commonCtxBlock, characterCtxBlock]
     .filter(Boolean)
     .join("\n\n");
-  // ─────────────────────────────────────────────────────────────
 
   const systemPrompt = buildSystemPrompt(
     characterId,
@@ -179,20 +211,29 @@ export async function POST(request: Request) {
         await supabase.from("messages").insert({
           user_id: user.id,
           character_id: characterId,
+          conversation_id: conversationId,
           role: "assistant",
           content: trimmed,
           emotion: newEmotion,
         });
 
         await supabase
-          .from("user_character_states")
+          .from("conversations")
           .update({
             affection: newAffection,
             relationship_level: newLevel,
             emotion: newEmotion,
+            summary: updatedMemory,
+            last_message_at: now,
+            updated_at: now,
+          })
+          .eq("id", conversationId);
+
+        await supabase
+          .from("user_character_states")
+          .update({
             last_chat_at: now,
             last_seen_at: now,
-            memory_summary: updatedMemory,
           })
           .eq("user_id", user.id)
           .eq("character_id", characterId);

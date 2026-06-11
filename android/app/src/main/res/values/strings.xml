@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">AI 여자친구</string>
-    <string name="title_activity_main">AI 여자친구</string>
-    <string name="package_name">com.aigirlfriend.app</string>
-    <string name="custom_url_scheme">com.aigirlfriend.app</string>
+    <string name="app_name">픽미톡</string>
+    <string name="title_activity_main">픽미톡</string>
+    <string name="package_name">com.pickmetalk.app</string>
+    <string name="custom_url_scheme">com.pickmetalk.app</string>
 </resources>

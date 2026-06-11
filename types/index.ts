@@ -142,10 +142,25 @@ export interface PushEvent {
   emotion: EmotionState;
 }
 
+export interface Conversation {
+  id: string;
+  userId: string;
+  characterId: string;
+  title: string;
+  summary: string | null;
+  emotion: EmotionState;
+  affection: number;
+  relationshipLevel: RelationshipLevel;
+  createdAt: string;
+  updatedAt: string;
+  lastMessageAt: string | null;
+}
+
 export interface Message {
   id: string;
   userId: string;
   characterId: string;
+  conversationId?: string;
   role: "user" | "assistant" | "system";
   content: string;
   emotion?: EmotionState;

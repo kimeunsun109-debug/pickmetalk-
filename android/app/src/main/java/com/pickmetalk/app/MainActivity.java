@@ -1,4 +1,4 @@
-package com.aigirlfriend.app;
+package com.pickmetalk.app;
 
 import com.getcapacitor.BridgeActivity;
 

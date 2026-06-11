@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 
 const tabs = [
   { href: "/characters", label: "캐릭터", icon: "👤" },
-  { href: "/chat",       label: "채팅",   icon: "💬" },
+  { href: "/conversations", label: "채팅", icon: "💬" },
   { href: "/settings",  label: "설정",   icon: "⚙️" },
 ];
 

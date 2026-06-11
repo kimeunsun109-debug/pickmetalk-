@@ -8,15 +8,14 @@ import {
 } from "@/lib/relationship";
 import Image from "next/image";
 import Link from "next/link";
+import { goToCharacterChat } from "@/lib/navigateChat";
 import { useState } from "react";
 
-/**
- * ChatHeader — 아바타·감정 뱃지·호감도 진행바를 포함한 채팅 상단 헤더.
- *
- * 아바타 이미지 경로: /assets/characters/{characterId}/{emotion}.png
- * 파일이 없는 경우 캐릭터 이름 첫 글자 + 그라디언트 원으로 대체한다.
- */
-export function ChatHeader() {
+interface ChatHeaderProps {
+  conversationTitle?: string;
+}
+
+export function ChatHeader({ conversationTitle }: ChatHeaderProps) {
   const { character, characterId, emotion, affection, relationshipLevel } =
     useChat();
 
@@ -26,8 +25,8 @@ export function ChatHeader() {
 
   const avatarSrc = `/assets/characters/${characterId}/${emotion}.png`;
   const [imgError, setImgError] = useState(false);
+  const [creating, setCreating] = useState(false);
 
-  /** 감정에 따른 헤더 배경 그라디언트 (아주 옅게) */
   const emotionBg: Record<string, string> = {
     happy: "from-pink-50 to-white",
     excited: "from-rose-50 to-white",
@@ -39,17 +38,34 @@ export function ChatHeader() {
   };
   const bgGradient = emotionBg[emotion] ?? "from-pink-50 to-white";
 
+  async function handleNewConversation() {
+    if (creating) return;
+    setCreating(true);
+    try {
+      const res = await fetch("/api/conversations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ characterId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "생성 실패");
+      goToCharacterChat(characterId, data.conversation.id);
+    } catch {
+      // silent — user can retry
+    } finally {
+      setCreating(false);
+    }
+  }
+
   return (
     <header
       className={`sticky top-0 z-10 border-b bg-gradient-to-b ${bgGradient} shadow-sm`}
     >
-      {/* ── 상단 행: 뒤로가기 / 아바타+이름 / 레벨 ── */}
-      <div className="flex items-center gap-3 px-4 py-3">
-        {/* 뒤로가기 */}
+      <div className="flex items-center gap-2 px-3 py-3">
         <Link
-          href="/characters"
+          href="/conversations"
           className="shrink-0 rounded-full p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
-          aria-label="캐릭터 선택으로"
+          aria-label="대화 목록"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -65,7 +81,6 @@ export function ChatHeader() {
           </svg>
         </Link>
 
-        {/* 아바타 */}
         <div className="relative shrink-0">
           {!imgError ? (
             <Image
@@ -78,13 +93,10 @@ export function ChatHeader() {
               priority
             />
           ) : (
-            /* 이미지 없을 때 fallback: 그라디언트 원 + 이름 첫 글자 */
             <div className="flex size-11 items-center justify-center rounded-full bg-gradient-to-br from-pink-300 to-pink-500 text-lg font-bold text-white ring-2 ring-pink-soft">
               {character.name[0]}
             </div>
           )}
-
-          {/* 감정 이모지 뱃지 */}
           <span
             className="absolute -bottom-0.5 -right-1 rounded-full bg-white px-0.5 text-[15px] leading-none shadow-sm ring-1 ring-pink-soft/60"
             aria-label={`감정: ${meta.label}`}
@@ -93,13 +105,11 @@ export function ChatHeader() {
           </span>
         </div>
 
-        {/* 이름 + 감정 상태 */}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <span className="text-[15px] font-semibold text-gray-900">
               {character.name}
             </span>
-            {/* 감정 뱃지 — 감정 변화 시 부드럽게 페이드 */}
             <span
               key={emotion}
               className="animate-fadeIn rounded-full bg-pink-soft px-2 py-0.5 text-[10px] font-semibold text-pink-accent"
@@ -108,17 +118,24 @@ export function ChatHeader() {
             </span>
           </div>
           <p className="mt-0.5 truncate text-[11px] text-gray-400">
-            {meta.hint}
+            {conversationTitle ?? meta.hint}
           </p>
         </div>
 
-        {/* 관계 레벨 뱃지 */}
-        <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-[11px] font-bold text-pink-accent shadow-sm ring-1 ring-pink-soft">
+        <button
+          type="button"
+          onClick={handleNewConversation}
+          disabled={creating}
+          className="shrink-0 rounded-full border border-pink-accent px-2.5 py-1 text-[10px] font-semibold text-pink-accent disabled:opacity-50"
+        >
+          {creating ? "…" : "새 대화"}
+        </button>
+
+        <span className="shrink-0 rounded-full bg-white px-2 py-1 text-[11px] font-bold text-pink-accent shadow-sm ring-1 ring-pink-soft">
           Lv{relationshipLevel}
         </span>
       </div>
 
-      {/* ── 호감도 진행바 ── */}
       <div className="px-4 pb-3">
         <div className="mb-1.5 flex items-baseline justify-between">
           <span className="text-[10px] font-medium text-gray-600">

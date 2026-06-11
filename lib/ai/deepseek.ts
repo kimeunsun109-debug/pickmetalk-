@@ -1,73 +1,69 @@
 import type { ChatMessage } from "@/services/ai/provider";
+import OpenAI from "openai";
 
 const MODEL = "deepseek-chat";
 
+function getApiKey(): string {
+  const key = process.env.DEEPSEEK_API_KEY?.trim();
+  if (!key) {
+    throw new Error("DEEPSEEK_API_KEY가 설정되지 않았습니다.");
+  }
+  return key;
+}
+
+function getBaseURL(): string {
+  return (
+    process.env.DEEPSEEK_BASE_URL?.trim().replace(/\/$/, "") ??
+    "https://api.deepseek.com"
+  );
+}
+
 /**
- * DeepSeek 스트리밍 채팅 — 서버 전용 (DEEPSEEK_API_KEY는 클라이언트에 노출 금지)
+ * OpenAI SDK 호환 클라이언트 — baseURL만 DeepSeek
+ * 요청마다 env를 다시 읽어 dev 서버 재시작 없이 .env 변경이 반영되도록 함
  */
+export function createDeepSeekClient(): OpenAI {
+  return new OpenAI({
+    apiKey: getApiKey(),
+    baseURL: getBaseURL(),
+  });
+}
+
+/** @deprecated createDeepSeekClient() 사용 권장 */
+export const deepseek = {
+  get chat() {
+    return createDeepSeekClient().chat;
+  },
+};
+
+/** DeepSeek 스트리밍 채팅 — 서버 전용 */
 export async function* streamDeepSeekChat(
   messages: ChatMessage[]
 ): AsyncGenerator<string> {
-  const apiKey = process.env.DEEPSEEK_API_KEY;
-  const baseURL =
-    process.env.DEEPSEEK_BASE_URL?.replace(/\/$/, "") ??
-    "https://api.deepseek.com";
+  const client = createDeepSeekClient();
 
-  if (!apiKey) {
-    throw new Error("DEEPSEEK_API_KEY가 설정되지 않았습니다.");
-  }
-
-  const res = await fetch(`${baseURL}/chat/completions`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
+  try {
+    const stream = await client.chat.completions.create({
       model: MODEL,
       messages,
       stream: true,
       temperature: 0.85,
       max_tokens: 512,
-    }),
-  });
+    });
 
-  if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(`DeepSeek API 오류 (${res.status}): ${errText}`);
-  }
-
-  if (!res.body) {
-    throw new Error("DeepSeek 응답 본문이 없습니다.");
-  }
-
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop() ?? "";
-
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed.startsWith("data:")) continue;
-      const data = trimmed.slice(5).trim();
-      if (data === "[DONE]") return;
-
-      try {
-        const parsed = JSON.parse(data) as {
-          choices?: { delta?: { content?: string } }[];
-        };
-        const chunk = parsed.choices?.[0]?.delta?.content;
-        if (chunk) yield chunk;
-      } catch {
-        /* SSE 파싱 실패 줄은 무시 */
-      }
+    for await (const chunk of stream) {
+      const content = chunk.choices[0]?.delta?.content;
+      if (content) yield content;
     }
+  } catch (err) {
+    if (err instanceof OpenAI.APIError) {
+      if (err.status === 401) {
+        throw new Error(
+          "DeepSeek API 키가 올바르지 않습니다. .env.local의 DEEPSEEK_API_KEY를 확인하고 개발 서버(npm run dev)를 재시작해 주세요. Vercel 배포 중이라면 대시보드 환경 변수도 확인하세요."
+        );
+      }
+      throw new Error(`DeepSeek API 오류 (${err.status}): ${err.message}`);
+    }
+    throw err;
   }
 }

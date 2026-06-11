@@ -1,23 +1,5 @@
 "use client";
 
-/**
- * ChatProvider — 채팅 화면 전역 상태 관리
- *
- * 제공하는 상태:
- *   character, characterId, isPremiumUser
- *   emotion, affection, relationshipLevel
- *   messages, isTyping, isLoadingHistory
- *   showPremiumModal / openPremiumModal / closePremiumModal
- *
- * 사용법:
- *   <ChatProvider character={character} isPremiumUser={isPremiumUser}>
- *     <ChatScreen />
- *   </ChatProvider>
- *
- *   // 하위 컴포넌트에서
- *   const { emotion, sendMessage } = useChat();
- */
-
 import { normalizeEmotion } from "@/lib/emotions";
 import type { Character, EmotionState, RelationshipLevel } from "@/types";
 import type { ChatStreamChunk } from "@/types/api";
@@ -31,10 +13,6 @@ import {
   type ReactNode,
 } from "react";
 
-// ─────────────────────────────────────────────
-// Types
-// ─────────────────────────────────────────────
-
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant";
@@ -42,46 +20,26 @@ export interface ChatMessage {
 }
 
 interface ChatContextValue {
-  // ── Character ──────────────────────────────
   character: Character;
   characterId: string;
-
-  // ── User ───────────────────────────────────
-  /** 프리미엄 구독 여부 (나린 hidden-text blur 등에 사용) */
+  conversationId: string;
   isPremiumUser: boolean;
-
-  // ── Relationship state ─────────────────────
   emotion: EmotionState;
   affection: number;
   relationshipLevel: RelationshipLevel;
-  /** 마지막 대화 시각 ISO string (재방문 이벤트 트리거용) */
   lastChatAt: string | null;
-
-  // ── Messages ───────────────────────────────
   messages: ChatMessage[];
   isTyping: boolean;
   isLoadingHistory: boolean;
-
-  // ── Actions ────────────────────────────────
   sendMessage: (text: string) => Promise<void>;
   reload: () => Promise<void>;
-
-  // ── Premium modal ──────────────────────────
   showPremiumModal: boolean;
   openPremiumModal: () => void;
   closePremiumModal: () => void;
 }
 
-// ─────────────────────────────────────────────
-// Context
-// ─────────────────────────────────────────────
-
 const ChatContext = createContext<ChatContextValue | null>(null);
 
-/**
- * useChat — ChatProvider 하위의 어느 컴포넌트에서나 채팅 상태에 접근.
- * Provider 바깥에서 호출하면 에러를 던진다.
- */
 export function useChat(): ChatContextValue {
   const ctx = useContext(ChatContext);
   if (!ctx) {
@@ -90,30 +48,33 @@ export function useChat(): ChatContextValue {
   return ctx;
 }
 
-// ─────────────────────────────────────────────
-// Provider
-// ─────────────────────────────────────────────
-
 interface ChatProviderProps {
   character: Character;
+  /** URL의 characterId와 반드시 일치 */
+  characterId: string;
+  conversationId: string;
   isPremiumUser: boolean;
   children: ReactNode;
 }
 
 export function ChatProvider({
   character,
+  characterId,
+  conversationId,
   isPremiumUser,
   children,
 }: ChatProviderProps) {
-  const characterId = character.id;
+  if (character.id !== characterId) {
+    throw new Error(
+      `ChatProvider: character.id(${character.id}) !== characterId(${characterId})`
+    );
+  }
 
-  // ── Messages ───────────────────────────────
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const streamingIdRef = useRef<string | null>(null);
 
-  // ── Relationship state ─────────────────────
   const [affection, setAffection] = useState(0);
   const [relationshipLevel, setRelationshipLevel] =
     useState<RelationshipLevel>(1);
@@ -121,20 +82,21 @@ export function ChatProvider({
     character.defaultEmotion ?? "happy"
   );
   const [lastChatAt, setLastChatAt] = useState<string | null>(null);
-
-  // ── Premium modal ──────────────────────────
   const [showPremiumModal, setShowPremiumModal] = useState(false);
-
-  // ─────────────────────────────────────────────
-  // History loader
-  // ─────────────────────────────────────────────
 
   const loadHistory = useCallback(async () => {
     setIsLoadingHistory(true);
     try {
+      const cacheBust = Date.now();
       const [msgRes, relRes] = await Promise.all([
-        fetch(`/api/messages?characterId=${characterId}`),
-        fetch(`/api/relationship?characterId=${characterId}`),
+        fetch(
+          `/api/messages?conversationId=${conversationId}&_=${cacheBust}`,
+          { cache: "no-store" }
+        ),
+        fetch(
+          `/api/relationship?conversationId=${conversationId}&_=${cacheBust}`,
+          { cache: "no-store" }
+        ),
       ]);
       const [msgData, relData] = await Promise.all([
         msgRes.json(),
@@ -166,21 +128,24 @@ export function ChatProvider({
     } finally {
       setIsLoadingHistory(false);
     }
-  }, [characterId]);
+  }, [conversationId]);
 
   useEffect(() => {
+    setMessages([]);
+    setIsTyping(false);
+    setIsLoadingHistory(true);
+    setAffection(0);
+    setRelationshipLevel(1);
+    setEmotion(character.defaultEmotion ?? "happy");
+    setLastChatAt(null);
+    streamingIdRef.current = null;
     loadHistory();
-  }, [loadHistory]);
-
-  // ─────────────────────────────────────────────
-  // Send message (SSE streaming)
-  // ─────────────────────────────────────────────
+  }, [conversationId, character.id, character.defaultEmotion, loadHistory]);
 
   const sendMessage = useCallback(
     async (text: string) => {
       if (!text.trim() || isTyping) return;
 
-      // 사용자 메시지 즉시 추가
       const userMsgId = `user-${Date.now()}`;
       setMessages((prev) => [
         ...prev,
@@ -188,7 +153,6 @@ export function ChatProvider({
       ]);
       setIsTyping(true);
 
-      // AI 답변 placeholder
       const aiMsgId = `stream-${Date.now()}`;
       streamingIdRef.current = aiMsgId;
       setMessages((prev) => [
@@ -200,7 +164,10 @@ export function ChatProvider({
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ characterId, message: text.trim() }),
+          body: JSON.stringify({
+            conversationId,
+            message: text.trim(),
+          }),
         });
 
         if (!res.ok) {
@@ -256,7 +223,6 @@ export function ChatProvider({
           }
         }
 
-        // 스트리밍 완료 후 히스토리 동기화
         await loadHistory();
       } catch (e) {
         setMessages((prev) =>
@@ -277,18 +243,15 @@ export function ChatProvider({
         streamingIdRef.current = null;
       }
     },
-    [characterId, isTyping, loadHistory]
+    [conversationId, isTyping, loadHistory]
   );
-
-  // ─────────────────────────────────────────────
-  // Render
-  // ─────────────────────────────────────────────
 
   return (
     <ChatContext.Provider
       value={{
         character,
         characterId,
+        conversationId,
         isPremiumUser,
         emotion,
         affection,

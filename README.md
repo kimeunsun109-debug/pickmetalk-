@@ -1,6 +1,8 @@
-# AI 여자친구 — 한국형 감성 연애 채팅 MVP
+# 픽미톡 (PickmeTalk) — 감성 연애 채팅
 
-카카오톡 느낌의 감정·관계 성장형 AI 여자친구 웹앱.
+**도메인:** [pickmetalk.com](https://pickmetalk.com)
+
+카카오톡 느낌의 감정·관계 성장형 AI 캐릭터 채팅 웹앱.
 
 ## 기술 스택
 

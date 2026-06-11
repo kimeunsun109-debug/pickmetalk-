@@ -1,10 +1,11 @@
+import { getConversationForUser } from "@/lib/db/conversations";
 import { mapMessage } from "@/lib/db/mappers";
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
 const MESSAGE_LIMIT = 30;
 
-/** GET — 최근 메시지 30개 (user/assistant만) */
+/** GET — 대화방별 최근 메시지 30개 */
 export async function GET(request: Request) {
   const supabase = await createClient();
   const {
@@ -16,17 +17,26 @@ export async function GET(request: Request) {
   }
 
   const { searchParams } = new URL(request.url);
-  const characterId = searchParams.get("characterId");
+  const conversationId = searchParams.get("conversationId");
 
-  if (!characterId) {
-    return NextResponse.json({ error: "characterId 필요" }, { status: 400 });
+  if (!conversationId) {
+    return NextResponse.json({ error: "conversationId 필요" }, { status: 400 });
+  }
+
+  const conversation = await getConversationForUser(
+    supabase,
+    user.id,
+    conversationId
+  );
+  if (!conversation) {
+    return NextResponse.json({ error: "대화방을 찾을 수 없습니다." }, { status: 404 });
   }
 
   const { data, error } = await supabase
     .from("messages")
     .select("*")
     .eq("user_id", user.id)
-    .eq("character_id", characterId)
+    .eq("conversation_id", conversationId)
     .in("role", ["user", "assistant"])
     .order("created_at", { ascending: false })
     .limit(MESSAGE_LIMIT);
@@ -35,9 +45,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const messages = (data ?? [])
-    .map((row) => mapMessage(row))
-    .reverse();
+  const messages = (data ?? []).map((row) => mapMessage(row)).reverse();
 
   return NextResponse.json({ messages });
 }

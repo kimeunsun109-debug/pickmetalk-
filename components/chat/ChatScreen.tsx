@@ -20,7 +20,11 @@ import { useEffect, useRef, useState } from "react";
  *   - session_start 애널리틱스 로깅
  *   - 사용자 친화적 오류 메시지
  */
-export function ChatScreen() {
+export function ChatScreen({
+  conversationTitle,
+}: {
+  conversationTitle?: string;
+} = {}) {
   const {
     character,
     characterId,
@@ -92,7 +96,7 @@ export function ChatScreen() {
   return (
     <div className="flex min-h-[100dvh] flex-col bg-ivory">
       {/* 헤더 (아바타 + 감정 뱃지 + 호감도) */}
-      <ChatHeader />
+      <ChatHeader conversationTitle={conversationTitle} />
 
       {/* 메시지 목록 */}
       <main className="flex-1 overflow-y-auto scroll-ios py-3">

@@ -12,18 +12,18 @@ import type { CapacitorConfig } from "@capacitor/cli";
  *   → 네이티브 셸(APK) + 서버 렌더링 공존 가능
  *
  * ─── 환경별 전환 방법 ───────────────────────────────────────
- *   개발 중:   server.url = "http://10.0.2.2:3000"  (Android 에뮬레이터 → localhost)
- *   실제 기기: server.url = "http://[내 PC IP]:3000"
- *   프로덕션:  server.url = "https://your-app.vercel.app"
+ *   개발 중:   server.url = "https://pickmetalk.com"  (Android 에뮬레이터 → localhost)
+ *   실제 기기: server.url = "https://pickmetalk.com"
+ *   프로덕션:  server.url = "https://pickmetalk.com"
  * ──────────────────────────────────────────────────────────────
  */
 
 const config: CapacitorConfig = {
   /** 앱 고유 ID — 구글 플레이 스토어 등록 시 변경 불가 */
-  appId: "com.aigirlfriend.app",
+  appId: "com.pickmetalk.app",
 
   /** 앱 표시 이름 */
-  appName: "AI 여자친구",
+  appName: "픽미톡",
 
   /**
    * webDir — server.url 이 설정되면 이 폴더는 무시됩니다.
@@ -38,7 +38,7 @@ const config: CapacitorConfig = {
    *   10.0.2.2 는 Android 에뮬레이터의 localhost alias
    *
    * ── 프로덕션 배포 ──
-   *   Vercel URL로 교체: "https://your-app.vercel.app"
+   *   프로덕션: "https://pickmetalk.com"
    */
   server: {
     url: "http://10.0.2.2:3000",

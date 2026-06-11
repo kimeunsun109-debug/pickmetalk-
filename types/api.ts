@@ -1,7 +1,12 @@
 /** API 요청/응답 타입 */
 export interface ChatRequestBody {
-  characterId: string;
+  conversationId: string;
   message: string;
+}
+
+export interface CreateConversationBody {
+  characterId: string;
+  title?: string;
 }
 
 export interface ChatStreamChunk {

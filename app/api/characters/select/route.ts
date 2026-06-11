@@ -1,9 +1,11 @@
 import { getCharacterById } from "@/data";
-import { mapCharacterState } from "@/lib/db/mappers";
+import { touchCharacterSelection } from "@/lib/db/conversations";
+import { recentConversationQuery } from "@/lib/activeCharacter";
+import { mapCharacterState, mapConversation } from "@/lib/db/mappers";
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
-/** POST — 캐릭터 선택 후 user_character_states 저장 */
+/** POST — 캐릭터 선택 (user_character_states 갱신 + 최근 대화방 정보 반환) */
 export async function POST(request: Request) {
   const supabase = await createClient();
   const {
@@ -21,31 +23,34 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "characterId 필요" }, { status: 400 });
   }
 
-  const character = getCharacterById(characterId);
-  if (!character) {
+  if (!getCharacterById(characterId)) {
     return NextResponse.json({ error: "캐릭터를 찾을 수 없습니다." }, { status: 404 });
   }
 
-  const now = new Date().toISOString();
-
-  const { data, error } = await supabase
-    .from("user_character_states")
-    .upsert(
-      {
-        user_id: user.id,
-        character_id: characterId,
-        emotion: character.defaultEmotion,
-        expression: character.defaultExpression,
-        last_seen_at: now,
-      },
-      { onConflict: "user_id,character_id" }
-    )
-    .select()
-    .single();
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  try {
+    await touchCharacterSelection(supabase, user.id, characterId);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "선택 실패";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 
-  return NextResponse.json({ state: mapCharacterState(data) });
+  const { data: stateRow } = await supabase
+    .from("user_character_states")
+    .select("*")
+    .eq("user_id", user.id)
+    .eq("character_id", characterId)
+    .single();
+
+  const { data: convRows } = await recentConversationQuery(
+    supabase,
+    user.id,
+    characterId
+  );
+
+  return NextResponse.json({
+    state: stateRow ? mapCharacterState(stateRow) : null,
+    recentConversation: convRows?.[0]
+      ? mapConversation(convRows[0])
+      : null,
+  });
 }

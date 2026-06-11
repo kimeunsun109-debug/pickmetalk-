@@ -1,14 +1,22 @@
+import { BRAND } from "@/lib/brand";
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "AI 여자친구 — 감성 연애 채팅",
-  description: "한국형 감성 AI 여자친구 연애 채팅 서비스",
+  title: `${BRAND.name} — 감성 연애 채팅`,
+  description: BRAND.description,
+  metadataBase: new URL(BRAND.url),
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "AI 여자친구",
+    title: BRAND.name,
+  },
+  openGraph: {
+    title: BRAND.name,
+    description: BRAND.tagline,
+    url: BRAND.url,
+    siteName: BRAND.name,
   },
 };
 

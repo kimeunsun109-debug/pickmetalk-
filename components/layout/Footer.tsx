@@ -1,3 +1,4 @@
+import { BRAND } from "@/lib/brand";
 import Link from "next/link";
 
 /**
@@ -13,7 +14,7 @@ export function Footer({ className = "" }: { className?: string }) {
     <footer
       className={`flex flex-wrap items-center justify-center gap-x-4 gap-y-1 py-4 text-xs text-gray-400 ${className}`}
     >
-      <span>© 2026 픽미픽미</span>
+      <span>© 2026 {BRAND.name}</span>
       <span className="hidden sm:inline">·</span>
       <Link
         href="/privacy"
