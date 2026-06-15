@@ -3,59 +3,60 @@ import type { EmotionState } from "@/types";
 export interface EmotionMeta {
   emoji: string;
   label: string;
-  /** AI system prompt 말투 가이드 */
+  /** Tone guide used in AI system prompts. */
   speechGuide: string;
-  /** UI 한 줄 힌트 */
+  /** Short hint shown in the chat header. */
   hint: string;
 }
 
-/** 감정 UI·프롬프트 메타 (단일 출처) */
+/** Shared emotion metadata for UI and prompt composition. */
 export const EMOTION_META: Record<EmotionState, EmotionMeta> = {
   happy: {
-    emoji: "😘",
+    emoji: "😊",
     label: "행복",
-    speechGuide: "밝고 다정하게. 칭찬·호감에 기뻐하며 \"너랑 있어서 좋아❤️\" 같은 톤.",
-    hint: "지금 기분 좋음. 밝고 다정하게.",
+    speechGuide: "밝고 다정하게, 부담스럽지 않은 호감으로 반응한다.",
+    hint: "지금 기분이 좋아 보여요.",
   },
   excited: {
-    emoji: "🤗",
+    emoji: "✨",
     label: "설렘",
-    speechGuide: "부끄러워하고 수줍게. 애정 표현을 조금 더 많이. \"부끄러워...잉\" 같은 톤.",
-    hint: "설레고 수줍은 말투.",
+    speechGuide: "조금 들뜨고 수줍은 말투로 설렘을 표현한다.",
+    hint: "살짝 설레는 분위기예요.",
   },
   hurt: {
-    emoji: "😟",
+    emoji: "🥺",
     label: "서운함",
-    speechGuide: "짧고 서운하게. 답장을 기다렸다는 뉘앙스. \"답장 기다리고 있어...\"",
-    hint: "조금 서운한 상태.",
+    speechGuide: "차분하고 서운하지만 공격적이지 않게 반응한다.",
+    hint: "조금 서운해하고 있어요.",
   },
   pouty: {
-    emoji: "☹️",
+    emoji: "😗",
     label: "삐짐",
-    speechGuide: "퉁퉁하지만 사랑은 숨기지 않음. \"나... 서운해\" 같은 톤.",
-    hint: "살짝 삐진 상태.",
+    speechGuide: "귀엽게 삐진 듯 말하되 무례하거나 차갑지 않게 반응한다.",
+    hint: "살짝 삐진 상태예요.",
   },
   miss_you: {
-    emoji: "😢",
-    label: "보고싶음",
-    speechGuide: "그리움·외로움. \"지금 뭐해...?\" 처럼 먼저 챙기는 느낌.",
-    hint: "보고 싶어하는 상태.",
+    emoji: "💭",
+    label: "보고 싶음",
+    speechGuide:
+      "오래 만난 뒤 첫 턴에만 그리움을 살짝 담는다. '왔네/반가워' 반복 금지. 이후 턴은 일반 대화.",
+    hint: "보고 싶어하는 마음이 느껴져요.",
   },
   bored: {
-    emoji: "🥱",
+    emoji: "☁️",
     label: "심심함",
-    speechGuide: "심심해하며 대화를 이끌려 함. \"심심해...\" 같은 톤.",
-    hint: "심심해서 말 걸고 싶어함.",
+    speechGuide: "심심해서 말을 걸고 싶은 느낌으로 자연스럽게 반응한다.",
+    hint: "대화를 기다리고 있어요.",
   },
   special_day: {
-    emoji: "💕",
-    label: "특별한 하루",
-    speechGuide: "특별한 날처럼 따뜻하고 감동적인 말투. 과하지 않게 진심 어리게.",
-    hint: "오늘은 특별한 하루.",
+    emoji: "🎀",
+    label: "특별한 날",
+    speechGuide: "평소보다 조금 더 진심이 드러나게 반응한다.",
+    hint: "오늘은 조금 특별한 분위기예요.",
   },
 };
 
-/** DB·구버전 값 정규화 */
+/** Normalize DB or legacy emotion values. */
 export function normalizeEmotion(value: string | null | undefined): EmotionState {
   if (value === "jealous") return "pouty";
   if (value && value in EMOTION_META) return value as EmotionState;
@@ -66,7 +67,7 @@ export function getEmotionMeta(emotion: EmotionState): EmotionMeta {
   return EMOTION_META[normalizeEmotion(emotion)];
 }
 
-/** DeepSeek system prompt용 감정 블록 */
+/** Emotion block included in DeepSeek system prompts. */
 export function formatEmotionForPrompt(emotion: EmotionState): string {
   const meta = getEmotionMeta(emotion);
   return [

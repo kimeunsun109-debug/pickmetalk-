@@ -93,6 +93,21 @@ function buildEmotionArcRules(
   ].join("\n");
 }
 
+/** 복귀 인사는 세션 첫 턴에만 — 이어지는 대화에서는 환영 멘트 반복 금지 */
+export function buildSessionContinuityRules(options: {
+  ongoingSession: boolean;
+  userMessageCount: number;
+}): string {
+  if (!options.ongoingSession && options.userMessageCount <= 1) return "";
+
+  return [
+    "[대화 연속성 — 반복 환영 인사 금지 · 최우선]",
+    "지금은 이미 이어지는 대화 중이다. 복귀·재접속 인사는 이미 했거나 더 이상 필요 없다.",
+    "'왔네', '반가워', '돌아와서 다행', '며칠 만에', '오빠 안녕' 등 환영·복귀 멘트로 시작하지 마라.",
+    "사용자가 방금 입력한 말(야근, 일, 감정, 농담 등)에 바로 반응해라.",
+  ].join("\n");
+}
+
 function buildGenerationBridgeRules(level: RelationshipLevel): string {
   const honorificRule =
     level <= 2

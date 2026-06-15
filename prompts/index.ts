@@ -1,5 +1,9 @@
 import { getCharacterById } from "@/data";
-import { generateBaseSystemPrompt, MEMORY_PROMPT_RULES } from "./base";
+import {
+  buildSessionContinuityRules,
+  generateBaseSystemPrompt,
+  MEMORY_PROMPT_RULES,
+} from "./base";
 import { buildCharacterPromptById } from "./characterPrompt";
 import { getContextMemoryPrompt } from "@/services/memory";
 import type { EmotionState, RelationshipLevel } from "@/types";
@@ -22,7 +26,8 @@ export function buildSystemPrompt(
   memorySummary?: string | null,
   emotionDurationTurns = 1,
   userMessageCount = 0,
-  dynamicContextBlock = ""
+  dynamicContextBlock = "",
+  ongoingSession = false
 ): string {
   const character = getCharacterById(characterId);
   const characterBlock = buildCharacterPromptById(
@@ -46,8 +51,14 @@ export function buildSystemPrompt(
     ? `${MEMORY_PROMPT_RULES}\n\n[기억 요약]\n${memorySummary.trim()}`
     : "";
 
+  const sessionContinuityRules = buildSessionContinuityRules({
+    ongoingSession,
+    userMessageCount,
+  });
+
   return [
     dynamicContextBlock,
+    sessionContinuityRules,
     memoryPriorityHints,
     baseBlock,
     characterBlock,

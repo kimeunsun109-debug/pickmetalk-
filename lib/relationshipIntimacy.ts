@@ -77,7 +77,7 @@ const LEVEL_FORBIDDEN_PHRASES: Record<RelationshipLevel, string[]> = {
 
 const LEVEL_EXAMPLES: Record<RelationshipLevel, string> = {
   1: "「안녕 오빠 ☺️」「오늘 처음 제대로 얘기하는 거네~ 오늘 뭐했어?」 수준",
-  2: "「왔네~ 반가워」「조금 기다렸어, 바빴어?」 수준",
+  2: "「진짜 너무한다」「오늘 많이 버텼겠다」 수준 (환영 인사 반복 금지)",
   3: "「보고싶었어」「네가 오니까 기분 좋아」 수준 (아직 사랑 고백 X)",
   4: "「사랑해」「설렌다」「질투 나」 수준",
   5: "「여보」「평생 옆에」 등 깊은 애정",

@@ -9,8 +9,23 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { buildSystemPrompt } from "@/prompts";
 import { affectionToLevel, clampAffection } from "@/services/affection";
-import { resolveCharacterEmotion, countEmotionDurationTurns } from "@/services/emotion";
+import {
+  countEmotionDurationTurns,
+  isOngoingChatSession,
+  resolveCharacterEmotion,
+} from "@/services/emotion";
 import { pickMessagesForContext, updateMemorySummary } from "@/services/memory";
+import {
+  buildShortTermMemoryContextBlock,
+  completeMostRelevantShortTermMemory,
+  createShortTermMemory,
+  expireShortTermMemories,
+  getActiveShortTermMemories,
+} from "@/lib/db/shortTermMemories";
+import {
+  extractShortTermMemory,
+  isShortTermCompletionMessage,
+} from "@/services/shortTermMemory";
 import {
   extractUserContext,
   buildCommonContextBlock,
@@ -77,16 +92,41 @@ export async function POST(request: Request) {
     .maybeSingle();
   const profile = profileRow ? mapUserProfile(profileRow) : null;
 
-  const { error: userMsgError } = await supabase.from("messages").insert({
-    user_id: user.id,
-    character_id: characterId,
-    conversation_id: conversationId,
-    role: "user",
-    content: userText,
-  });
+  const { data: userMessageRow, error: userMsgError } = await supabase
+    .from("messages")
+    .insert({
+      user_id: user.id,
+      character_id: characterId,
+      conversation_id: conversationId,
+      role: "user",
+      content: userText,
+    })
+    .select("id")
+    .single();
 
   if (userMsgError) {
     return NextResponse.json({ error: userMsgError.message }, { status: 500 });
+  }
+
+  await expireShortTermMemories(supabase, user.id, now);
+
+  if (isShortTermCompletionMessage(userText)) {
+    await completeMostRelevantShortTermMemory(supabase, user.id, userText, now);
+  } else {
+    const extractedShortTermMemory = extractShortTermMemory(userText, new Date(now));
+    if (extractedShortTermMemory) {
+      await createShortTermMemory(supabase, {
+        userId: user.id,
+        conversationId,
+        characterId,
+        memoryType: extractedShortTermMemory.memoryType,
+        content: extractedShortTermMemory.content,
+        dueDate: extractedShortTermMemory.dueDate,
+        expiresAt: extractedShortTermMemory.expiresAt,
+        priority: extractedShortTermMemory.priority,
+        sourceMessageId: userMessageRow?.id ?? null,
+      });
+    }
   }
 
   // 첫 메시지면 제목 자동 생성
@@ -130,13 +170,19 @@ export async function POST(request: Request) {
   const newAffectionPreview = clampAffection(conversation.affection + 1);
   const newLevelPreview = affectionToLevel(newAffectionPreview);
 
-  const newEmotion = resolveCharacterEmotion({
-    userMessage: userText,
-    lastChatAt: conversation.lastMessageAt,
-    lastSeenAt: conversation.updatedAt,
-    currentEmotion: conversation.emotion,
-    affectionWillIncrease: true,
-  });
+  const ongoingSession = isOngoingChatSession(history);
+
+  const newEmotion = resolveCharacterEmotion(
+    {
+      userMessage: userText,
+      lastChatAt: conversation.lastMessageAt,
+      lastSeenAt: conversation.updatedAt,
+      currentEmotion: conversation.emotion,
+      affectionWillIncrease: true,
+    },
+    undefined,
+    history
+  );
 
   const emotionDurationTurns = countEmotionDurationTurns(history, newEmotion);
 
@@ -145,6 +191,13 @@ export async function POST(request: Request) {
     profile?.userContext ?? {}
   );
   const commonCtxBlock = buildCommonContextBlock(userCtx);
+  const activeShortTermMemories = await getActiveShortTermMemories(
+    supabase,
+    user.id,
+    now
+  );
+  const shortTermMemoryBlock =
+    buildShortTermMemoryContextBlock(activeShortTermMemories);
 
   let characterCtxBlock = "";
   if (characterId === "yoonseo") {
@@ -164,7 +217,11 @@ export async function POST(request: Request) {
     characterCtxBlock = buildYoonseoStatsBlock(yoonseoStats);
   }
 
-  const dynamicContextBlock = [commonCtxBlock, characterCtxBlock]
+  const dynamicContextBlock = [
+    shortTermMemoryBlock,
+    commonCtxBlock,
+    characterCtxBlock,
+  ]
     .filter(Boolean)
     .join("\n\n");
 
@@ -176,7 +233,8 @@ export async function POST(request: Request) {
     summary,
     emotionDurationTurns,
     userContents.length,
-    dynamicContextBlock
+    dynamicContextBlock,
+    ongoingSession
   );
 
   const aiMessages = [

@@ -52,10 +52,25 @@ export function inferEmotionFromUserMessage(text: string): EmotionState | null {
   return null;
 }
 
+/** 최근 턴들이 같은 대화 세션인지 (복귀 인사는 세션 첫 턴에만) */
+export function isOngoingChatSession(
+  history: Message[],
+  sessionGapMinutes = 45
+): boolean {
+  const userMsgs = history.filter((m) => m.role === "user");
+  if (userMsgs.length < 2) return false;
+
+  const prev = userMsgs[userMsgs.length - 2];
+  const gapMin =
+    (Date.now() - new Date(prev.createdAt).getTime()) / (1000 * 60);
+  return gapMin < sessionGapMinutes;
+}
+
 /** 유저 메시지 + 접속·답장 간격으로 캐릭터 감정 결정 */
 export function resolveCharacterEmotion(
   ctx: EmotionResolveContext | string,
-  legacyLastChatAt?: string | null
+  legacyLastChatAt?: string | null,
+  history: Message[] = []
 ): EmotionState {
   const input: EmotionResolveContext =
     typeof ctx === "string"
@@ -69,17 +84,20 @@ export function resolveCharacterEmotion(
   const fromMessage = inferEmotionFromUserMessage(text);
   if (fromMessage) return fromMessage;
 
+  const ongoingSession = isOngoingChatSession(history);
   const replyGapHours = hoursSince(input.lastChatAt);
   const absenceHours = hoursSince(input.lastSeenAt);
 
-  if (absenceHours != null && absenceHours >= 24) return "miss_you";
-  if (isLateNight() && replyGapHours != null && replyGapHours >= 6) {
-    return "miss_you";
-  }
+  if (!ongoingSession) {
+    if (absenceHours != null && absenceHours >= 24) return "miss_you";
+    if (isLateNight() && replyGapHours != null && replyGapHours >= 6) {
+      return "miss_you";
+    }
 
-  if (replyGapHours != null) {
-    if (replyGapHours >= 3) return "pouty";
-    if (replyGapHours >= 1) return "hurt";
+    if (replyGapHours != null) {
+      if (replyGapHours >= 3) return "pouty";
+      if (replyGapHours >= 1) return "hurt";
+    }
   }
 
   if (input.affectionWillIncrease) return "happy";
