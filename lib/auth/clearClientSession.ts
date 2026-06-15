@@ -1,4 +1,10 @@
-export const BROWSER_SESSION_KEY = "pickmetalk:browser-session";
+import {
+  BROWSER_SESSION_KEY,
+  clearBrowserSessionMarker,
+  markBrowserSessionActive,
+} from "@/lib/auth/browserSession";
+
+export { BROWSER_SESSION_KEY, markBrowserSessionActive };
 
 const EXACT_KEYS = [
   "selectedCharacterId",
@@ -7,6 +13,7 @@ const EXACT_KEYS = [
   "pickmetalk-session",
   "pickmetalk:session",
   BROWSER_SESSION_KEY,
+  "pickmetalk:open-tabs",
 ] as const;
 
 const PREFIXES = ["sb-", "pickmetalk-"] as const;
@@ -25,13 +32,16 @@ function clearStorage(storage: Storage) {
   keysToRemove.forEach((key) => storage.removeItem(key));
 }
 
-export function markBrowserSessionActive() {
+/** Remove chat and auth cache left in the browser. */
+export function clearClientSessionData() {
   if (typeof window === "undefined") return;
 
   try {
-    sessionStorage.setItem(BROWSER_SESSION_KEY, "active");
+    clearBrowserSessionMarker();
+    clearStorage(localStorage);
+    clearStorage(sessionStorage);
   } catch {
-    /* Private browsing modes may block sessionStorage. */
+    /* Private browsing modes may block storage access. */
   }
 }
 
@@ -39,20 +49,8 @@ export function hasActiveBrowserSession(): boolean {
   if (typeof window === "undefined") return false;
 
   try {
-    return sessionStorage.getItem(BROWSER_SESSION_KEY) === "active";
+    return localStorage.getItem(BROWSER_SESSION_KEY) === "active";
   } catch {
     return false;
-  }
-}
-
-/** Remove chat and auth cache left in the browser. */
-export function clearClientSessionData() {
-  if (typeof window === "undefined") return;
-
-  try {
-    clearStorage(localStorage);
-    clearStorage(sessionStorage);
-  } catch {
-    /* Private browsing modes may block storage access. */
   }
 }

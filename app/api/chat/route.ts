@@ -234,7 +234,8 @@ export async function POST(request: Request) {
     emotionDurationTurns,
     userContents.length,
     dynamicContextBlock,
-    ongoingSession
+    ongoingSession,
+    recent
   );
 
   const aiMessages = [

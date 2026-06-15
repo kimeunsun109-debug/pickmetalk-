@@ -1,3 +1,4 @@
+import { mapSessionCookies } from "@/lib/supabase/sessionCookies";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
@@ -18,6 +19,7 @@ export async function updateSession(request: NextRequest) {
   const isProtected =
     path.startsWith("/chat") ||
     path.startsWith("/characters") ||
+    path.startsWith("/conversations") ||
     path.startsWith("/settings") ||
     path.startsWith("/gifts");
 
@@ -46,11 +48,12 @@ export async function updateSession(request: NextRequest) {
           return request.cookies.getAll();
         },
         setAll(cookiesToSet: CookieToSet[]) {
-          cookiesToSet.forEach(({ name, value }) =>
+          const sessionCookies = mapSessionCookies(cookiesToSet);
+          sessionCookies.forEach(({ name, value }) =>
             request.cookies.set(name, value)
           );
           supabaseResponse = NextResponse.next({ request });
-          cookiesToSet.forEach(({ name, value, options }) =>
+          sessionCookies.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
           );
         },

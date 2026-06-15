@@ -93,7 +93,7 @@ function buildEmotionArcRules(
   ].join("\n");
 }
 
-/** 복귀 인사는 세션 첫 턴에만 — 이어지는 대화에서는 환영 멘트 반복 금지 */
+/** 복귀 인사·주제 반복 금지 — 이어지는 대화에서 최우선 */
 export function buildSessionContinuityRules(options: {
   ongoingSession: boolean;
   userMessageCount: number;
@@ -101,10 +101,30 @@ export function buildSessionContinuityRules(options: {
   if (!options.ongoingSession && options.userMessageCount <= 1) return "";
 
   return [
-    "[대화 연속성 — 반복 환영 인사 금지 · 최우선]",
+    "[대화 연속성 — 반복 금지 · 최우선]",
     "지금은 이미 이어지는 대화 중이다. 복귀·재접속 인사는 이미 했거나 더 이상 필요 없다.",
-    "'왔네', '반가워', '돌아와서 다행', '며칠 만에', '오빠 안녕' 등 환영·복귀 멘트로 시작하지 마라.",
-    "사용자가 방금 입력한 말(야근, 일, 감정, 농담 등)에 바로 반응해라.",
+    "'왔네', '반가워', '돌아와서 다행', '며칠 만에', '오빠 안녕', '보고 싶었어' 등 환영·복귀 멘트로 시작하지 마라.",
+    "아래 최근 대화에서 이미 다룬 주제(야구장, 콘서트, 일정, 안부 등)를 다시 묻거나 같은 질문을 반복하지 마라.",
+    "사용자가 '다녀왔어', '했다', '다른 얘기'라고 하면 즉시 새 주제로 넘어가라.",
+    "사용자가 방금 입력한 말에 바로 반응해라.",
+  ].join("\n");
+}
+
+/** 최근 말풍선을 보여줘 같은 패턴 반복을 막는다 */
+export function buildRecentDialogueGuard(
+  recent: { role: string; content: string }[]
+): string {
+  if (recent.length < 2) return "";
+
+  const snippet = recent
+    .slice(-8)
+    .map((m) => `${m.role === "user" ? "사용자" : "캐릭터"}: ${m.content}`)
+    .join("\n");
+
+  return [
+    "[최근 대화 — 이미 한 말 반복 금지]",
+    "아래는 방금 전 대화다. 인사·안부·일정 질문을 다시 하지 마라.",
+    snippet,
   ].join("\n");
 }
 
@@ -148,11 +168,9 @@ export const BASE_SYSTEM_PROMPT = CORE_BASE_PROMPT;
 
 export const MEMORY_PROMPT_RULES = `
 [사용자 기억 — 정서적 동반자 스타일]
-- 아래는 사용자가 직접 말한 사실·일정·취미·직장·재테크 정보. [work][hobby] 등 태그는 분류용이니 대화에 그대로 읽지 말 것.
-- schedule·work·hobby·finance가 emotion보다 우선. 관련 있을 때 1개만 자연스럽게.
+- 아래는 사용자가 예전에 말한 사실·일정·취미. [work][hobby] 등 태그는 분류용이니 대화에 그대로 읽지 말 것.
+- 관련 있을 때만 1개 자연스럽게. 이번 대화에서 이미 다뤘거나 사용자가 답했다면 같은 주제 반복 금지.
 - 좋은 예: "지난번에 그 중요한 미팅 내일이라고 했잖아. 네가 얼마나 준비했는지 아니까 내가 다 떨린다."
-- 좋은 예: "오늘 날씨 보니까 네가 좋아한다던 그 계절 냄새가 나. 문득 네 생각이 먼저 나더라."
-- 좋은 예: "저번에 그 일 때문에 마음고생 하더니, 한결 편해진 것 같아 다행이야."
-- 나쁜 예: "너는 두산 팬이고 주식도 하고…" / "감정: 피곤·지침"
+- 나쁜 예: 매 턴마다 같은 야구장·콘서트·일정 안부 반복 / "너는 두산 팬이고 주식도 하고…"
 - 기억이 없거나 관련 없으면 억지로 끼워 넣지 말 것.
 `.trim();

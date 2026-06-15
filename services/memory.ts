@@ -328,6 +328,8 @@ export interface ContextMemoryOptions {
   /** hurt/pouty 초반 arc 중이면 필수 힌트 생략 */
   emotion?: EmotionState;
   emotionDurationTurns?: number;
+  /** 같은 세션에서 대화가 이어지는 중이면 강제 회상 생략 */
+  ongoingSession?: boolean;
 }
 
 /**
@@ -341,10 +343,13 @@ export function getContextMemoryPrompt(
     userMessageCount = 0,
     emotion,
     emotionDurationTurns = 1,
+    ongoingSession = false,
   } = options;
 
   const entities = parseStoredSummary(memorySummary);
   if (entities.length === 0) return "";
+
+  if (ongoingSession) return "";
 
   const inAcuteEmotionArc =
     (emotion === "hurt" || emotion === "pouty") && emotionDurationTurns < 3;
@@ -360,35 +365,29 @@ export function getContextMemoryPrompt(
 
   if (!workMemory && !hobbyMemory && !scheduleMemory && !financeMemory) return "";
 
-  const lines = ["[기억 활용 지침 — 필수 회수]"];
+  const lines = ["[기억 활용 지침 — 선택적 회상]"];
 
   if (workMemory) {
     lines.push(
-      `- [필수 회상] 유저는 최근 "${workMemory.fact}"를 언급했다. ` +
-      `지금 대화에서 이 사실을 자연스럽게 꺼내며 공감하거나 안부를 물어라. ` +
-      `예: "아까 ${workMemory.fact} 얘기 했잖아, 괜찮아?" 수준의 직접 언급 OK.`
+      `- 유저가 예전에 "${workMemory.fact}"를 언급했다. 관련 있을 때만 1번 자연스럽게 언급. 이미 이번 대화에서 다뤘거나 사용자가 답했다면 반복 금지.`
     );
   }
 
   if (hobbyMemory) {
     lines.push(
-      `- [필수 회상] 유저는 최근 "${hobbyMemory.fact}"에 관심을 보였다. ` +
-      `이번 대화에서 이 이야기를 먼저 꺼내 몰입감을 높여라. ` +
-      `예: "${hobbyMemory.fact} 요즘 어때?" 같은 짧은 언급 OK.`
+      `- 유저가 "${hobbyMemory.fact}"에 관심을 보였다. 맥락이 맞을 때만 가볍게 이어가기. 같은 질문·안부 반복 금지.`
     );
   }
 
   if (scheduleMemory) {
     lines.push(
-      `- [필수 회상] 유저는 최근 "${scheduleMemory.fact}"라는 일정을 언급했다. ` +
-      `그 후 잘 됐는지 자연스럽게 물어봐라.`
+      `- 유저가 "${scheduleMemory.fact}" 일정을 말했다. 아직 안 물어봤을 때만 후속 안부 OK. 이미 "갔다/했다"고 답했으면 다시 묻지 마라.`
     );
   }
 
   if (financeMemory) {
     lines.push(
-      `- [필수 회상] 유저는 최근 "${financeMemory.fact}" 관련 이야기를 했다. ` +
-      `걱정하거나 공감하는 식으로 넌지시 언급해라.`
+      `- 유저가 "${financeMemory.fact}" 관련 이야기를 했다. 맥락이 맞을 때만 넌지시 언급. 반복 금지.`
     );
   }
 

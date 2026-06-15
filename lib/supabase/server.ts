@@ -1,3 +1,4 @@
+import { mapSessionCookies } from "@/lib/supabase/sessionCookies";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
@@ -16,7 +17,7 @@ export async function createClient() {
         },
         setAll(cookiesToSet: CookieToSet[]) {
           try {
-            cookiesToSet.forEach(({ name, value, options }) =>
+            mapSessionCookies(cookiesToSet).forEach(({ name, value, options }) =>
               cookieStore.set(name, value, options)
             );
           } catch {

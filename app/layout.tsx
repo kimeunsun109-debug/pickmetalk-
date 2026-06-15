@@ -1,3 +1,5 @@
+import { BrowserSessionGuard } from "@/components/auth/BrowserSessionGuard";
+import { BrowserSessionGuard } from "@/components/auth/BrowserSessionGuard";
 import { BRAND } from "@/lib/brand";
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
@@ -20,7 +22,7 @@ export const metadata: Metadata = {
   },
 };
 
-/** 모바일 최적화 viewport — 노치·다이나믹아일랜드 safe area 포함 */
+/** Mobile-first viewport with safe-area support. */
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
@@ -38,6 +40,7 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body className="antialiased">
+        <BrowserSessionGuard />
         <div className="app-shell">{children}</div>
       </body>
     </html>

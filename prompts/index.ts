@@ -1,12 +1,13 @@
 import { getCharacterById } from "@/data";
 import {
+  buildRecentDialogueGuard,
   buildSessionContinuityRules,
   generateBaseSystemPrompt,
   MEMORY_PROMPT_RULES,
 } from "./base";
 import { buildCharacterPromptById } from "./characterPrompt";
 import { getContextMemoryPrompt } from "@/services/memory";
-import type { EmotionState, RelationshipLevel } from "@/types";
+import type { EmotionState, Message, RelationshipLevel } from "@/types";
 
 /**
  * 최종 시스템 프롬프트 — 캐릭터 + 감정 + 호감도 + 관계 레벨 + 동적 컨텍스트
@@ -27,7 +28,8 @@ export function buildSystemPrompt(
   emotionDurationTurns = 1,
   userMessageCount = 0,
   dynamicContextBlock = "",
-  ongoingSession = false
+  ongoingSession = false,
+  recentMessages: Message[] = []
 ): string {
   const character = getCharacterById(characterId);
   const characterBlock = buildCharacterPromptById(
@@ -46,6 +48,7 @@ export function buildSystemPrompt(
     userMessageCount,
     emotion,
     emotionDurationTurns,
+    ongoingSession,
   });
   const memory = memorySummary?.trim()
     ? `${MEMORY_PROMPT_RULES}\n\n[기억 요약]\n${memorySummary.trim()}`
@@ -55,10 +58,12 @@ export function buildSystemPrompt(
     ongoingSession,
     userMessageCount,
   });
+  const recentDialogueGuard = buildRecentDialogueGuard(recentMessages);
 
   return [
     dynamicContextBlock,
     sessionContinuityRules,
+    recentDialogueGuard,
     memoryPriorityHints,
     baseBlock,
     characterBlock,
