@@ -1,14 +1,13 @@
 "use client";
 
+import { markBrowserSessionActive } from "@/lib/auth/clearClientSession";
 import { BRAND } from "@/lib/brand";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-/**
- * 비밀번호 재설정 — 이메일 링크로 진입 후 새 비밀번호 설정
- */
+/** Lets the user set a new password after opening a reset email link. */
 export default function ResetPasswordPage() {
   const router = useRouter();
   const [supabase, setSupabase] = useState<ReturnType<typeof createClient> | null>(
@@ -17,28 +16,89 @@ export default function ResetPasswordPage() {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    try {
-      const client = createClient();
-      setSupabase(client);
-      client.auth.getSession().then(({ data }) => {
-        if (data.session) {
-          setReady(true);
-        } else {
+    let cancelled = false;
+
+    function getRecoveryHashParams() {
+      if (!window.location.hash.startsWith("#")) return null;
+      const params = new URLSearchParams(window.location.hash.slice(1));
+      const accessToken = params.get("access_token");
+      const refreshToken = params.get("refresh_token");
+      const type = params.get("type");
+
+      if (type !== "recovery" || !accessToken || !refreshToken) return null;
+      return { accessToken, refreshToken };
+    }
+
+    async function prepareSession() {
+      try {
+        const client = createClient();
+        setSupabase(client);
+
+        const authError = new URLSearchParams(window.location.search).get("error");
+        if (authError === "auth") {
+          if (!cancelled) {
+            setError(
+              "링크가 만료되었거나 유효하지 않아요. 비밀번호 찾기에서 다시 요청해주세요."
+            );
+          }
+          return;
+        }
+
+        const recoveryTokens = getRecoveryHashParams();
+        if (recoveryTokens) {
+          const { error: sessionError } = await client.auth.setSession({
+            access_token: recoveryTokens.accessToken,
+            refresh_token: recoveryTokens.refreshToken,
+          });
+          if (sessionError) throw sessionError;
+
+          if (!cancelled) {
+            markBrowserSessionActive();
+            setReady(true);
+            router.replace("/reset-password");
+          }
+          return;
+        }
+
+        const { data } = await client.auth.getSession();
+        if (!cancelled) {
+          if (data.session) {
+            markBrowserSessionActive();
+            setReady(true);
+            const params = new URLSearchParams(window.location.search);
+            if (params.has("session_start") || params.has("error")) {
+              router.replace("/reset-password");
+            }
+          } else {
+            setError(
+              "링크가 만료되었거나 유효하지 않아요. 비밀번호 찾기에서 다시 요청해주세요."
+            );
+          }
+        }
+      } catch (e) {
+        if (!cancelled) {
           setError(
-            "링크가 만료되었거나 유효하지 않습니다. /forgot-password 에서 다시 시도해 주세요."
+            e instanceof Error
+              ? e.message
+              : "비밀번호 재설정 링크를 확인하지 못했습니다."
           );
         }
-      });
-    } catch (e) {
-      setError(
-        e instanceof Error ? e.message : "Supabase 설정을 확인해 주세요."
-      );
+      } finally {
+        if (!cancelled) setChecking(false);
+      }
     }
-  }, []);
+
+    prepareSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -61,6 +121,8 @@ export default function ResetPasswordPage() {
         password,
       });
       if (updateError) throw updateError;
+
+      markBrowserSessionActive();
       router.push("/characters");
       router.refresh();
     } catch (err) {
@@ -75,9 +137,18 @@ export default function ResetPasswordPage() {
   return (
     <main className="flex min-h-screen flex-col justify-center p-6">
       <h1 className="text-2xl font-bold text-pink-accent">{BRAND.name}</h1>
-      <p className="mt-2 text-sm text-gray-600">새 비밀번호를 설정해 주세요</p>
+      <p className="mt-2 text-lg font-semibold text-gray-900">
+        새 비밀번호 설정
+      </p>
+      <p className="mt-1 text-sm text-gray-500">
+        앞으로 사용할 새 비밀번호를 입력해주세요.
+      </p>
 
-      {ready ? (
+      {checking ? (
+        <p className="mt-8 rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-700">
+          재설정 링크를 확인하는 중이에요.
+        </p>
+      ) : ready ? (
         <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-4">
           <label className="text-sm font-medium text-gray-700">
             새 비밀번호 (6자 이상)
@@ -118,7 +189,7 @@ export default function ResetPasswordPage() {
             disabled={loading}
             className="rounded-full bg-pink-accent py-3 text-sm font-semibold text-white disabled:opacity-50"
           >
-            {loading ? "저장 중..." : "비밀번호 변경"}
+            {loading ? "변경 중..." : "비밀번호 변경"}
           </button>
         </form>
       ) : (

@@ -40,7 +40,11 @@ npm install
 1. [Supabase](https://supabase.com)에서 프로젝트 생성
 2. SQL Editor에서 `supabase/schema.sql` 실행
 3. Authentication → Providers에서 **Email** 활성화
-4. (선택) 이메일 확인 없이 바로 로그인하려면: Authentication → Settings에서 **Confirm email** 비활성화
+4. Authentication → **URL Configuration**에서 아래를 설정:
+   - **Site URL:** `https://pickmetalk.com` (로컬만 쓸 때는 `http://localhost:3000`)
+   - **Redirect URLs:** `http://localhost:3000/**`, `https://pickmetalk.com/**`
+   - 또는 `npx supabase config push`로 `supabase/config.toml` 반영
+5. (선택) 이메일 확인 없이 바로 로그인하려면: Authentication → Settings에서 **Confirm email** 비활성화
 
 ### 4. 개발 서버
 

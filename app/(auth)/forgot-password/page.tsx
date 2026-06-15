@@ -1,11 +1,12 @@
 "use client";
 
+import { buildAuthConfirmUrl } from "@/lib/appUrl";
 import { BRAND } from "@/lib/brand";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-/** 비밀번호 재설정 메일 발송 */
+/** Sends a password reset email through Supabase Auth. */
 export default function ForgotPasswordPage() {
   const [supabase, setSupabase] = useState<ReturnType<typeof createClient> | null>(
     null
@@ -19,15 +20,16 @@ export default function ForgotPasswordPage() {
     try {
       setSupabase(createClient());
     } catch (e) {
-      setError(
-        e instanceof Error ? e.message : "Supabase 설정을 확인해 주세요."
-      );
+      setError(e instanceof Error ? e.message : "Supabase 설정을 확인해주세요.");
     }
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!supabase) return;
+    if (!supabase) {
+      setError("Supabase URL과 anon key를 확인해주세요.");
+      return;
+    }
 
     setLoading(true);
     setError(null);
@@ -37,16 +39,14 @@ export default function ForgotPasswordPage() {
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(
         email,
         {
-          redirectTo: `${window.location.origin}/api/auth/callback?next=/reset-password`,
+          redirectTo: buildAuthConfirmUrl("/reset-password"),
         }
       );
       if (resetError) throw resetError;
-      setInfo(
-        "비밀번호 재설정 메일을 보냈어요. 메일함(스팸함 포함)을 확인해 주세요."
-      );
+      setInfo("비밀번호 재설정 메일을 보냈어요. 메일함과 스팸함을 확인해주세요.");
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "메일 발송에 실패했습니다."
+        err instanceof Error ? err.message : "재설정 메일 발송에 실패했습니다."
       );
     } finally {
       setLoading(false);
@@ -58,12 +58,12 @@ export default function ForgotPasswordPage() {
       <h1 className="text-2xl font-bold text-pink-accent">{BRAND.name}</h1>
       <p className="mt-2 text-lg font-semibold text-gray-900">비밀번호 찾기</p>
       <p className="mt-1 text-sm text-gray-500">
-        가입한 이메일로 재설정 링크를 보내드려요
+        가입한 이메일로 비밀번호 재설정 링크를 보내드릴게요.
       </p>
 
       <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-4">
         <label className="text-sm font-medium text-gray-700">
-          이메일 (아이디)
+          이메일
           <input
             type="email"
             required

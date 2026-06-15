@@ -1,0 +1,15 @@
+# Auth redirect URLs for email confirmation and password reset.
+# Push with: npx supabase config push --yes
+
+[auth]
+site_url = "https://pickmetalk.com"
+additional_redirect_urls = [
+  "http://localhost:3000/**",
+  "https://pickmetalk.com/**",
+  "https://www.pickmetalk.com/**",
+  "https://*.vercel.app/**",
+]
+
+[auth.email.template.recovery]
+subject = "픽미톡 비밀번호 재설정"
+content_path = "./templates/recovery.html"
