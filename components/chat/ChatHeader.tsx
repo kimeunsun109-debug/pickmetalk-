@@ -1,14 +1,15 @@
 "use client";
 
+import { LogoutButton } from "@/components/auth/LogoutButton";
 import { useChat } from "@/contexts/ChatProvider";
 import { getEmotionMeta } from "@/lib/emotions";
+import { goToCharacterChat } from "@/lib/navigateChat";
 import {
   affectionProgressBlocks,
   getRelationshipStage,
 } from "@/lib/relationship";
 import Image from "next/image";
 import Link from "next/link";
-import { goToCharacterChat } from "@/lib/navigateChat";
 import { useState } from "react";
 
 interface ChatHeaderProps {
@@ -26,6 +27,7 @@ export function ChatHeader({ conversationTitle }: ChatHeaderProps) {
   const avatarSrc = `/assets/characters/${characterId}/${emotion}.png`;
   const [imgError, setImgError] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   const emotionBg: Record<string, string> = {
     happy: "from-pink-50 to-white",
@@ -41,6 +43,7 @@ export function ChatHeader({ conversationTitle }: ChatHeaderProps) {
   async function handleNewConversation() {
     if (creating) return;
     setCreating(true);
+    setCreateError(null);
     try {
       const res = await fetch("/api/conversations", {
         method: "POST",
@@ -48,10 +51,16 @@ export function ChatHeader({ conversationTitle }: ChatHeaderProps) {
         body: JSON.stringify({ characterId }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "생성 실패");
+      if (!res.ok) {
+        throw new Error(data.error ?? "새 대화를 만들 수 없습니다.");
+      }
       goToCharacterChat(characterId, data.conversation.id);
-    } catch {
-      // silent — user can retry
+    } catch (e) {
+      setCreateError(
+        e instanceof Error
+          ? e.message
+          : "새 대화를 만들 수 없습니다. 잠시 후 다시 시도해주세요."
+      );
     } finally {
       setCreating(false);
     }
@@ -126,15 +135,25 @@ export function ChatHeader({ conversationTitle }: ChatHeaderProps) {
           type="button"
           onClick={handleNewConversation}
           disabled={creating}
-          className="shrink-0 rounded-full border border-pink-accent px-2.5 py-1 text-[10px] font-semibold text-pink-accent disabled:opacity-50"
+          aria-label={`${character.name} 새 대화 시작`}
+          title="새 대화"
+          className="shrink-0 rounded-full border border-pink-accent px-2.5 py-1 text-[10px] font-semibold text-pink-accent transition-colors hover:bg-pink-50 disabled:opacity-50"
         >
-          {creating ? "…" : "새 대화"}
+          {creating ? "생성 중" : "+ 새 대화"}
         </button>
 
         <span className="shrink-0 rounded-full bg-white px-2 py-1 text-[11px] font-bold text-pink-accent shadow-sm ring-1 ring-pink-soft">
           Lv{relationshipLevel}
         </span>
+
+        <LogoutButton variant="header" />
       </div>
+
+      {createError && (
+        <p className="mx-4 mb-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
+          {createError}
+        </p>
+      )}
 
       <div className="px-4 pb-3">
         <div className="mb-1.5 flex items-baseline justify-between">
@@ -149,7 +168,7 @@ export function ChatHeader({ conversationTitle }: ChatHeaderProps) {
           aria-valuenow={percent}
           aria-valuemin={0}
           aria-valuemax={100}
-          aria-label={`호감도 ${percent}퍼센트`}
+          aria-label={`호감도 ${percent}%`}
         >
           {Array.from({ length: total }).map((_, i) => (
             <span

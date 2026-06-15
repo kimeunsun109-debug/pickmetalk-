@@ -25,8 +25,19 @@ create index if not exists conversations_user_updated
 
 alter table public.conversations enable row level security;
 
-create policy "conversations_all_own" on public.conversations
-  for all using (auth.uid() = user_id);
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_policies
+    where schemaname = 'public'
+      and tablename = 'conversations'
+      and policyname = 'conversations_all_own'
+  ) then
+    create policy "conversations_all_own" on public.conversations
+      for all using (auth.uid() = user_id);
+  end if;
+end $$;
 
 -- messages에 conversation_id 추가
 alter table public.messages

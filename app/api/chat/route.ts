@@ -15,17 +15,7 @@ import {
   resolveCharacterEmotion,
 } from "@/services/emotion";
 import { pickMessagesForContext, updateMemorySummary } from "@/services/memory";
-import {
-  buildShortTermMemoryContextBlock,
-  completeMostRelevantShortTermMemory,
-  createShortTermMemory,
-  expireShortTermMemories,
-  getActiveShortTermMemories,
-} from "@/lib/db/shortTermMemories";
-import {
-  extractShortTermMemory,
-  isShortTermCompletionMessage,
-} from "@/services/shortTermMemory";
+import { ENABLE_SHORT_TERM_MEMORY } from "@/lib/constants";
 import {
   extractUserContext,
   buildCommonContextBlock,
@@ -109,34 +99,49 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: userMsgError.message }, { status: 500 });
   }
 
-  await expireShortTermMemories(supabase, user.id, now).catch(() => {
-    /* short_term_memories 테이블 미적용 시 무시 */
-  });
+  if (ENABLE_SHORT_TERM_MEMORY) {
+    try {
+      const {
+        completeMostRelevantShortTermMemory,
+        createShortTermMemory,
+        expireShortTermMemories,
+      } = await import("@/lib/db/shortTermMemories");
+      const {
+        extractShortTermMemory,
+        isShortTermCompletionMessage,
+      } = await import("@/services/shortTermMemory");
 
-  try {
-    if (isShortTermCompletionMessage(userText)) {
-      await completeMostRelevantShortTermMemory(supabase, user.id, userText, now);
-    } else {
-      const extractedShortTermMemory = extractShortTermMemory(
-        userText,
-        new Date(now)
-      );
-      if (extractedShortTermMemory) {
-        await createShortTermMemory(supabase, {
-          userId: user.id,
-          conversationId,
-          characterId,
-          memoryType: extractedShortTermMemory.memoryType,
-          content: extractedShortTermMemory.content,
-          dueDate: extractedShortTermMemory.dueDate,
-          expiresAt: extractedShortTermMemory.expiresAt,
-          priority: extractedShortTermMemory.priority,
-          sourceMessageId: userMessageRow?.id ?? null,
-        });
+      await expireShortTermMemories(supabase, user.id, now).catch(() => {});
+
+      if (isShortTermCompletionMessage(userText)) {
+        await completeMostRelevantShortTermMemory(
+          supabase,
+          user.id,
+          userText,
+          now
+        );
+      } else {
+        const extractedShortTermMemory = extractShortTermMemory(
+          userText,
+          new Date(now)
+        );
+        if (extractedShortTermMemory) {
+          await createShortTermMemory(supabase, {
+            userId: user.id,
+            conversationId,
+            characterId,
+            memoryType: extractedShortTermMemory.memoryType,
+            content: extractedShortTermMemory.content,
+            dueDate: extractedShortTermMemory.dueDate,
+            expiresAt: extractedShortTermMemory.expiresAt,
+            priority: extractedShortTermMemory.priority,
+            sourceMessageId: userMessageRow?.id ?? null,
+          });
+        }
       }
+    } catch {
+      /* 단기기억 비활성 — 채팅은 계속 */
     }
-  } catch {
-    /* 단기기억 기능 비활성/테이블 없음 — 채팅은 계속 */
   }
 
   // 첫 메시지면 제목 자동 생성
@@ -201,21 +206,25 @@ export async function POST(request: Request) {
     profile?.userContext ?? {}
   );
   const commonCtxBlock = buildCommonContextBlock(userCtx);
-  let activeShortTermMemories: Awaited<
-    ReturnType<typeof getActiveShortTermMemories>
-  > = [];
-  try {
-    activeShortTermMemories = await getActiveShortTermMemories(
-      supabase,
-      user.id,
-      now
-    );
-  } catch {
-    /* 테이블 없으면 단기기억 생략 */
+  let shortTermMemoryBlock = "";
+  if (ENABLE_SHORT_TERM_MEMORY && !ongoingSession) {
+    try {
+      const {
+        buildShortTermMemoryContextBlock,
+        getActiveShortTermMemories,
+      } = await import("@/lib/db/shortTermMemories");
+      const activeShortTermMemories = await getActiveShortTermMemories(
+        supabase,
+        user.id,
+        now
+      );
+      shortTermMemoryBlock = buildShortTermMemoryContextBlock(
+        activeShortTermMemories
+      );
+    } catch {
+      /* 단기기억 비활성 — 채팅은 계속 */
+    }
   }
-  const shortTermMemoryBlock = ongoingSession
-    ? ""
-    : buildShortTermMemoryContextBlock(activeShortTermMemories);
 
   let characterCtxBlock = "";
   if (characterId === "yoonseo") {

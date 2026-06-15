@@ -55,10 +55,9 @@ export function CharacterSelectClient({
 
       setConversations(convs);
       setPickerCharacter({ ...character, id: characterId });
-    } catch (e) {
-      setError(
-        e instanceof Error ? e.message : "오류가 발생했습니다. 다시 시도해주세요."
-      );
+    } catch {
+      // API 실패해도 채팅 화면은 열기
+      goToCharacterChat(characterId);
     } finally {
       setLoadingId(null);
       setPickerLoading(false);

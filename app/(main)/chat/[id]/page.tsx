@@ -1,3 +1,4 @@
+import { ChatErrorBoundary } from "@/components/chat/ChatErrorBoundary";
 import { ChatScreen } from "@/components/chat/ChatScreen";
 import { ChatProvider } from "@/contexts/ChatProvider";
 import { getCharacterById } from "@/data";
@@ -138,14 +139,16 @@ export default async function ChatPage({
   const isPremiumUser = profileRow?.is_premium ?? false;
 
   return (
-    <ChatProvider
-      key={`${characterId}-${conversation.id}`}
-      character={character}
-      characterId={characterId}
-      conversationId={conversation.id}
-      isPremiumUser={isPremiumUser}
-    >
-      <ChatScreen conversationTitle={conversation.title} />
-    </ChatProvider>
+    <ChatErrorBoundary>
+      <ChatProvider
+        key={`${characterId}-${conversation.id}`}
+        character={character}
+        characterId={characterId}
+        conversationId={conversation.id}
+        isPremiumUser={isPremiumUser}
+      >
+        <ChatScreen conversationTitle={conversation.title ?? "새 대화"} />
+      </ChatProvider>
+    </ChatErrorBoundary>
   );
 }

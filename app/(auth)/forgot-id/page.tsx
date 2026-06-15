@@ -1,7 +1,7 @@
 import { BRAND } from "@/lib/brand";
 import Link from "next/link";
 
-/** 아이디(이메일) 찾기 — 이메일 로그인 안내 */
+/** Email-based account id recovery guidance. */
 export default function ForgotIdPage() {
   return (
     <main className="flex min-h-screen flex-col justify-center p-6">
@@ -14,12 +14,11 @@ export default function ForgotIdPage() {
         </p>
         <p>
           가입할 때 사용한 이메일이 곧 아이디입니다. 메일함에서 가입 확인
-          메일을 검색해 보세요.
+          메일을 찾아보세요.
         </p>
         <p className="text-gray-500">
-          이메일이 기억나지 않으면, 가입에 사용한 메일 서비스(네이버, Gmail
-          등)에서 &quot;픽미톡&quot; 또는 &quot;pickmetalk&quot;으로 검색해
-          보세요.
+          이메일이 기억나지 않는다면 자주 쓰는 메일 서비스에서
+          &quot;픽미톡&quot; 또는 &quot;pickmetalk&quot;으로 검색해보세요.
         </p>
       </div>
 

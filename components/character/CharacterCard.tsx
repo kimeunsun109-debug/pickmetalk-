@@ -1,6 +1,6 @@
 import type { Character } from "@/types";
 
-/** 캐릭터 선택 카드 */
+/** Character selection card. */
 export function CharacterCard({
   character,
   onSelect,

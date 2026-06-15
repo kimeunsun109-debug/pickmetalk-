@@ -21,3 +21,6 @@ export const AFFECTION_TO_LEVEL: Record<number, number> = {
   71: 4,
   91: 5,
 };
+
+/** Temporary kill-switch while stabilizing chat entry. */
+export const ENABLE_SHORT_TERM_MEMORY = false;

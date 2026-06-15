@@ -1,8 +1,9 @@
 "use client";
 
+import { LogoutButton } from "@/components/auth/LogoutButton";
+import { clearClientSessionData } from "@/lib/auth/clearClientSession";
 import { FREE_DAILY_MESSAGE_LIMIT } from "@/lib/constants";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 interface CharacterState {
@@ -54,7 +55,6 @@ export function SettingsClient({
   todayMsgCount,
   sessionDates,
 }: SettingsClientProps) {
-  const router = useRouter();
   const streak = calcStreak(sessionDates);
   const remaining = Math.max(0, FREE_DAILY_MESSAGE_LIMIT - todayMsgCount);
   const mostChatted = characterStates[0];
@@ -103,8 +103,8 @@ export function SettingsClient({
       const res = await fetch("/api/account/delete", { method: "DELETE" });
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data.error ?? "삭제 실패");
-      router.push("/login");
-      router.refresh();
+      clearClientSessionData();
+      window.location.href = "/login";
     } catch (e) {
       setDeleteError(
         e instanceof Error ? e.message : "계정 삭제 중 오류가 발생했습니다."
@@ -175,6 +175,14 @@ export function SettingsClient({
           여러분의 사용 패턴이 서비스를 개선하는 데 활용됩니다. 버그나
           불편한 점은 언제든 피드백 주세요!
         </p>
+      </section>
+
+      {/* 로그아웃 */}
+      <section className="mb-6">
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-400">
+          계정
+        </h2>
+        <LogoutButton variant="settings" />
       </section>
 
       {/* 법적 링크 */}

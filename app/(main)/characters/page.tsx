@@ -8,10 +8,7 @@ import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
-/**
- * 캐릭터 선택 — data/characters.json 5명
- * 이미 선택한 캐릭터가 있으면 채팅 바로가기 표시
- */
+/** Character selection entry after login. */
 export default async function CharactersPage() {
   const supabase = await createClient();
   const {
@@ -50,9 +47,9 @@ export default async function CharactersPage() {
         <span className="text-sm text-gray-400">홈</span>
       </div>
 
-      <h1 className="text-xl font-bold">너의 그녀를 골라줘</h1>
+      <h1 className="text-xl font-bold">오늘의 그녀를 골라주세요</h1>
       <p className="mt-2 text-sm text-gray-500">
-        마음에 드는 캐릭터를 선택하면 채팅이 시작돼요
+        마음이 가는 캐릭터를 선택하면 대화를 시작할 수 있어요.
       </p>
       <div className="mt-6">
         <CharacterSelectClient

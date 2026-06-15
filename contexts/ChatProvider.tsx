@@ -1,6 +1,7 @@
 "use client";
 
 import { getCharacterById } from "@/data";
+import { markBrowserSessionActive } from "@/lib/auth/browserSession";
 import { normalizeEmotion } from "@/lib/emotions";
 import { resolveCharacterId } from "@/lib/chatRoute";
 import type { Character, EmotionState, RelationshipLevel } from "@/types";
@@ -24,7 +25,7 @@ export interface ChatMessage {
 interface ChatContextValue {
   character: Character;
   characterId: string;
-  conversationId: string;
+  conversationId: string | null;
   isPremiumUser: boolean;
   emotion: EmotionState;
   affection: number;
@@ -55,7 +56,7 @@ interface ChatProviderProps {
   character: Character;
   /** URL의 characterId와 반드시 일치 */
   characterId: string;
-  conversationId: string;
+  conversationId: string | null;
   isPremiumUser: boolean;
   children: ReactNode;
 }
@@ -87,17 +88,25 @@ export function ChatProvider({
   const [lastChatAt, setLastChatAt] = useState<string | null>(null);
   const [showPremiumModal, setShowPremiumModal] = useState(false);
 
+  const safeConversationId = conversationId?.trim() || null;
+
   const loadHistory = useCallback(async () => {
+    if (!safeConversationId) {
+      setMessages([]);
+      setIsLoadingHistory(false);
+      return;
+    }
+
     setIsLoadingHistory(true);
     try {
       const cacheBust = Date.now();
       const [msgRes, relRes] = await Promise.all([
         fetch(
-          `/api/messages?conversationId=${conversationId}&_=${cacheBust}`,
+          `/api/messages?conversationId=${safeConversationId}&_=${cacheBust}`,
           { cache: "no-store" }
         ),
         fetch(
-          `/api/relationship?conversationId=${conversationId}&_=${cacheBust}`,
+          `/api/relationship?conversationId=${safeConversationId}&_=${cacheBust}`,
           { cache: "no-store" }
         ),
       ]);
@@ -146,7 +155,11 @@ export function ChatProvider({
     } finally {
       setIsLoadingHistory(false);
     }
-  }, [conversationId]);
+  }, [safeConversationId]);
+
+  useEffect(() => {
+    markBrowserSessionActive();
+  }, []);
 
   useEffect(() => {
     setMessages([]);
@@ -159,7 +172,7 @@ export function ChatProvider({
     streamingIdRef.current = null;
     loadHistory();
   }, [
-    conversationId,
+    safeConversationId,
     resolvedCharacter.id,
     resolvedCharacter.defaultEmotion,
     loadHistory,
@@ -184,11 +197,15 @@ export function ChatProvider({
       ]);
 
       try {
+        if (!safeConversationId) {
+          throw new Error("대화방을 준비 중입니다. 잠시 후 다시 시도해주세요.");
+        }
+
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            conversationId,
+            conversationId: safeConversationId,
             message: text.trim(),
           }),
         });
@@ -266,7 +283,7 @@ export function ChatProvider({
         streamingIdRef.current = null;
       }
     },
-    [conversationId, isTyping, loadHistory]
+    [safeConversationId, isTyping, loadHistory]
   );
 
   const deleteMessage = useCallback(async (messageId: string) => {
@@ -287,7 +304,7 @@ export function ChatProvider({
       value={{
         character: resolvedCharacter,
         characterId: safeCharacterId,
-        conversationId,
+        conversationId: safeConversationId,
         isPremiumUser,
         emotion,
         affection,

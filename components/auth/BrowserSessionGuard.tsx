@@ -3,10 +3,8 @@
 import {
   hasActiveBrowserSession,
   markBrowserSessionActive,
-  registerBrowserTab,
 } from "@/lib/auth/browserSession";
 import { clearClientSessionData } from "@/lib/auth/clearClientSession";
-import { createClient } from "@/lib/supabase/client";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 
@@ -29,8 +27,6 @@ export function BrowserSessionGuard() {
   const pathname = usePathname();
   const router = useRouter();
 
-  useEffect(() => registerBrowserTab(), []);
-
   useEffect(() => {
     const isProtected = PROTECTED_PREFIXES.some((prefix) =>
       pathname.startsWith(prefix)
@@ -51,18 +47,9 @@ export function BrowserSessionGuard() {
       return;
     }
 
-    if (hasActiveBrowserSession()) return;
-
-    clearClientSessionData();
-    try {
-      const supabase = createClient();
-      supabase.auth.signOut().finally(() => {
-        router.replace("/login");
-        router.refresh();
-      });
-    } catch {
-      router.replace("/login");
-      router.refresh();
+    // Auth cookie is valid — keep the session marker (do not sign out on navigation).
+    if (!hasActiveBrowserSession()) {
+      markBrowserSessionActive();
     }
   }, [pathname, router]);
 

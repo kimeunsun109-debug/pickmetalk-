@@ -1,7 +1,6 @@
 import { normalizeEmotion } from "@/lib/emotions";
 import type {
   Conversation,
-  EmotionState,
   ExpressionState,
   Message,
   RelationshipLevel,

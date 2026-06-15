@@ -33,6 +33,7 @@ export function ChatScreen({
     isLoadingHistory,
     lastChatAt,
     sendMessage,
+    deleteMessage,
   } = useChat();
 
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -85,6 +86,19 @@ export function ChatScreen({
     }
   }
 
+  async function handleDeleteMessage(messageId: string) {
+    if (!window.confirm("이 메시지를 삭제할까요?")) return;
+
+    setSendError(null);
+    try {
+      await deleteMessage(messageId);
+    } catch (e) {
+      setSendError(
+        e instanceof Error ? e.message : "메시지를 삭제하지 못했습니다."
+      );
+    }
+  }
+
   // ── 부재 배너 닫기 ────────────────────────────
   function handleAbsenceDismiss() {
     setShowAbsence(false);
@@ -124,7 +138,12 @@ export function ChatScreen({
               msg.role === "assistant";
 
             return (
-              <MessageItem key={msg.id} message={msg} isStreaming={isStreaming} />
+              <MessageItem
+                key={msg.id}
+                message={msg}
+                isStreaming={isStreaming}
+                onDelete={handleDeleteMessage}
+              />
             );
           })
         )}
