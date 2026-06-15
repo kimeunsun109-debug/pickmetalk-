@@ -1,5 +1,4 @@
 import { BrowserSessionGuard } from "@/components/auth/BrowserSessionGuard";
-import { BrowserSessionGuard } from "@/components/auth/BrowserSessionGuard";
 import { BRAND } from "@/lib/brand";
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
