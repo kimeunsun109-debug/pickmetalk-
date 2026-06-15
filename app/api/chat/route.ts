@@ -36,7 +36,8 @@ import type { ChatRequestBody } from "@/types/api";
 import type { Message, UserCharacterState } from "@/types";
 import { NextResponse } from "next/server";
 
-const CONTEXT_LIMIT = 12;
+const CONTEXT_LIMIT = 20;
+const HISTORY_FETCH_LIMIT = 40;
 
 /**
  * POST /api/chat — DeepSeek 스트리밍 + 대화방별 메시지·호감도 저장
@@ -108,25 +109,34 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: userMsgError.message }, { status: 500 });
   }
 
-  await expireShortTermMemories(supabase, user.id, now);
+  await expireShortTermMemories(supabase, user.id, now).catch(() => {
+    /* short_term_memories 테이블 미적용 시 무시 */
+  });
 
-  if (isShortTermCompletionMessage(userText)) {
-    await completeMostRelevantShortTermMemory(supabase, user.id, userText, now);
-  } else {
-    const extractedShortTermMemory = extractShortTermMemory(userText, new Date(now));
-    if (extractedShortTermMemory) {
-      await createShortTermMemory(supabase, {
-        userId: user.id,
-        conversationId,
-        characterId,
-        memoryType: extractedShortTermMemory.memoryType,
-        content: extractedShortTermMemory.content,
-        dueDate: extractedShortTermMemory.dueDate,
-        expiresAt: extractedShortTermMemory.expiresAt,
-        priority: extractedShortTermMemory.priority,
-        sourceMessageId: userMessageRow?.id ?? null,
-      });
+  try {
+    if (isShortTermCompletionMessage(userText)) {
+      await completeMostRelevantShortTermMemory(supabase, user.id, userText, now);
+    } else {
+      const extractedShortTermMemory = extractShortTermMemory(
+        userText,
+        new Date(now)
+      );
+      if (extractedShortTermMemory) {
+        await createShortTermMemory(supabase, {
+          userId: user.id,
+          conversationId,
+          characterId,
+          memoryType: extractedShortTermMemory.memoryType,
+          content: extractedShortTermMemory.content,
+          dueDate: extractedShortTermMemory.dueDate,
+          expiresAt: extractedShortTermMemory.expiresAt,
+          priority: extractedShortTermMemory.priority,
+          sourceMessageId: userMessageRow?.id ?? null,
+        });
+      }
     }
+  } catch {
+    /* 단기기억 기능 비활성/테이블 없음 — 채팅은 계속 */
   }
 
   // 첫 메시지면 제목 자동 생성
@@ -155,7 +165,7 @@ export async function POST(request: Request) {
     .eq("conversation_id", conversationId)
     .in("role", ["user", "assistant"])
     .order("created_at", { ascending: true })
-    .limit(30);
+    .limit(HISTORY_FETCH_LIMIT);
 
   const history: Message[] = (historyRows ?? []).map((r) => mapMessage(r));
   const userContents = history
@@ -191,13 +201,21 @@ export async function POST(request: Request) {
     profile?.userContext ?? {}
   );
   const commonCtxBlock = buildCommonContextBlock(userCtx);
-  const activeShortTermMemories = await getActiveShortTermMemories(
-    supabase,
-    user.id,
-    now
-  );
-  const shortTermMemoryBlock =
-    buildShortTermMemoryContextBlock(activeShortTermMemories);
+  let activeShortTermMemories: Awaited<
+    ReturnType<typeof getActiveShortTermMemories>
+  > = [];
+  try {
+    activeShortTermMemories = await getActiveShortTermMemories(
+      supabase,
+      user.id,
+      now
+    );
+  } catch {
+    /* 테이블 없으면 단기기억 생략 */
+  }
+  const shortTermMemoryBlock = ongoingSession
+    ? ""
+    : buildShortTermMemoryContextBlock(activeShortTermMemories);
 
   let characterCtxBlock = "";
   if (characterId === "yoonseo") {

@@ -1,12 +1,13 @@
 "use client";
 
 import { goToCharacterChat } from "@/lib/navigateChat";
+import { resolveCharacterId } from "@/lib/chatRoute";
 import type { Character, Conversation } from "@/types";
 import Link from "next/link";
 import { useState } from "react";
 import { CharacterCard } from "./CharacterCard";
 
-/** 캐릭터 카드 클릭 → 해당 characterId 기준 채팅 진입 */
+/** Character card click flow: select character, then choose or create a room. */
 export function CharacterSelectClient({
   characters,
   activeCharacterId,
@@ -21,7 +22,7 @@ export function CharacterSelectClient({
   const [pickerLoading, setPickerLoading] = useState(false);
 
   async function selectCharacter(character: Character) {
-    const characterId = character.id;
+    const characterId = resolveCharacterId(character.id);
     setLoadingId(characterId);
     setError(null);
     setPickerLoading(true);
@@ -34,27 +35,30 @@ export function CharacterSelectClient({
       });
       if (!selectRes.ok) {
         const err = await selectRes.json();
-        throw new Error(err.error ?? "선택 실패");
+        throw new Error(err.error ?? "캐릭터 선택에 실패했습니다.");
       }
 
-      const res = await fetch(
-        `/api/conversations?characterId=${characterId}`,
-        { cache: "no-store" }
-      );
+      const res = await fetch(`/api/conversations?characterId=${characterId}`, {
+        cache: "no-store",
+      });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "목록 조회 실패");
+      if (!res.ok) {
+        throw new Error(data.error ?? "대화 목록을 불러오지 못했습니다.");
+      }
 
       const convs: Conversation[] = data.conversations ?? [];
 
-      if (convs.length <= 1) {
-        goToCharacterChat(characterId, convs[0]?.id);
+      if (convs.length === 0) {
+        goToCharacterChat(characterId);
         return;
       }
 
       setConversations(convs);
-      setPickerCharacter(character);
+      setPickerCharacter({ ...character, id: characterId });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "오류가 발생했습니다.");
+      setError(
+        e instanceof Error ? e.message : "오류가 발생했습니다. 다시 시도해주세요."
+      );
     } finally {
       setLoadingId(null);
       setPickerLoading(false);
@@ -71,11 +75,15 @@ export function CharacterSelectClient({
         body: JSON.stringify({ characterId }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "생성 실패");
+      if (!res.ok) {
+        throw new Error(data.error ?? "새 대화를 만들지 못했습니다.");
+      }
       setPickerCharacter(null);
       goToCharacterChat(characterId, data.conversation.id);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "오류가 발생했습니다.");
+      setError(
+        e instanceof Error ? e.message : "오류가 발생했습니다. 다시 시도해주세요."
+      );
     } finally {
       setPickerLoading(false);
     }
@@ -92,7 +100,7 @@ export function CharacterSelectClient({
         href="/conversations"
         className="rounded-full border border-pink-accent py-2 text-center text-sm text-pink-accent"
       >
-        내 대화 목록 보기 →
+        대화 목록 보기
       </Link>
 
       {error && (
@@ -122,10 +130,10 @@ export function CharacterSelectClient({
         >
           <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl">
             <h2 className="text-lg font-bold text-gray-900">
-              {pickerCharacter.name}와 대화
+              {pickerCharacter.name}와 대화하기
             </h2>
             <p className="mt-1 text-sm text-gray-500">
-              이어할 대화를 선택하거나 새로 시작하세요
+              이어갈 대화를 선택하거나 새 대화를 시작하세요.
             </p>
 
             {conversations[0] && (
@@ -141,7 +149,7 @@ export function CharacterSelectClient({
                 className="mt-4 w-full rounded-xl bg-pink-soft px-4 py-3 text-left text-sm hover:bg-pink-100 disabled:opacity-50"
               >
                 <span className="font-semibold text-pink-accent">
-                  최근 대화 이어하기
+                  최근 대화 이어가기
                 </span>
                 <span className="mt-0.5 block font-medium text-gray-900">
                   {conversations[0].title}
@@ -179,7 +187,7 @@ export function CharacterSelectClient({
               onClick={() => startNewConversation(pickerCharacter.id)}
               className="mt-4 w-full rounded-full bg-pink-accent py-3 text-sm font-semibold text-white disabled:opacity-50"
             >
-              {pickerLoading ? "처리 중…" : "+ 새 대화 시작하기"}
+              {pickerLoading ? "처리 중..." : "새 대화 시작하기"}
             </button>
 
             <button

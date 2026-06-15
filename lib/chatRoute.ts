@@ -5,6 +5,14 @@ const UUID_RE =
 
 const CHARACTER_IDS = new Set(characters.map((c) => c.id));
 
+export const DEFAULT_CHARACTER_ID = "yuna";
+
+/** 잘못된 ID면 유나로 폴백 */
+export function resolveCharacterId(value: string | null | undefined): string {
+  if (value && CHARACTER_IDS.has(value)) return value;
+  return DEFAULT_CHARACTER_ID;
+}
+
 export function isConversationUuid(value: string): boolean {
   return UUID_RE.test(value);
 }

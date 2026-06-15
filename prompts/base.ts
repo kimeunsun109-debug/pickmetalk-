@@ -98,7 +98,13 @@ export function buildSessionContinuityRules(options: {
   ongoingSession: boolean;
   userMessageCount: number;
 }): string {
-  if (!options.ongoingSession && options.userMessageCount <= 1) return "";
+  if (options.userMessageCount <= 1 && !options.ongoingSession) {
+    return [
+      "[첫 인사 규칙]",
+      "이 대화의 첫 사용자 메시지에만 가볍게 인사해도 된다.",
+      "그 이후 턴에서는 환영·복귀 인사를 반복하지 마라.",
+    ].join("\n");
+  }
 
   return [
     "[대화 연속성 — 반복 금지 · 최우선]",
@@ -117,7 +123,7 @@ export function buildRecentDialogueGuard(
   if (recent.length < 2) return "";
 
   const snippet = recent
-    .slice(-8)
+    .slice(-16)
     .map((m) => `${m.role === "user" ? "사용자" : "캐릭터"}: ${m.content}`)
     .join("\n");
 

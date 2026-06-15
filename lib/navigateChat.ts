@@ -1,11 +1,12 @@
-import { characterChatPath } from "@/lib/chatRoute";
+import { characterChatPath, resolveCharacterId } from "@/lib/chatRoute";
 
 /** 캐릭터 채팅으로 이동 — hard navigation으로 캐시·이전 상태 제거 */
 export function goToCharacterChat(
   characterId: string,
   conversationId?: string
 ) {
-  const path = characterChatPath(characterId, conversationId);
+  const safeCharacterId = resolveCharacterId(characterId);
+  const path = characterChatPath(safeCharacterId, conversationId);
   window.location.href = `${path}${path.includes("?") ? "&" : "?"}_=${Date.now()}`;
 }
 

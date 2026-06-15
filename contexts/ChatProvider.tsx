@@ -1,6 +1,8 @@
 "use client";
 
+import { getCharacterById } from "@/data";
 import { normalizeEmotion } from "@/lib/emotions";
+import { resolveCharacterId } from "@/lib/chatRoute";
 import type { Character, EmotionState, RelationshipLevel } from "@/types";
 import type { ChatStreamChunk } from "@/types/api";
 import {
@@ -32,6 +34,7 @@ interface ChatContextValue {
   isTyping: boolean;
   isLoadingHistory: boolean;
   sendMessage: (text: string) => Promise<void>;
+  deleteMessage: (messageId: string) => Promise<void>;
   reload: () => Promise<void>;
   showPremiumModal: boolean;
   openPremiumModal: () => void;
@@ -64,11 +67,11 @@ export function ChatProvider({
   isPremiumUser,
   children,
 }: ChatProviderProps) {
-  if (character.id !== characterId) {
-    throw new Error(
-      `ChatProvider: character.id(${character.id}) !== characterId(${characterId})`
-    );
-  }
+  const safeCharacterId = resolveCharacterId(characterId);
+  const resolvedCharacter =
+    character.id === safeCharacterId
+      ? character
+      : (getCharacterById(safeCharacterId) ?? character);
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
@@ -79,7 +82,7 @@ export function ChatProvider({
   const [relationshipLevel, setRelationshipLevel] =
     useState<RelationshipLevel>(1);
   const [emotion, setEmotion] = useState<EmotionState>(
-    character.defaultEmotion ?? "happy"
+    resolvedCharacter.defaultEmotion ?? "happy"
   );
   const [lastChatAt, setLastChatAt] = useState<string | null>(null);
   const [showPremiumModal, setShowPremiumModal] = useState(false);
@@ -98,10 +101,21 @@ export function ChatProvider({
           { cache: "no-store" }
         ),
       ]);
-      const [msgData, relData] = await Promise.all([
-        msgRes.json(),
-        relRes.json(),
-      ]);
+
+      let msgData: { messages?: unknown } = {};
+      let relData: { state?: Record<string, unknown> } = {};
+
+      try {
+        msgData = await msgRes.json();
+      } catch {
+        /* 빈 대화로 시작 */
+      }
+
+      try {
+        relData = await relRes.json();
+      } catch {
+        /* 기본 관계 상태 유지 */
+      }
 
       if (msgRes.ok && Array.isArray(msgData.messages)) {
         setMessages(
@@ -120,11 +134,15 @@ export function ChatProvider({
       }
 
       if (relRes.ok && relData.state) {
-        setAffection(relData.state.affection ?? 0);
-        setRelationshipLevel(relData.state.relationshipLevel ?? 1);
-        setEmotion(normalizeEmotion(relData.state.emotion));
-        setLastChatAt(relData.state.lastChatAt ?? null);
+        setAffection((relData.state.affection as number) ?? 0);
+        setRelationshipLevel(
+          (relData.state.relationshipLevel as RelationshipLevel) ?? 1
+        );
+        setEmotion(normalizeEmotion(relData.state.emotion as string));
+        setLastChatAt((relData.state.lastChatAt as string) ?? null);
       }
+    } catch {
+      /* 히스토리 로드 실패 시 빈 채팅으로 시작 */
     } finally {
       setIsLoadingHistory(false);
     }
@@ -136,11 +154,16 @@ export function ChatProvider({
     setIsLoadingHistory(true);
     setAffection(0);
     setRelationshipLevel(1);
-    setEmotion(character.defaultEmotion ?? "happy");
+    setEmotion(resolvedCharacter.defaultEmotion ?? "happy");
     setLastChatAt(null);
     streamingIdRef.current = null;
     loadHistory();
-  }, [conversationId, character.id, character.defaultEmotion, loadHistory]);
+  }, [
+    conversationId,
+    resolvedCharacter.id,
+    resolvedCharacter.defaultEmotion,
+    loadHistory,
+  ]);
 
   const sendMessage = useCallback(
     async (text: string) => {
@@ -246,11 +269,24 @@ export function ChatProvider({
     [conversationId, isTyping, loadHistory]
   );
 
+  const deleteMessage = useCallback(async (messageId: string) => {
+    const res = await fetch(`/api/messages/${messageId}`, {
+      method: "DELETE",
+    });
+
+    if (!res.ok) {
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      throw new Error(data.error ?? "메시지를 삭제하지 못했습니다.");
+    }
+
+    setMessages((prev) => prev.filter((message) => message.id !== messageId));
+  }, []);
+
   return (
     <ChatContext.Provider
       value={{
-        character,
-        characterId,
+        character: resolvedCharacter,
+        characterId: safeCharacterId,
         conversationId,
         isPremiumUser,
         emotion,
@@ -261,6 +297,7 @@ export function ChatProvider({
         isTyping,
         isLoadingHistory,
         sendMessage,
+        deleteMessage,
         reload: loadHistory,
         showPremiumModal,
         openPremiumModal: () => setShowPremiumModal(true),

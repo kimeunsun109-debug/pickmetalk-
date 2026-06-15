@@ -2,6 +2,7 @@ import { ChatScreen } from "@/components/chat/ChatScreen";
 import { ChatProvider } from "@/contexts/ChatProvider";
 import { getCharacterById } from "@/data";
 import {
+  createConversation,
   getConversationForCharacter,
   getConversationForUser,
   getOrCreateRecentConversation,
@@ -11,6 +12,7 @@ import {
   characterChatPath,
   isCharacterId,
   isConversationUuid,
+  resolveCharacterId,
 } from "@/lib/chatRoute";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
@@ -59,10 +61,12 @@ export default async function ChatPage({
     redirect(characterChatPath(conv.characterId, conv.id));
   }
 
-  if (!isCharacterId(id)) {
+  const characterId = isCharacterId(id) ? id : resolveCharacterId(id);
+  const character = getCharacterById(characterId);
+  if (!character) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center gap-4 p-6">
-        <p className="text-sm text-gray-600">잘못된 채팅 주소입니다.</p>
+        <p className="text-sm text-gray-600">캐릭터 정보를 불러오지 못했습니다.</p>
         <Link
           href="/characters"
           className="rounded-full bg-pink-accent px-6 py-2 text-sm text-white"
@@ -73,27 +77,57 @@ export default async function ChatPage({
     );
   }
 
-  const characterId = id;
-  const character = getCharacterById(characterId);
-  if (!character) {
-    return (
-      <main className="p-6 text-sm text-red-600">
-        캐릭터 정보를 찾을 수 없습니다.
-      </main>
-    );
+  try {
+    await touchCharacterSelection(supabase, user.id, characterId);
+  } catch {
+    /* 선택 기록 실패해도 채팅은 진행 */
   }
 
-  await touchCharacterSelection(supabase, user.id, characterId);
+  let conversation;
 
-  const conversation = queryConversationId
-    ? (await getConversationForCharacter(
+  try {
+    if (queryConversationId) {
+      const matched = await getConversationForCharacter(
         supabase,
         user.id,
         characterId,
         queryConversationId
-      )) ??
-      (await getOrCreateRecentConversation(supabase, user.id, characterId))
-    : await getOrCreateRecentConversation(supabase, user.id, characterId);
+      );
+      if (matched) {
+        conversation = matched;
+      } else {
+        conversation = await getOrCreateRecentConversation(
+          supabase,
+          user.id,
+          characterId
+        );
+      }
+    } else {
+      conversation = await getOrCreateRecentConversation(
+        supabase,
+        user.id,
+        characterId
+      );
+    }
+  } catch {
+    try {
+      conversation = await createConversation(supabase, user.id, characterId);
+    } catch {
+      return (
+        <main className="flex min-h-screen flex-col items-center justify-center gap-4 p-6">
+          <p className="text-sm text-gray-600">
+            대화방을 열지 못했습니다. 잠시 후 다시 시도해주세요.
+          </p>
+          <Link
+            href="/characters"
+            className="rounded-full bg-pink-accent px-6 py-2 text-sm text-white"
+          >
+            캐릭터 선택
+          </Link>
+        </main>
+      );
+    }
+  }
 
   const { data: profileRow } = await supabase
     .from("profiles")

@@ -1,6 +1,6 @@
 import type { Message, EmotionState } from "@/types";
 
-const RECENT_MESSAGE_LIMIT = 12;
+const RECENT_MESSAGE_LIMIT = 20;
 const MAX_MEMORY_FACTS = 10;
 const MAX_EMOTION_MEMORIES = 2;
 
