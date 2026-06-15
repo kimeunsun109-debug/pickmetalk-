@@ -167,6 +167,37 @@ export interface Message {
   createdAt: string;
 }
 
+export type ShortTermMemoryType =
+  | "reminder"
+  | "mission"
+  | "purchase"
+  | "health"
+  | "weather"
+  | "gratitude"
+  | "follow_up";
+
+export type ShortTermMemoryStatus =
+  | "active"
+  | "completed"
+  | "expired"
+  | "dismissed";
+
+export interface ShortTermMemory {
+  id: string;
+  userId: string;
+  conversationId: string | null;
+  characterId: string | null;
+  memoryType: ShortTermMemoryType;
+  content: string;
+  dueDate: string | null;
+  expiresAt: string;
+  status: ShortTermMemoryStatus;
+  priority: number;
+  sourceMessageId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Gift {
   id: string;
   name: string;
