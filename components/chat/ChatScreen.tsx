@@ -2,12 +2,13 @@
 
 import { ChatHeader } from "@/components/chat/ChatHeader";
 import { ChatInput } from "@/components/chat/ChatInput";
+import { MessageActionSheet } from "@/components/chat/MessageActionSheet";
 import { MessageItem } from "@/components/chat/MessageItem";
 import { PremiumModal } from "@/components/chat/PremiumModal";
-import { TypingIndicator } from "@/components/chat/TypingIndicator";
 import { AbsenceWelcome } from "@/components/events/AbsenceWelcome";
 import { useChat } from "@/contexts/ChatProvider";
 import { useAbsenceEvent } from "@/hooks/useAbsenceEvent";
+import { getMessageGroupMeta } from "@/lib/chatMessageLayout";
 import { trackEvent } from "@/services/analytics";
 import { useEffect, useRef, useState } from "react";
 
@@ -38,6 +39,7 @@ export function ChatScreen({
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const [sendError, setSendError] = useState<string | null>(null);
+  const [menuMessageId, setMenuMessageId] = useState<string | null>(null);
 
   // ── 재방문 이벤트 ─────────────────────────────
   const absence = useAbsenceEvent(lastChatAt, characterId);
@@ -87,8 +89,6 @@ export function ChatScreen({
   }
 
   async function handleDeleteMessage(messageId: string) {
-    if (!window.confirm("이 메시지를 삭제할까요?")) return;
-
     setSendError(null);
     try {
       await deleteMessage(messageId);
@@ -97,6 +97,18 @@ export function ChatScreen({
         e instanceof Error ? e.message : "메시지를 삭제하지 못했습니다."
       );
     }
+  }
+
+  function handleMessageLongPress(messageId: string) {
+    const meta = messages.findIndex((m) => m.id === messageId);
+    if (meta < 0) return;
+    const { canDelete } = getMessageGroupMeta(messages, meta);
+    const isStreamingLast =
+      isTyping &&
+      meta === messages.length - 1 &&
+      messages[meta]?.role === "assistant";
+    if (!canDelete || isStreamingLast) return;
+    setMenuMessageId(messageId);
   }
 
   // ── 부재 배너 닫기 ────────────────────────────
@@ -108,26 +120,23 @@ export function ChatScreen({
   }
 
   return (
-    <div className="flex min-h-[100dvh] flex-col bg-ivory">
+    <div className="flex min-h-[100dvh] flex-col bg-[#b2c7d9]/30">
       {/* 헤더 (아바타 + 감정 뱃지 + 호감도) */}
       <ChatHeader conversationTitle={conversationTitle} />
 
       {/* 메시지 목록 */}
-      <main className="flex-1 overflow-y-auto scroll-ios py-3">
+      <main className="flex-1 overflow-y-auto scroll-ios pb-2">
         {isLoadingHistory ? (
           <div className="flex h-full items-center justify-center py-20">
             <div className="flex flex-col items-center gap-3">
-              <div className="h-10 w-10 animate-spin rounded-full border-[3px] border-pink-accent/30 border-t-pink-accent" />
-              <p className="text-sm text-gray-400">대화 불러오는 중…</p>
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-pink-accent/30 border-t-pink-accent" />
+              <p className="text-sm text-gray-500">대화 불러오는 중…</p>
             </div>
           </div>
         ) : messages.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 px-8 py-20 text-center">
-            <span className="text-4xl" aria-hidden>
-              💬
-            </span>
-            <p className="text-sm text-gray-400">
-              {character.name}에게 첫 인사를 건네보세요!
+            <p className="text-sm text-gray-500">
+              {character.name}에게 첫 인사를 건네보세요
             </p>
           </div>
         ) : (
@@ -136,38 +145,43 @@ export function ChatScreen({
               isTyping &&
               idx === messages.length - 1 &&
               msg.role === "assistant";
+            const group = getMessageGroupMeta(messages, idx);
 
             return (
               <MessageItem
                 key={msg.id}
                 message={msg}
                 isStreaming={isStreaming}
-                onDelete={handleDeleteMessage}
+                showAvatar={group.showAvatar}
+                showAvatarSpacer={group.showAvatarSpacer}
+                isGroupedWithPrev={group.isGroupedWithPrev}
+                isGroupedWithNext={group.isGroupedWithNext}
+                canDelete={group.canDelete && !isStreaming}
+                onLongPress={handleMessageLongPress}
               />
             );
           })
         )}
 
-        {/* 타이핑 인디케이터 */}
-        {isTyping && (
-          <div className="flex items-start gap-2 px-3 py-1">
-            <TypingIndicator />
-          </div>
-        )}
-
-        {/* 스크롤 앵커 */}
         <div ref={bottomRef} />
       </main>
 
       {/* 전송 오류 토스트 */}
       {sendError && (
-        <div className="mx-3 mb-1 rounded-xl bg-red-50 px-4 py-2.5 text-xs text-red-600 shadow-sm ring-1 ring-red-200">
-          ⚠️ {sendError}
+        <div className="mx-3 mb-1 rounded-xl bg-red-50 px-4 py-2 text-xs text-red-600">
+          {sendError}
         </div>
       )}
 
-      {/* 입력창 */}
       <ChatInput disabled={isTyping || isLoadingHistory} onSend={handleSend} />
+
+      <MessageActionSheet
+        open={menuMessageId !== null}
+        onClose={() => setMenuMessageId(null)}
+        onDelete={() => {
+          if (menuMessageId) void handleDeleteMessage(menuMessageId);
+        }}
+      />
 
       {/* 프리미엄 모달 (fixed overlay) */}
       <PremiumModal />

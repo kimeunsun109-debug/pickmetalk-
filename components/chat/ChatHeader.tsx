@@ -1,8 +1,6 @@
 "use client";
 
-import { LogoutButton } from "@/components/auth/LogoutButton";
 import { useChat } from "@/contexts/ChatProvider";
-import { getEmotionMeta } from "@/lib/emotions";
 import { goToCharacterChat } from "@/lib/navigateChat";
 import {
   affectionProgressBlocks,
@@ -10,7 +8,7 @@ import {
 } from "@/lib/relationship";
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface ChatHeaderProps {
   conversationTitle?: string;
@@ -20,30 +18,38 @@ export function ChatHeader({ conversationTitle }: ChatHeaderProps) {
   const { character, characterId, emotion, affection, relationshipLevel } =
     useChat();
 
-  const meta = getEmotionMeta(emotion);
   const stage = getRelationshipStage(affection);
   const { filled, total, percent } = affectionProgressBlocks(affection);
 
   const avatarSrc = `/assets/characters/${characterId}/${emotion}.png`;
   const [imgError, setImgError] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
-  const emotionBg: Record<string, string> = {
-    happy: "from-pink-50 to-white",
-    excited: "from-rose-50 to-white",
-    hurt: "from-blue-50 to-white",
-    pouty: "from-purple-50 to-white",
-    miss_you: "from-indigo-50 to-white",
-    bored: "from-gray-50 to-white",
-    special_day: "from-yellow-50 to-white",
-  };
-  const bgGradient = emotionBg[emotion] ?? "from-pink-50 to-white";
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    function handlePointerDown(e: MouseEvent | TouchEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("touchstart", handlePointerDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("touchstart", handlePointerDown);
+    };
+  }, [menuOpen]);
 
   async function handleNewConversation() {
     if (creating) return;
     setCreating(true);
     setCreateError(null);
+    setMenuOpen(false);
     try {
       const res = await fetch("/api/conversations", {
         method: "POST",
@@ -66,14 +72,16 @@ export function ChatHeader({ conversationTitle }: ChatHeaderProps) {
     }
   }
 
+  const subtitle =
+    conversationTitle?.trim() ||
+    (relationshipLevel >= 2 ? stage.label : "대화 중");
+
   return (
-    <header
-      className={`sticky top-0 z-10 border-b bg-gradient-to-b ${bgGradient} shadow-sm`}
-    >
-      <div className="flex items-center gap-2 px-3 py-3">
+    <header className="sticky top-0 z-10 border-b border-gray-100 bg-white/95 backdrop-blur-md">
+      <div className="flex items-center gap-2.5 px-3 py-2.5">
         <Link
           href="/conversations"
-          className="shrink-0 rounded-full p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
+          className="shrink-0 rounded-full p-1.5 text-gray-500 transition-colors active:bg-gray-100"
           aria-label="대화 목록"
         >
           <svg
@@ -94,59 +102,65 @@ export function ChatHeader({ conversationTitle }: ChatHeaderProps) {
           {!imgError ? (
             <Image
               src={avatarSrc}
-              alt={`${character.name} ${meta.label}`}
-              width={44}
-              height={44}
-              className="rounded-full object-cover ring-2 ring-pink-soft transition-all duration-500"
+              alt={character.name}
+              width={40}
+              height={40}
+              className="size-10 rounded-full object-cover"
               onError={() => setImgError(true)}
               priority
             />
           ) : (
-            <div className="flex size-11 items-center justify-center rounded-full bg-gradient-to-br from-pink-300 to-pink-500 text-lg font-bold text-white ring-2 ring-pink-soft">
+            <div className="flex size-10 items-center justify-center rounded-full bg-gradient-to-br from-pink-300 to-pink-500 text-base font-bold text-white">
               {character.name[0]}
             </div>
           )}
-          <span
-            className="absolute -bottom-0.5 -right-1 rounded-full bg-white px-0.5 text-[15px] leading-none shadow-sm ring-1 ring-pink-soft/60"
-            aria-label={`감정: ${meta.label}`}
-          >
-            {meta.emoji}
-          </span>
         </div>
 
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <span className="text-[15px] font-semibold text-gray-900">
-              {character.name}
-            </span>
-            <span
-              key={emotion}
-              className="animate-fadeIn rounded-full bg-pink-soft px-2 py-0.5 text-[10px] font-semibold text-pink-accent"
-            >
-              {meta.label}
-            </span>
-          </div>
-          <p className="mt-0.5 truncate text-[11px] text-gray-400">
-            {conversationTitle ?? meta.hint}
+          <p className="truncate text-[16px] font-semibold leading-tight text-gray-900">
+            {character.name}
           </p>
+          <p className="mt-0.5 truncate text-[12px] text-gray-400">{subtitle}</p>
         </div>
 
-        <button
-          type="button"
-          onClick={handleNewConversation}
-          disabled={creating}
-          aria-label={`${character.name} 새 대화 시작`}
-          title="새 대화"
-          className="shrink-0 rounded-full border border-pink-accent px-2.5 py-1 text-[10px] font-semibold text-pink-accent transition-colors hover:bg-pink-50 disabled:opacity-50"
-        >
-          {creating ? "생성 중" : "+ 새 대화"}
-        </button>
+        <div className="relative shrink-0" ref={menuRef}>
+          <button
+            type="button"
+            onClick={() => setMenuOpen((v) => !v)}
+            className="rounded-full p-2 text-gray-500 transition-colors active:bg-gray-100"
+            aria-label="더보기"
+            aria-expanded={menuOpen}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              className="size-5"
+            >
+              <path d="M3 10a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0ZM8.5 10a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0ZM15.5 10a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0Z" />
+            </svg>
+          </button>
 
-        <span className="shrink-0 rounded-full bg-white px-2 py-1 text-[11px] font-bold text-pink-accent shadow-sm ring-1 ring-pink-soft">
-          Lv{relationshipLevel}
-        </span>
-
-        <LogoutButton variant="header" />
+          {menuOpen && (
+            <div className="absolute right-0 top-full z-30 mt-1 min-w-[148px] overflow-hidden rounded-xl border border-gray-100 bg-white py-1 shadow-lg">
+              <button
+                type="button"
+                disabled={creating}
+                onClick={handleNewConversation}
+                className="flex w-full px-4 py-2.5 text-left text-sm text-gray-700 active:bg-gray-50 disabled:opacity-50"
+              >
+                {creating ? "만드는 중…" : "새 대화 시작"}
+              </button>
+              <Link
+                href="/settings"
+                className="block px-4 py-2.5 text-sm text-gray-700 active:bg-gray-50"
+                onClick={() => setMenuOpen(false)}
+              >
+                설정
+              </Link>
+            </div>
+          )}
+        </div>
       </div>
 
       {createError && (
@@ -155,32 +169,22 @@ export function ChatHeader({ conversationTitle }: ChatHeaderProps) {
         </p>
       )}
 
-      <div className="px-4 pb-3">
-        <div className="mb-1.5 flex items-baseline justify-between">
-          <span className="text-[10px] font-medium text-gray-600">
-            {stage.label}
-          </span>
-          <span className="text-[10px] text-gray-400">호감도 {percent}%</span>
-        </div>
-        <div
-          className="flex gap-[3px]"
-          role="progressbar"
-          aria-valuenow={percent}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-label={`호감도 ${percent}%`}
-        >
-          {Array.from({ length: total }).map((_, i) => (
-            <span
-              key={i}
-              className={`h-1.5 flex-1 rounded-full transition-colors duration-700 ${
-                i < filled
-                  ? "bg-pink-accent shadow-sm shadow-pink-accent/40"
-                  : "bg-pink-soft/40"
-              }`}
-            />
-          ))}
-        </div>
+      <div
+        className="flex gap-[2px] px-4 pb-2"
+        role="progressbar"
+        aria-valuenow={percent}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label={`호감도 ${percent}%`}
+      >
+        {Array.from({ length: total }).map((_, i) => (
+          <span
+            key={i}
+            className={`h-[3px] flex-1 rounded-full transition-colors duration-700 ${
+              i < filled ? "bg-pink-accent/80" : "bg-pink-soft/50"
+            }`}
+          />
+        ))}
       </div>
     </header>
   );

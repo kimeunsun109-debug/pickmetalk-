@@ -2,6 +2,8 @@
 
 import { useChat } from "@/contexts/ChatProvider";
 import type { ChatMessage } from "@/contexts/ChatProvider";
+import { useLongPress } from "@/hooks/useLongPress";
+import { TypingIndicator } from "@/components/chat/TypingIndicator";
 
 function parseNarinContent(
   content: string,
@@ -57,61 +59,95 @@ function HiddenTextBlock({
   );
 }
 
-interface MessageItemProps {
+function bubbleRadiusClass(
+  isUser: boolean,
+  isGroupedWithPrev: boolean,
+  isGroupedWithNext: boolean
+): string {
+  if (isUser) {
+    if (isGroupedWithPrev && isGroupedWithNext) return "rounded-2xl rounded-r-md";
+    if (isGroupedWithPrev) return "rounded-2xl rounded-tr-md rounded-br-sm";
+    if (isGroupedWithNext) return "rounded-2xl rounded-tr-sm rounded-br-md";
+    return "rounded-2xl rounded-tr-sm";
+  }
+
+  if (isGroupedWithPrev && isGroupedWithNext) return "rounded-2xl rounded-l-md";
+  if (isGroupedWithPrev) return "rounded-2xl rounded-tl-md rounded-bl-sm";
+  if (isGroupedWithNext) return "rounded-2xl rounded-tl-sm rounded-bl-md";
+  return "rounded-2xl rounded-tl-sm";
+}
+
+export interface MessageItemProps {
   message: ChatMessage;
   isStreaming?: boolean;
-  onDelete?: (messageId: string) => void;
+  showAvatar?: boolean;
+  showAvatarSpacer?: boolean;
+  isGroupedWithPrev?: boolean;
+  isGroupedWithNext?: boolean;
+  onLongPress?: (messageId: string) => void;
+  canDelete?: boolean;
 }
 
 export function MessageItem({
   message,
   isStreaming = false,
-  onDelete,
+  showAvatar = true,
+  showAvatarSpacer = false,
+  isGroupedWithPrev = false,
+  isGroupedWithNext = false,
+  onLongPress,
+  canDelete = false,
 }: MessageItemProps) {
-  const { characterId, isPremiumUser, openPremiumModal } = useChat();
+  const { character, characterId, isPremiumUser, openPremiumModal } = useChat();
   const { role, content } = message;
   const isUser = role === "user";
-  const isTemporary =
-    message.id.startsWith("user-") || message.id.startsWith("stream-");
-  const canDelete = Boolean(onDelete) && !isStreaming && !isTemporary;
+
+  const longPress = useLongPress(
+    () => onLongPress?.(message.id),
+    { disabled: !canDelete || !onLongPress }
+  );
 
   const { visible, hidden } =
     characterId === "narin" && !isUser
       ? parseNarinContent(content, isStreaming)
       : { visible: content, hidden: null };
 
+  const rowPadding = isGroupedWithPrev ? "pt-0.5" : "pt-2";
+
   return (
     <div
-      className={`flex w-full px-3 py-1 ${isUser ? "justify-end" : "justify-start"}`}
+      className={`flex w-full px-3 ${rowPadding} ${isUser ? "justify-end" : "justify-start"}`}
+      {...(canDelete ? longPress : {})}
     >
-      {!isUser && (
-        <div className="mr-2 mt-auto flex size-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-pink-200 to-pink-400 text-[11px] font-bold text-white shadow-sm">
-          <AvatarInitial />
+      {!isUser && showAvatar && (
+        <div className="mr-1.5 mt-auto flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-pink-200 to-pink-400 text-[11px] font-bold text-white shadow-sm">
+          {character.name[0]}
         </div>
       )}
 
-      <div
-        className={`max-w-[75%] space-y-1 ${isUser ? "items-end" : "items-start"} flex flex-col`}
-      >
-        {canDelete && (
-          <button
-            type="button"
-            onClick={() => onDelete?.(message.id)}
-            className="rounded-full px-2 py-0.5 text-[10px] text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500"
-            aria-label="메시지 삭제"
-          >
-            삭제
-          </button>
-        )}
+      {!isUser && showAvatarSpacer && (
+        <div className="mr-1.5 size-8 shrink-0" aria-hidden />
+      )}
 
+      <div
+        className={`max-w-[78%] ${isUser ? "items-end" : "items-start"} flex flex-col`}
+      >
         <div
-          className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+          className={`px-3.5 py-2 text-[15px] leading-[1.45] ${bubbleRadiusClass(
+            isUser,
+            isGroupedWithPrev,
+            isGroupedWithNext
+          )} ${
             isUser
-              ? "rounded-tr-sm bg-bubble-user text-gray-900"
-              : "rounded-tl-sm bg-bubble-ai text-gray-800 shadow-sm ring-1 ring-gray-100"
-          }`}
+              ? "bg-bubble-user text-gray-900"
+              : "bg-bubble-ai text-gray-800 shadow-sm"
+          } ${canDelete ? "select-none" : ""}`}
         >
-          <p className="whitespace-pre-wrap break-words">{visible}</p>
+          {visible ? (
+            <p className="whitespace-pre-wrap break-words">{visible}</p>
+          ) : isStreaming ? (
+            <TypingIndicator />
+          ) : null}
           {hidden && (
             <HiddenTextBlock
               text={hidden}
@@ -123,9 +159,4 @@ export function MessageItem({
       </div>
     </div>
   );
-}
-
-function AvatarInitial() {
-  const { character } = useChat();
-  return <>{character.name[0]}</>;
 }
