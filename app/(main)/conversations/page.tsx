@@ -1,13 +1,15 @@
 import { ConversationListClient } from "@/components/conversations/ConversationListClient";
 import { characters } from "@/data";
+import { fetchLastMessagePreviews } from "@/lib/db/conversationPreviews";
 import { mapConversation } from "@/lib/db/mappers";
+import { truncatePreview } from "@/lib/formatMessageTime";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
-/** 대화방 목록 — 캐릭터별 그룹 */
+/** 대화방 목록 — 캐릭터별 그룹 + 마지막 메시지 미리보기 */
 export default async function ConversationsPage({
   searchParams,
 }: {
@@ -36,34 +38,35 @@ export default async function ConversationsPage({
   const { data: rows } = await query;
   const conversations = (rows ?? []).map((r) => mapConversation(r));
 
+  const previewMap = await fetchLastMessagePreviews(
+    supabase,
+    user.id,
+    conversations.map((c) => c.id)
+  );
+
+  const conversationsWithPreview = conversations.map((conv) => {
+    const preview = previewMap.get(conv.id);
+    const characterName =
+      characters.find((c) => c.id === conv.characterId)?.name ?? conv.characterId;
+    const prefix =
+      preview?.role === "user" ? "나: " : preview ? `${characterName}: ` : "";
+
+    return {
+      ...conv,
+      lastMessagePreview: preview
+        ? `${prefix}${truncatePreview(preview.content)}`
+        : null,
+    };
+  });
+
   const characterMap = Object.fromEntries(
     characters.map((c) => [c.id, { name: c.name, avatar: c.avatar }])
   );
 
   return (
-    <main className="min-h-screen p-6 pb-24">
+    <main className="min-h-screen bg-[#b2c7d9]/20 p-4 pb-24">
       <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link
-            href="/characters"
-            className="shrink-0 rounded-full p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
-            aria-label="캐릭터 선택"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-              className="size-5"
-            >
-              <path
-                fillRule="evenodd"
-                d="M11.78 5.22a.75.75 0 0 1 0 1.06L8.06 10l3.72 3.72a.75.75 0 1 1-1.06 1.06l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0Z"
-                clipRule="evenodd"
-              />
-            </svg>
-          </Link>
-          <h1 className="text-xl font-bold">대화 목록</h1>
-        </div>
+        <h1 className="text-xl font-bold text-gray-900">채팅</h1>
         <Link
           href="/characters"
           className="rounded-full bg-pink-accent px-4 py-1.5 text-xs font-semibold text-white"
@@ -73,7 +76,7 @@ export default async function ConversationsPage({
       </div>
 
       <ConversationListClient
-        conversations={conversations}
+        conversations={conversationsWithPreview}
         characterMap={characterMap}
         filterCharacterId={filterCharacterId ?? null}
       />

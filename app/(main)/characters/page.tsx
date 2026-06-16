@@ -24,7 +24,7 @@ export default async function CharactersPage() {
     : null;
 
   return (
-    <main className="min-h-screen p-6">
+    <main className="min-h-screen p-6 pb-24">
       <div className="mb-4 flex items-center gap-3">
         <Link
           href="/"

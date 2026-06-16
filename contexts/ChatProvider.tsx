@@ -20,6 +20,7 @@ export interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
+  createdAt?: string;
 }
 
 interface ChatContextValue {
@@ -78,6 +79,7 @@ export function ChatProvider({
   const [isTyping, setIsTyping] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const streamingIdRef = useRef<string | null>(null);
+  const proactiveDoneRef = useRef<string | null>(null);
 
   const [affection, setAffection] = useState(0);
   const [relationshipLevel, setRelationshipLevel] =
@@ -90,7 +92,39 @@ export function ChatProvider({
 
   const safeConversationId = conversationId?.trim() || null;
 
-  const loadHistory = useCallback(async () => {
+  const fetchMessages = useCallback(async (convId: string) => {
+    const cacheBust = Date.now();
+    const msgRes = await fetch(
+      `/api/messages?conversationId=${convId}&_=${cacheBust}`,
+      { cache: "no-store" }
+    );
+
+    let msgData: { messages?: unknown } = {};
+    try {
+      msgData = await msgRes.json();
+    } catch {
+      return [];
+    }
+
+    if (!msgRes.ok || !Array.isArray(msgData.messages)) return [];
+
+    return (
+      msgData.messages as Array<{
+        id: string;
+        role: string;
+        content: string;
+        createdAt?: string;
+      }>
+    ).map((m) => ({
+      id: m.id,
+      role: m.role as "user" | "assistant",
+      content: m.content,
+      createdAt: m.createdAt,
+    }));
+  }, []);
+
+  const loadHistory = useCallback(
+    async (options?: { proactive?: boolean }) => {
     if (!safeConversationId) {
       setMessages([]);
       setIsLoadingHistory(false);
@@ -100,46 +134,37 @@ export function ChatProvider({
     setIsLoadingHistory(true);
     try {
       const cacheBust = Date.now();
-      const [msgRes, relRes] = await Promise.all([
-        fetch(
-          `/api/messages?conversationId=${safeConversationId}&_=${cacheBust}`,
-          { cache: "no-store" }
-        ),
+      const runProactive =
+        options?.proactive !== false &&
+        proactiveDoneRef.current !== safeConversationId;
+
+      if (runProactive) {
+        try {
+          await fetch(
+            `/api/conversations/${safeConversationId}/proactive?_=${cacheBust}`,
+            { method: "POST" }
+          );
+        } catch {
+          /* 선제 메시지 실패해도 채팅은 열림 */
+        }
+        proactiveDoneRef.current = safeConversationId;
+      }
+
+      const [loadedMessages, relRes] = await Promise.all([
+        fetchMessages(safeConversationId),
         fetch(
           `/api/relationship?conversationId=${safeConversationId}&_=${cacheBust}`,
           { cache: "no-store" }
         ),
       ]);
 
-      let msgData: { messages?: unknown } = {};
+      setMessages(loadedMessages);
+
       let relData: { state?: Record<string, unknown> } = {};
-
-      try {
-        msgData = await msgRes.json();
-      } catch {
-        /* 빈 대화로 시작 */
-      }
-
       try {
         relData = await relRes.json();
       } catch {
         /* 기본 관계 상태 유지 */
-      }
-
-      if (msgRes.ok && Array.isArray(msgData.messages)) {
-        setMessages(
-          (
-            msgData.messages as Array<{
-              id: string;
-              role: string;
-              content: string;
-            }>
-          ).map((m) => ({
-            id: m.id,
-            role: m.role as "user" | "assistant",
-            content: m.content,
-          }))
-        );
       }
 
       if (relRes.ok && relData.state) {
@@ -155,7 +180,9 @@ export function ChatProvider({
     } finally {
       setIsLoadingHistory(false);
     }
-  }, [safeConversationId]);
+  },
+    [safeConversationId, fetchMessages]
+  );
 
   useEffect(() => {
     markBrowserSessionActive();
@@ -170,7 +197,8 @@ export function ChatProvider({
     setEmotion(resolvedCharacter.defaultEmotion ?? "happy");
     setLastChatAt(null);
     streamingIdRef.current = null;
-    loadHistory();
+    proactiveDoneRef.current = null;
+    loadHistory({ proactive: true });
   }, [
     safeConversationId,
     resolvedCharacter.id,
@@ -183,9 +211,10 @@ export function ChatProvider({
       if (!text.trim() || isTyping) return;
 
       const userMsgId = `user-${Date.now()}`;
+      const nowIso = new Date().toISOString();
       setMessages((prev) => [
         ...prev,
-        { id: userMsgId, role: "user", content: text.trim() },
+        { id: userMsgId, role: "user", content: text.trim(), createdAt: nowIso },
       ]);
       setIsTyping(true);
 
@@ -263,7 +292,7 @@ export function ChatProvider({
           }
         }
 
-        await loadHistory();
+        await loadHistory({ proactive: false });
       } catch (e) {
         setMessages((prev) =>
           prev.map((m) =>

@@ -25,8 +25,9 @@ function formatWhen(iso: string | null): string {
 
   if (diffDays === 0) {
     return d.toLocaleTimeString("ko-KR", {
-      hour: "2-digit",
+      hour: "numeric",
       minute: "2-digit",
+      hour12: true,
     });
   }
 
@@ -41,24 +42,19 @@ export function ConversationListClient({
 }: Props) {
   const [items, setItems] = useState(conversations);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [deletingAll, setDeletingAll] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const suppressNextClickRef = useRef(false);
 
-  const grouped = useMemo(
+  const sorted = useMemo(
     () =>
-      items.reduce<Record<string, Conversation[]>>((acc, conv) => {
-        if (!acc[conv.characterId]) acc[conv.characterId] = [];
-        acc[conv.characterId].push(conv);
-        return acc;
-      }, {}),
+      [...items].sort((a, b) => {
+        const aTime = a.lastMessageAt ?? a.updatedAt;
+        const bTime = b.lastMessageAt ?? b.updatedAt;
+        return new Date(bTime).getTime() - new Date(aTime).getTime();
+      }),
     [items]
   );
-
-  const characterIds = filterCharacterId
-    ? [filterCharacterId]
-    : Object.keys(grouped);
 
   async function deleteConversation(conversationId: string) {
     const res = await fetch(`/api/conversations/${conversationId}`, {
@@ -72,7 +68,7 @@ export function ConversationListClient({
   }
 
   async function handleDelete(conversation: Conversation) {
-    if (!window.confirm("이 대화를 삭제할까요?")) return;
+    if (!window.confirm(`"${conversation.title}" 대화를 삭제할까요?`)) return;
 
     setDeletingId(conversation.id);
     setError(null);
@@ -101,27 +97,6 @@ export function ConversationListClient({
     }, 650);
   }
 
-  async function handleDeleteAll() {
-    if (items.length === 0 || deletingAll) return;
-    if (!window.confirm("현재 목록의 모든 대화를 삭제할까요?")) return;
-
-    setDeletingAll(true);
-    setError(null);
-
-    const ids = items.map((item) => item.id);
-
-    try {
-      await Promise.all(ids.map((id) => deleteConversation(id)));
-      setItems((prev) => prev.filter((item) => !ids.includes(item.id)));
-    } catch (e) {
-      setError(
-        e instanceof Error ? e.message : "전체 대화 삭제 중 오류가 발생했습니다."
-      );
-    } finally {
-      setDeletingAll(false);
-    }
-  }
-
   if (items.length === 0) {
     return (
       <div className="mt-12 text-center">
@@ -137,113 +112,93 @@ export function ConversationListClient({
   }
 
   return (
-    <div className="mt-4 flex flex-col gap-6">
-      <div className="flex items-center justify-between rounded-2xl bg-white/70 px-4 py-3 shadow-sm ring-1 ring-gray-100">
-        <span className="text-xs text-gray-500">
-          총 {items.length}개의 대화
-        </span>
-        <span className="text-[10px] text-gray-400">길게 눌러 삭제</span>
-        <button
-          type="button"
-          onClick={handleDeleteAll}
-          disabled={deletingAll}
-          className="rounded-full border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-500 transition-colors hover:bg-red-50 disabled:opacity-50"
-        >
-          {deletingAll ? "삭제 중..." : "전체 삭제"}
-        </button>
-      </div>
-
+    <div className="flex flex-col gap-1">
       {error && (
-        <p className="rounded-xl bg-red-50 px-4 py-3 text-xs text-red-600 ring-1 ring-red-100">
+        <p className="mb-2 rounded-xl bg-red-50 px-4 py-3 text-xs text-red-600">
           {error}
         </p>
       )}
 
-      {characterIds.map((charId) => {
-        const meta = characterMap[charId];
-        const charItems = grouped[charId] ?? [];
-        if (charItems.length === 0) return null;
+      {filterCharacterId && (
+        <Link
+          href="/conversations"
+          className="mb-2 text-xs text-gray-400 hover:text-pink-accent"
+        >
+          ← 전체 대화 보기
+        </Link>
+      )}
 
-        return (
-          <section key={charId}>
-            <div className="mb-2 flex items-center justify-between gap-2">
-              <span className="text-base font-semibold text-gray-900">
-                {meta?.name ?? charId}
-              </span>
-              {filterCharacterId && (
-                <Link
-                  href="/conversations"
-                  className="text-[10px] text-gray-400 hover:text-pink-accent"
-                >
-                  전체 보기
-                </Link>
-              )}
-            </div>
-            <ul className="flex flex-col gap-2">
-              {charItems.map((conv) => (
-                <li key={conv.id}>
-                  <div
-                    role="link"
-                    tabIndex={0}
-                    onClick={() => {
-                      if (suppressNextClickRef.current) {
-                        suppressNextClickRef.current = false;
-                        return;
-                      }
-                      window.location.href = characterChatPath(
-                        conv.characterId,
-                        conv.id
-                      );
-                    }}
-                    onContextMenu={(event) => {
-                      event.preventDefault();
-                      handleDelete(conv);
-                    }}
-                    onPointerDown={() => startLongPressDelete(conv)}
-                    onPointerUp={clearLongPressTimer}
-                    onPointerLeave={clearLongPressTimer}
-                    onPointerCancel={clearLongPressTimer}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        window.location.href = characterChatPath(
-                          conv.characterId,
-                          conv.id
-                        );
-                      }
-                    }}
-                    className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-gray-100 bg-white px-4 py-3 shadow-sm transition-colors hover:border-pink-soft hover:bg-pink-50/30"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-gray-900">
-                        {conv.title}
-                      </p>
-                      <p className="mt-0.5 text-[11px] text-gray-400">
-                        호감도 {conv.affection}% · Lv{conv.relationshipLevel}
-                      </p>
-                    </div>
-                    <span className="shrink-0 text-[10px] text-gray-400">
+      <ul className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-gray-100">
+        {sorted.map((conv, index) => {
+          const meta = characterMap[conv.characterId];
+          const preview =
+            conv.lastMessagePreview ??
+            (conv.summary ? conv.summary.slice(0, 40) : "대화를 시작해보세요");
+
+          return (
+            <li
+              key={conv.id}
+              className={index > 0 ? "border-t border-gray-50" : undefined}
+            >
+              <div
+                role="link"
+                tabIndex={0}
+                onClick={() => {
+                  if (suppressNextClickRef.current) {
+                    suppressNextClickRef.current = false;
+                    return;
+                  }
+                  window.location.href = characterChatPath(
+                    conv.characterId,
+                    conv.id
+                  );
+                }}
+                onContextMenu={(event) => {
+                  event.preventDefault();
+                  handleDelete(conv);
+                }}
+                onPointerDown={() => startLongPressDelete(conv)}
+                onPointerUp={clearLongPressTimer}
+                onPointerLeave={clearLongPressTimer}
+                onPointerCancel={clearLongPressTimer}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    window.location.href = characterChatPath(
+                      conv.characterId,
+                      conv.id
+                    );
+                  }
+                }}
+                className={`flex cursor-pointer items-center gap-3 px-4 py-3.5 transition-colors active:bg-gray-50 ${
+                  deletingId === conv.id ? "opacity-50" : ""
+                }`}
+              >
+                <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-pink-200 to-pink-400 text-base font-bold text-white">
+                  {meta?.name?.[0] ?? conv.characterId[0]?.toUpperCase()}
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <p className="truncate text-[15px] font-semibold text-gray-900">
+                      {meta?.name ?? conv.characterId}
+                    </p>
+                    <span className="shrink-0 text-[11px] text-gray-400">
                       {formatWhen(conv.lastMessageAt ?? conv.updatedAt)}
                     </span>
-                    <button
-                      type="button"
-                      onPointerDown={(event) => event.stopPropagation()}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        handleDelete(conv);
-                      }}
-                      disabled={deletingId === conv.id}
-                      className="shrink-0 rounded-full border border-red-100 px-2 py-1 text-[10px] font-semibold text-red-500 transition-colors hover:bg-red-50 disabled:opacity-50"
-                      aria-label={`${conv.title} 삭제`}
-                    >
-                      {deletingId === conv.id ? "..." : "삭제"}
-                    </button>
                   </div>
-                </li>
-              ))}
-            </ul>
-          </section>
-        );
-      })}
+                  <p className="mt-0.5 truncate text-[13px] text-gray-500">
+                    {preview}
+                  </p>
+                </div>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+
+      <p className="mt-3 text-center text-[10px] text-gray-400">
+        대화를 길게 누르면 삭제할 수 있어요
+      </p>
     </div>
   );
 }

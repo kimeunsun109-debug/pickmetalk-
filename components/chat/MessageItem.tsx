@@ -3,6 +3,7 @@
 import { useChat } from "@/contexts/ChatProvider";
 import type { ChatMessage } from "@/contexts/ChatProvider";
 import { useLongPress } from "@/hooks/useLongPress";
+import { formatBubbleTime } from "@/lib/formatMessageTime";
 import { TypingIndicator } from "@/components/chat/TypingIndicator";
 
 function parseNarinContent(
@@ -84,6 +85,7 @@ export interface MessageItemProps {
   showAvatarSpacer?: boolean;
   isGroupedWithPrev?: boolean;
   isGroupedWithNext?: boolean;
+  showTimestamp?: boolean;
   onLongPress?: (messageId: string) => void;
   canDelete?: boolean;
 }
@@ -95,6 +97,7 @@ export function MessageItem({
   showAvatarSpacer = false,
   isGroupedWithPrev = false,
   isGroupedWithNext = false,
+  showTimestamp = false,
   onLongPress,
   canDelete = false,
 }: MessageItemProps) {
@@ -130,10 +133,13 @@ export function MessageItem({
       )}
 
       <div
-        className={`max-w-[78%] ${isUser ? "items-end" : "items-start"} flex flex-col`}
+        className={`max-w-[78%] ${isUser ? "items-end" : "items-start"} flex flex-col gap-0.5`}
       >
         <div
-          className={`px-3.5 py-2 text-[15px] leading-[1.45] ${bubbleRadiusClass(
+          className={`flex items-end gap-1.5 ${isUser ? "flex-row-reverse" : "flex-row"}`}
+        >
+          <div
+            className={`px-3.5 py-2 text-[15px] leading-[1.45] ${bubbleRadiusClass(
             isUser,
             isGroupedWithPrev,
             isGroupedWithNext
@@ -154,6 +160,12 @@ export function MessageItem({
               isPremiumUser={isPremiumUser}
               onClickLock={openPremiumModal}
             />
+          )}
+        </div>
+          {showTimestamp && message.createdAt && (
+            <span className="shrink-0 pb-0.5 text-[10px] text-gray-400">
+              {formatBubbleTime(message.createdAt)}
+            </span>
           )}
         </div>
       </div>

@@ -1,0 +1,191 @@
+import { getConversationForUser } from "@/lib/db/conversations";
+import { mapCharacterState } from "@/lib/db/mappers";
+import { getAbsenceTier, getReturnVisitData } from "@/lib/returnVisit";
+import { checkAbsenceTrigger, PUSH_COOLDOWN_HOURS } from "@/services/absenceEvent";
+import type { EmotionState } from "@/types";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+export interface ProactiveCandidate {
+  message: string;
+  emotion: EmotionState;
+  source: "absence_trigger" | "return_visit";
+}
+
+function hoursSince(iso: string | null): number | null {
+  if (!iso) return null;
+  return (Date.now() - new Date(iso).getTime()) / (1000 * 60 * 60);
+}
+
+export function resolveProactiveCandidate(
+  characterId: string,
+  lastChatAt: string | null,
+  absenceEvent: ReturnType<typeof checkAbsenceTrigger>
+): ProactiveCandidate | null {
+  if (absenceEvent && absenceEvent.characterId === characterId) {
+    return {
+      message: absenceEvent.message,
+      emotion: absenceEvent.emotion,
+      source: "absence_trigger",
+    };
+  }
+
+  const gapHours = hoursSince(lastChatAt);
+  if (gapHours === null) return null;
+
+  const tier = getAbsenceTier(gapHours);
+  if (!tier) return null;
+
+  const visit = getReturnVisitData(characterId, tier);
+  return {
+    message: `${visit.message} ${visit.subMessage}`.trim(),
+    emotion: tier === "tier1" ? "happy" : "miss_you",
+    source: "return_visit",
+  };
+}
+
+export async function shouldSkipProactiveInsert(
+  supabase: SupabaseClient,
+  userId: string,
+  conversationId: string,
+  candidate: ProactiveCandidate
+): Promise<boolean> {
+  const { data: lastRow } = await supabase
+    .from("messages")
+    .select("role, content, created_at")
+    .eq("user_id", userId)
+    .eq("conversation_id", conversationId)
+    .in("role", ["user", "assistant"])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!lastRow) return false;
+
+  if (lastRow.role === "user") return true;
+
+  if (lastRow.content === candidate.message) return true;
+
+  const hoursSinceLast =
+    (Date.now() - new Date(lastRow.created_at as string).getTime()) /
+    (1000 * 60 * 60);
+
+  return hoursSinceLast < PUSH_COOLDOWN_HOURS;
+}
+
+export async function insertProactiveMessage(
+  supabase: SupabaseClient,
+  userId: string,
+  conversationId: string,
+  characterId: string,
+  candidate: ProactiveCandidate
+) {
+  const now = new Date().toISOString();
+
+  const { data: inserted, error } = await supabase
+    .from("messages")
+    .insert({
+      user_id: userId,
+      character_id: characterId,
+      conversation_id: conversationId,
+      role: "assistant",
+      content: candidate.message,
+      emotion: candidate.emotion,
+    })
+    .select("id, role, content, created_at")
+    .single();
+
+  if (error || !inserted) {
+    throw new Error(error?.message ?? "선제 메시지 저장 실패");
+  }
+
+  await supabase
+    .from("conversations")
+    .update({
+      emotion: candidate.emotion,
+      last_message_at: now,
+      updated_at: now,
+    })
+    .eq("id", conversationId)
+    .eq("user_id", userId);
+
+  await supabase
+    .from("user_character_states")
+    .update({
+      last_chat_at: now,
+      last_seen_at: now,
+      last_push_sent_at: now,
+      emotion: candidate.emotion,
+    })
+    .eq("user_id", userId)
+    .eq("character_id", characterId);
+
+  return inserted;
+}
+
+export async function runProactiveMessageFlow(
+  supabase: SupabaseClient,
+  userId: string,
+  conversationId: string
+) {
+  const conversation = await getConversationForUser(
+    supabase,
+    userId,
+    conversationId
+  );
+  if (!conversation) {
+    return { inserted: false as const, reason: "not_found" };
+  }
+
+  const { data: ucsRow } = await supabase
+    .from("user_character_states")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("character_id", conversation.characterId)
+    .maybeSingle();
+
+  const ucs = ucsRow ? mapCharacterState(ucsRow) : null;
+  const lastChatAt =
+    conversation.lastMessageAt ?? ucs?.lastChatAt ?? null;
+
+  const absenceEvent = ucs ? checkAbsenceTrigger(ucs) : null;
+  const candidate = resolveProactiveCandidate(
+    conversation.characterId,
+    lastChatAt,
+    absenceEvent
+  );
+
+  if (!candidate) {
+    return { inserted: false as const, reason: "no_trigger" };
+  }
+
+  if (
+    await shouldSkipProactiveInsert(
+      supabase,
+      userId,
+      conversationId,
+      candidate
+    )
+  ) {
+    return { inserted: false as const, reason: "skipped" };
+  }
+
+  const row = await insertProactiveMessage(
+    supabase,
+    userId,
+    conversationId,
+    conversation.characterId,
+    candidate
+  );
+
+  return {
+    inserted: true as const,
+    message: {
+      id: row.id as string,
+      role: "assistant" as const,
+      content: row.content as string,
+      createdAt: row.created_at as string,
+    },
+    source: candidate.source,
+    emotion: candidate.emotion,
+  };
+}

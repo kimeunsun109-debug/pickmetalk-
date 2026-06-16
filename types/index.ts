@@ -154,6 +154,8 @@ export interface Conversation {
   createdAt: string;
   updatedAt: string;
   lastMessageAt: string | null;
+  /** Server-enriched preview for conversation list */
+  lastMessagePreview?: string | null;
 }
 
 export interface Message {
