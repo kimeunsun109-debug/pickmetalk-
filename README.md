@@ -31,6 +31,7 @@ npm install
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | anon public key |
 | `DEEPSEEK_API_KEY` | DeepSeek API 키 (서버 전용) |
 | `DEEPSEEK_BASE_URL` | `https://api.deepseek.com` (기본값 사용 가능) |
+| `TAVILY_API_KEY` | (선택) Tavily 웹 검색 API — 날씨·주식 등 사실 질문 시 사용 |
 | `NEXT_PUBLIC_APP_URL` | `http://localhost:3000` |
 
 > API 키는 **절대** `NEXT_PUBLIC_` 접두사를 붙이지 마세요.

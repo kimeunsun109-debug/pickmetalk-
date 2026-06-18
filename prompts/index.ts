@@ -5,8 +5,12 @@ import {
   generateBaseSystemPrompt,
   MEMORY_PROMPT_RULES,
 } from "./base";
+import { buildCharacterToppingBlock } from "./characterToppings";
 import { buildCharacterPromptById } from "./characterPrompt";
+import { buildKickLineHint } from "./kickLines";
 import { getContextMemoryPrompt } from "@/services/memory";
+import { buildSpeechStylePromptBlock } from "@/services/speechStyle";
+import type { UserSpeechProfile } from "@/services/speechStyle";
 import type { EmotionState, Message, RelationshipLevel } from "@/types";
 
 /**
@@ -29,7 +33,9 @@ export function buildSystemPrompt(
   userMessageCount = 0,
   dynamicContextBlock = "",
   ongoingSession = false,
-  recentMessages: Message[] = []
+  recentMessages: Message[] = [],
+  speechProfile: UserSpeechProfile | null = null,
+  latestUserMessage = ""
 ): string {
   const character = getCharacterById(characterId);
   const characterBlock = buildCharacterPromptById(
@@ -59,13 +65,22 @@ export function buildSystemPrompt(
     userMessageCount,
   });
   const recentDialogueGuard = buildRecentDialogueGuard(recentMessages);
+  const speechStyleBlock = buildSpeechStylePromptBlock(speechProfile);
+  const toppingBlock = buildCharacterToppingBlock(characterId);
+  const kickLineHint = buildKickLineHint({
+    userMessage: latestUserMessage,
+    turnCount: userMessageCount,
+  });
 
   return [
     dynamicContextBlock,
+    speechStyleBlock,
     sessionContinuityRules,
     recentDialogueGuard,
+    kickLineHint,
     memoryPriorityHints,
     baseBlock,
+    toppingBlock,
     characterBlock,
     memory,
   ]

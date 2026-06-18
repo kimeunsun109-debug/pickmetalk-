@@ -72,6 +72,7 @@ export function mapUserProfile(row: Record<string, unknown>): UserProfile {
     dailyMessageCount: (row.daily_message_count as number) ?? 0,
     dailyMessageResetAt: row.daily_message_reset_at as string,
     userContext: (row.user_context as Record<string, string>) ?? {},
+    speechProfile: (row.speech_profile as Record<string, unknown> | null) ?? null,
   };
 }
 

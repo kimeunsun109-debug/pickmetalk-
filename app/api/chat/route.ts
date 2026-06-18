@@ -15,7 +15,13 @@ import {
   resolveCharacterEmotion,
 } from "@/services/emotion";
 import { pickMessagesForContext, updateMemorySummary } from "@/services/memory";
+import {
+  analyzeSpeechFromMessages,
+  mergeSpeechProfile,
+  parseSpeechProfile,
+} from "@/services/speechStyle";
 import { ENABLE_SHORT_TERM_MEMORY } from "@/lib/constants";
+import { getSearchContextForMessage } from "@/services/search";
 import {
   extractUserContext,
   buildCommonContextBlock,
@@ -176,6 +182,25 @@ export async function POST(request: Request) {
   const userContents = history
     .filter((m) => m.role === "user")
     .map((m) => m.content);
+
+  const sessionSpeech = analyzeSpeechFromMessages(userContents.slice(-12));
+  const storedSpeech = parseSpeechProfile(profile?.speechProfile ?? null);
+  const speechProfile = mergeSpeechProfile(storedSpeech, sessionSpeech);
+
+  if (profile) {
+    try {
+      await supabase
+        .from("profiles")
+        .update({
+          speech_profile: speechProfile,
+          speech_profile_session: sessionSpeech,
+        })
+        .eq("id", user.id);
+    } catch {
+      /* speech_profile 컬럼 미마이그레이션 시 무시 */
+    }
+  }
+
   const updatedMemory = updateMemorySummary(
     conversation.summary,
     userContents
@@ -245,6 +270,7 @@ export async function POST(request: Request) {
   }
 
   const dynamicContextBlock = [
+    await getSearchContextForMessage(userText).catch(() => ""),
     shortTermMemoryBlock,
     commonCtxBlock,
     characterCtxBlock,
@@ -262,7 +288,9 @@ export async function POST(request: Request) {
     userContents.length,
     dynamicContextBlock,
     ongoingSession,
-    recent
+    recent,
+    speechProfile,
+    userText
   );
 
   const aiMessages = [

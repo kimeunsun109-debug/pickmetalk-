@@ -100,6 +100,8 @@ export interface UserProfile {
   dailyMessageResetAt: string;
   /** profiles.user_context JSONB — 유저 이름·나이·직업 등 명시적 메타 */
   userContext: Record<string, string>;
+  /** profiles.speech_profile JSONB — 사용자 말투 학습 */
+  speechProfile: Record<string, unknown> | null;
 }
 
 export interface UserCharacterState {

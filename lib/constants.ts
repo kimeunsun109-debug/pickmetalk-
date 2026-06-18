@@ -24,3 +24,10 @@ export const AFFECTION_TO_LEVEL: Record<number, number> = {
 
 /** Re-enabled after chat entry stabilization. */
 export const ENABLE_SHORT_TERM_MEMORY = true;
+
+/** 웹 검색 (Tavily) — API 키 없으면 자동 비활성 */
+export const ENABLE_WEB_SEARCH =
+  process.env.ENABLE_WEB_SEARCH !== "false";
+
+export const WEB_SEARCH_MAX_RESULTS = 4;
+export const WEB_SEARCH_TIMEOUT_MS = 8000;
