@@ -11,6 +11,7 @@ import { buildKickLineHint } from "./kickLines";
 import { getContextMemoryPrompt } from "@/services/memory";
 import { buildSpeechStylePromptBlock } from "@/services/speechStyle";
 import type { UserSpeechProfile } from "@/services/speechStyle";
+import type { TimeAwareContext } from "@/services/timeContext";
 import type { EmotionState, Message, RelationshipLevel } from "@/types";
 
 /**
@@ -35,7 +36,8 @@ export function buildSystemPrompt(
   ongoingSession = false,
   recentMessages: Message[] = [],
   speechProfile: UserSpeechProfile | null = null,
-  latestUserMessage = ""
+  latestUserMessage = "",
+  timeContext: TimeAwareContext | null = null
 ): string {
   const character = getCharacterById(characterId);
   const characterBlock = buildCharacterPromptById(
@@ -63,6 +65,8 @@ export function buildSystemPrompt(
   const sessionContinuityRules = buildSessionContinuityRules({
     ongoingSession,
     userMessageCount,
+    absenceTier: timeContext?.absence.tier,
+    narrativePauseReturn: timeContext?.absence.narrativePauseReturn,
   });
   const recentDialogueGuard = buildRecentDialogueGuard(recentMessages);
   const speechStyleBlock = buildSpeechStylePromptBlock(speechProfile);

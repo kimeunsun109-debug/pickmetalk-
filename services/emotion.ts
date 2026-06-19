@@ -1,4 +1,5 @@
 import { normalizeEmotion } from "@/lib/emotions";
+import { isSeoulLateNight } from "@/services/timeContext";
 import type { EmotionState, Message } from "@/types";
 
 const PRAISE_PATTERN =
@@ -32,8 +33,7 @@ function hoursSince(iso: string | null): number | null {
 }
 
 function isLateNight(): boolean {
-  const h = new Date().getHours();
-  return h >= 23 || h < 5;
+  return isSeoulLateNight();
 }
 
 /** 메시지·시간·호감도 기반 감정 (우선순위 높은 것부터) */

@@ -88,11 +88,36 @@ function buildEmotionArcRules(
 export function buildSessionContinuityRules(options: {
   ongoingSession: boolean;
   userMessageCount: number;
+  absenceTier?: "none" | "wait_3h" | "miss_24h" | "reunion_3d" | "special_7d";
+  narrativePauseReturn?: boolean;
 }): string {
+  if (options.narrativePauseReturn) {
+    return [
+      "[대화 연속성 — 이어하기 재접속]",
+      "어제/오래 전 끊긴 대화를 오늘 이어온 상황. [현실 시간 인식] 블록의 이어하기 가이드를 따른다.",
+      "한마디로 '하루 걸렸네~ㅎㅎ' 류 반응 후 직전 주제를 자연스럽게 이어가라.",
+      "사용자가 방금 입력한 말에도 반드시 반응해라.",
+    ].join("\n");
+  }
+
+  if (
+    !options.ongoingSession &&
+    options.absenceTier &&
+    options.absenceTier !== "none"
+  ) {
+    return [
+      "[대화 연속성 — 재접속]",
+      "이번 턴은 새 세션(미접속 후 복귀)이다. [현실 시간 인식] 블록의 미접속 티어·캐릭터 가이드를 따른다.",
+      "시간·그리움·반가움을 캐릭터 말투로 1문장 넣은 뒤 사용자 말에 반응해라.",
+      "이미 다룬 주제를 그대로 반복하지 마라.",
+    ].join("\n");
+  }
+
   if (options.userMessageCount <= 1 && !options.ongoingSession) {
     return [
       "[첫 인사 규칙]",
       "이 대화의 첫 사용자 메시지에만 이름·호칭으로 가볍게 인사해도 된다.",
+      "현재 시간대(아침/점심/저녁)에 맞는 한마디 OK.",
       "그 이후 턴에서는 환영·복귀 인사를 반복하지 마라.",
     ].join("\n");
   }

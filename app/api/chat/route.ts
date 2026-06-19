@@ -28,6 +28,10 @@ import {
   computeYoonseoStats,
   buildYoonseoStatsBlock,
 } from "@/services/context";
+import {
+  buildTimeAwareContext,
+  buildTimeContextPromptBlock,
+} from "@/services/timeContext";
 import type { ChatRequestBody } from "@/types/api";
 import type { Message, UserCharacterState } from "@/types";
 import { NextResponse } from "next/server";
@@ -226,6 +230,30 @@ export async function POST(request: Request) {
 
   const emotionDurationTurns = countEmotionDurationTurns(history, newEmotion);
 
+  const { data: ucsRow } = await supabase
+    .from("user_character_states")
+    .select("*")
+    .eq("user_id", user.id)
+    .eq("character_id", characterId)
+    .maybeSingle();
+  const characterState: UserCharacterState | null = ucsRow
+    ? mapCharacterState(ucsRow)
+    : null;
+
+  const timeAwareCtx = buildTimeAwareContext({
+    history,
+    ongoingSession,
+    conversationSummary: summary,
+    lastSeenAt: characterState?.lastSeenAt ?? null,
+    lastChatAt:
+      characterState?.lastChatAt ?? conversation.lastMessageAt ?? null,
+    now: new Date(now),
+  });
+  const timeContextBlock = buildTimeContextPromptBlock(
+    timeAwareCtx,
+    characterId
+  );
+
   const userCtx = extractUserContext(
     updatedMemory,
     profile?.userContext ?? {}
@@ -252,24 +280,13 @@ export async function POST(request: Request) {
   }
 
   let characterCtxBlock = "";
-  if (characterId === "yoonseo") {
-    const { data: ucsRow } = await supabase
-      .from("user_character_states")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("character_id", characterId)
-      .maybeSingle();
-    const ucs: UserCharacterState = ucsRow
-      ? mapCharacterState(ucsRow)
-      : ({
-          promiseKeptCount: 0,
-          promiseBrokenCount: 0,
-        } as UserCharacterState);
-    const yoonseoStats = computeYoonseoStats(history, ucs);
+  if (characterId === "yoonseo" && characterState) {
+    const yoonseoStats = computeYoonseoStats(history, characterState);
     characterCtxBlock = buildYoonseoStatsBlock(yoonseoStats);
   }
 
   const dynamicContextBlock = [
+    timeContextBlock,
     await getSearchContextForMessage(userText).catch(() => ""),
     shortTermMemoryBlock,
     commonCtxBlock,
@@ -290,7 +307,8 @@ export async function POST(request: Request) {
     ongoingSession,
     recent,
     speechProfile,
-    userText
+    userText,
+    timeAwareCtx
   );
 
   const aiMessages = [
