@@ -9,7 +9,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "sync:kicklines": "python scripts/sync_kicklines_from_xlsx.py",
+    "sync:kicklines": "node scripts/run_sync_kicklines.mjs",
     "icons": "node scripts/generate-icons.mjs && node scripts/png-convert.mjs",
     "build:android": "npm run build && npx cap sync android",
     "android:open": "npx cap open android",
