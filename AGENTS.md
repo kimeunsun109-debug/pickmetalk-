@@ -70,6 +70,12 @@ Optional: `SUPABASE_SERVICE_ROLE_KEY`, `DEEPSEEK_BASE_URL`, `TAVILY_API_KEY`.
 
 ### Non-obvious gotchas
 
+- **`python` must be on PATH**: `predev`/`prebuild` run `sync:kicklines` which calls `python`
+ (not `python3`). The base image only ships `python3`, so a `python` shim is required or
+ `npm run dev`/`npm run build` fail at the pre-step. `.cursor/environment.json` creates the
+ symlink (`sudo ln -sf /usr/bin/python3 /usr/local/bin/python`) on startup; if you hit
+ `sh: 1: python: not found`, recreate it. `openpyxl` must be installed for the script to run
+ (falls back to the committed `data/kickLines/master.json` only when the source `.xlsx` is absent).
 - **Placeholder Supabase**: if the URL contains `YOUR_PROJECT`/`your_project` or the anon key
   contains `your_anon`, middleware skips session refresh and redirects protected routes to
   `/login`. Use placeholder patterns or real credentials — fake-looking URLs can stall SSR.
