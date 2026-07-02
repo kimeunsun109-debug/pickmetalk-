@@ -24,6 +24,22 @@ function bubbleRadiusClass(
   return "rounded-2xl rounded-tl-sm";
 }
 
+/**
+ * 어시스턴트 답변을 카톡처럼 여러 말풍선으로 쪼갠다.
+ * 모델이 줄바꿈으로 구분한 짧은 문장들을 각각 하나의 말풍선으로 렌더한다.
+ */
+function splitAssistantBubbles(content: string, max = 4): string[] {
+  const parts = content
+    .split(/\n+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (parts.length <= 1) return [content];
+  if (parts.length <= max) return parts;
+  const head = parts.slice(0, max - 1);
+  const tail = parts.slice(max - 1).join(" ");
+  return [...head, tail];
+}
+
 export interface MessageItemProps {
   message: ChatMessage;
   isStreaming?: boolean;
@@ -58,6 +74,9 @@ export function MessageItem({
 
   const rowPadding = isGroupedWithPrev ? "pt-0.5" : "pt-2";
 
+  const bubbleSegments = isUser ? [content] : splitAssistantBubbles(content);
+  const hasContent = content.trim().length > 0;
+
   return (
     <div
       className={`flex w-full px-3 ${rowPadding} ${isUser ? "justify-end" : "justify-start"}`}
@@ -74,34 +93,58 @@ export function MessageItem({
       )}
 
       <div
-        className={`max-w-[78%] ${isUser ? "items-end" : "items-start"} flex flex-col gap-0.5`}
+        className={`max-w-[78%] ${isUser ? "items-end" : "items-start"} flex flex-col gap-1`}
       >
-        <div
-          className={`flex items-end gap-1.5 ${isUser ? "flex-row-reverse" : "flex-row"}`}
-        >
+        {hasContent ? (
+          bubbleSegments.map((segment, segIdx) => {
+            const isLastSegment = segIdx === bubbleSegments.length - 1;
+            const groupedPrev = isGroupedWithPrev || segIdx > 0;
+            const groupedNext = isGroupedWithNext || !isLastSegment;
+            return (
+              <div
+                key={segIdx}
+                className={`flex items-end gap-1.5 ${isUser ? "flex-row-reverse" : "flex-row"}`}
+              >
+                <div
+                  className={`px-3.5 py-2 text-[15px] leading-[1.45] ${bubbleRadiusClass(
+                    isUser,
+                    groupedPrev,
+                    groupedNext
+                  )} ${
+                    isUser
+                      ? "bg-bubble-user text-gray-900"
+                      : "bg-bubble-ai text-gray-800 shadow-sm"
+                  } ${canDelete ? "select-none" : ""}`}
+                >
+                  <p className="whitespace-pre-wrap break-words">{segment}</p>
+                </div>
+                {isLastSegment && showTimestamp && message.createdAt && (
+                  <span className="shrink-0 pb-0.5 text-[10px] text-gray-400">
+                    {formatBubbleTime(message.createdAt)}
+                  </span>
+                )}
+              </div>
+            );
+          })
+        ) : (
           <div
-            className={`px-3.5 py-2 text-[15px] leading-[1.45] ${bubbleRadiusClass(
-              isUser,
-              isGroupedWithPrev,
-              isGroupedWithNext
-            )} ${
-              isUser
-                ? "bg-bubble-user text-gray-900"
-                : "bg-bubble-ai text-gray-800 shadow-sm"
-            } ${canDelete ? "select-none" : ""}`}
+            className={`flex items-end gap-1.5 ${isUser ? "flex-row-reverse" : "flex-row"}`}
           >
-            {content ? (
-              <p className="whitespace-pre-wrap break-words">{content}</p>
-            ) : isStreaming ? (
-              <TypingIndicator />
-            ) : null}
+            <div
+              className={`px-3.5 py-2 text-[15px] leading-[1.45] ${bubbleRadiusClass(
+                isUser,
+                isGroupedWithPrev,
+                isGroupedWithNext
+              )} ${
+                isUser
+                  ? "bg-bubble-user text-gray-900"
+                  : "bg-bubble-ai text-gray-800 shadow-sm"
+              }`}
+            >
+              {isStreaming ? <TypingIndicator /> : null}
+            </div>
           </div>
-          {showTimestamp && message.createdAt && (
-            <span className="shrink-0 pb-0.5 text-[10px] text-gray-400">
-              {formatBubbleTime(message.createdAt)}
-            </span>
-          )}
-        </div>
+        )}
       </div>
     </div>
   );

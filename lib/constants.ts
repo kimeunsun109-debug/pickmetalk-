@@ -35,5 +35,9 @@ export const WEB_SEARCH_TIMEOUT_MS = 8000;
 /** LLM에 주입하는 최근 대화 메시지 수 (턴) */
 export const CHAT_CONTEXT_TURNS = 6;
 
-/** 첫 스트림 청크 지연 시 폴백 전송 (ms) */
-export const CHAT_STREAM_FIRST_CHUNK_MS = 500;
+/**
+ * 첫 스트림 청크 지연 시 폴백 전송 (ms).
+ * 너무 짧으면 실제 응답이 오기 전에 임시 문장이 떴다가 교체되며 깜빡임이 생긴다.
+ * 타이핑 인디케이터가 대기를 가려주므로 진짜 지연(스톨)일 때만 폴백한다.
+ */
+export const CHAT_STREAM_FIRST_CHUNK_MS = 3500;
