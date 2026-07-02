@@ -1,0 +1,36 @@
+SuN 블로그 일일 자동 업무 설정
+==========================
+
+## 매일 오전 7:00 자동 실행
+- Windows 작업 스케줄러: `SuN_Blog_Daily_7AM`
+- 실행 파일: `scripts/run_blog_daily.bat`
+
+### 수동 실행
+```
+scripts\run_blog_daily.bat
+```
+
+### 스케줄 재등록
+```
+powershell -ExecutionPolicy Bypass -File scripts\install_blog_daily_task.ps1
+```
+
+## 일일 업무 순서
+1. **오늘 글 생성** — `blog_generate_post.py` → `posts/`, `images/`
+2. **답글** — 내 글 댓글 이웃에게 답글 + 이웃 최신글 방문 (`reply-commenters`)
+3. **IT 이웃** — 댓글 + 하트 (`visit-it-all`)
+4. **이웃신청** — 10명 (`apply --limit 10`)
+5. **임시저장** — 네이버 에디터 (실패 시 posts/ 수동 붙여넣기)
+
+## 로그
+- `logs/daily_run_YYYY-MM-DD.txt` — 일일 보고
+- `logs/latest_post.json` — 오늘 생성 글 경로
+- `logs/naver_reply_log.jsonl` — 답글 기록
+
+## Chrome
+- 디버그 포트 9222, 프로필: `%LOCALAPPDATA%\naver-blog-chrome-debug`
+- 최초 1회 네이버 로그인 필요 (이후 세션 유지)
+
+## 주의
+- 글 **발행은 하지 않음** — 임시저장만
+- 오늘 글은 1회만 생성 (같은 날 재실행 시 스킵)

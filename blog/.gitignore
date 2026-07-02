@@ -1,0 +1,6 @@
+.env
+.env.local
+*.log
+__pycache__/
+chrome_md_profile/
+logs/*.png

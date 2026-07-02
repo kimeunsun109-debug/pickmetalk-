@@ -29,20 +29,21 @@ npx supabase db push
 # 또는 SQL Editor에서 supabase/migrations/006_user_daily_patterns.sql 실행
 ```
 
-## 4. 블로그 자동화 (별도 폴더)
+## 4. 블로그 자동화 (`blog/`)
 
-블로그 작업은 **이 repo 밖** OneDrive에 있습니다:
+블로그 스크립트·글 초안은 이 repo의 `blog/` 폴더에 있습니다.
 
+```bash
+cd blog
+cp .env.example .env   # 로컬/Cloud Secrets에만 실제 값 입력 — push 금지
+pip install -r requirements-selenium.txt
+playwright install chromium   # Playwright 모드 사용 시
 ```
-C:\Users\user\OneDrive\Desktop\blog
-```
 
-Cloud에서 블로그까지 하려면:
+- **Cloud에서 가능:** 스크립트 수정, HTML 글 편집, Python 로직 개선
+- **로컬 Windows만 가능:** Selenium 임시저장, Chrome CDP(9222), 작업 스케줄러 `SuN_Blog_Daily_7AM`
 
-1. `blog` 폴더를 이 repo에 `blog/` 로 추가 push, 또는
-2. 별도 GitHub repo 생성 후 clone
-
-블로그 `.env` (네이버 계정)는 **절대 push 금지**.
+블로그 `.env` (네이버 계정)는 **절대 push 금지**. Cursor Cloud Secrets에 `NAVER_ID`, `NAVER_PW`, `BLOG_ID` 등록.
 
 ## 5. 일일 블로그 업무 (로컬 Windows)
 

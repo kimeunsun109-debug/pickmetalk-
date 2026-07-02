@@ -30,21 +30,20 @@ See also `docs/CURSOR_CLOUD.md`.
 - Prompt updates: `prompts/base.ts`, `patternNudges.ts`, `topicGuides.ts`
 - Kick lines: `킥문장_마스터DB.xlsx` → `data/kickLines/master.json` via `npm run sync:kicklines` (auto on dev/build)
 
-### Blog automation (local path — not in this repo)
+### Blog automation (`blog/`)
 
-Blog scripts live on the user's machine:
-
-`C:\Users\user\OneDrive\Desktop\blog`
+Blog scripts are in this repo under `blog/`. Local OneDrive copy may also exist at
+`C:\Users\user\OneDrive\Desktop\blog` — treat repo `blog/` as source of truth for Cloud.
 
 Key files:
 
-- `scripts/blog_daily_run.py` — daily 7AM workflow
-- `scripts/selenium_blog_post.py` — Selenium headless post
-- `scripts/blog_generate_post.py` + `blog_image.py` — post + AI images
-- `scripts/naver_blog_automation.py` — Playwright CDP (port 9222)
-- `.env` — NAVER credentials (never commit)
+- `blog/scripts/blog_daily_run.py` — daily 7AM workflow
+- `blog/scripts/selenium_blog_post.py` — Selenium headless post
+- `blog/scripts/blog_generate_post.py` + `blog_image.py` — post + AI images
+- `blog/scripts/naver_blog_automation.py` — Playwright CDP (port 9222)
+- `blog/.env` — NAVER credentials (copy from `blog/.env.example`, never commit)
 
-To bring blog into this repo later: copy `blog/` folder and add `blog/.env` to gitignore.
+Cloud: Selenium/CDP/Windows scheduler need a local Windows machine; Cloud can edit scripts and HTML posts.
 
 ## Cursor Cloud specific instructions
 
