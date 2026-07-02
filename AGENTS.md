@@ -46,6 +46,45 @@ Key files:
 
 To bring blog into this repo later: copy `blog/` folder and add `blog/.env` to gitignore.
 
+## Cursor Cloud specific instructions
+
+PickmeTalk is a single Next.js 15 (App Router) + TypeScript web app. Backend is Next.js API
+routes; persistence/auth is Supabase; chat replies come from the DeepSeek API. Standard commands
+live in `package.json` and setup steps in `README.md`.
+
+### Services
+
+- **Next.js dev server**: `npm run dev` → http://localhost:3000. `npm run build` then
+  `npm start` for production. Lint: `npm run lint`.
+- **Supabase** (external/hosted, or local via `npx supabase start`): required for auth and
+  persistence (messages, characters, affection/relationship).
+- **DeepSeek API** (external): required for `/api/chat`. No local mock; throws if
+  `DEEPSEEK_API_KEY` is missing.
+
+Android/Capacitor, PWA (`ENABLE_PWA=true`), and Telegram vars are optional.
+
+### Environment variables
+
+Copy `.env.example` → `.env.local`. Required: `NEXT_PUBLIC_SUPABASE_URL`,
+`NEXT_PUBLIC_SUPABASE_ANON_KEY`, `DEEPSEEK_API_KEY` (server-only — never `NEXT_PUBLIC_`).
+Optional: `SUPABASE_SERVICE_ROLE_KEY`, `DEEPSEEK_BASE_URL`, `TAVILY_API_KEY`.
+
+### Non-obvious gotchas
+
+- **Placeholder Supabase**: if the URL contains `YOUR_PROJECT`/`your_project` or the anon key
+  contains `your_anon`, middleware skips session refresh and redirects protected routes to
+  `/login`. Use placeholder patterns or real credentials — fake-looking URLs can stall SSR.
+- **DeepSeek env is re-read per request**, so editing `DEEPSEEK_API_KEY` in `.env.local` does
+  not require a dev-server restart for `/api/chat`.
+- **Network egress in Cursor Cloud**: outbound to `api.deepseek.com`, `*.supabase.co`, and
+  Docker registries may be blocked by default. `npx supabase start` and live API calls need
+  allowlist entries. Lint, build, and the dev server work offline.
+
+### Hello-world flow (when creds + egress are available)
+
+`/login` → `/characters` (pick 유나·나린·윤서·은하·지유) → `/chat` (streaming DeepSeek reply;
+affection +1 per round trip).
+
 ## Do not
 
 - Auto-publish Naver blog posts (draft only)
