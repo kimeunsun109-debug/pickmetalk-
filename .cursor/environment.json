@@ -1,3 +1,0 @@
-{
-  "install": "sudo ln -sf /usr/bin/python3 /usr/local/bin/python; npm install && pip install openpyxl"
-}
