@@ -24,20 +24,47 @@ function bubbleRadiusClass(
   return "rounded-2xl rounded-tl-sm";
 }
 
+/** 짧은 답변은 한 말풍선 유지, 긴 답변만 문장 단위로 쪼갠다 */
+const MIN_LEN_TO_SPLIT = 28;
+
+/** 문장 부호 기준으로 나눈 뒤, 너무 짧은 조각은 앞 말풍선에 붙인다 */
+function splitIntoSentences(text: string): string[] {
+  if (text.length < MIN_LEN_TO_SPLIT) return [text];
+  const raw = text.match(/[^.!?~…]+[.!?~…]+[)\]\s]*|[^.!?~…]+$/gu);
+  if (!raw || raw.length <= 1) return [text];
+
+  const sentences = raw.map((s) => s.trim()).filter(Boolean);
+  const bubbles: string[] = [];
+  for (const s of sentences) {
+    const prev = bubbles[bubbles.length - 1];
+    if (prev && (s.length < 8 || prev.length < 12)) {
+      bubbles[bubbles.length - 1] = `${prev} ${s}`;
+    } else {
+      bubbles.push(s);
+    }
+  }
+  return bubbles;
+}
+
 /**
  * 어시스턴트 답변을 카톡처럼 여러 말풍선으로 쪼갠다.
- * 모델이 줄바꿈으로 구분한 짧은 문장들을 각각 하나의 말풍선으로 렌더한다.
+ * 1) 모델이 줄바꿈으로 나눴으면 그 단위로, 2) 아니면 긴 답변을 문장 단위로 나눈다.
  */
 function splitAssistantBubbles(content: string, max = 4): string[] {
-  const parts = content
+  const byNewline = content
     .split(/\n+/)
     .map((s) => s.trim())
     .filter(Boolean);
-  if (parts.length <= 1) return [content];
-  if (parts.length <= max) return parts;
-  const head = parts.slice(0, max - 1);
-  const tail = parts.slice(max - 1).join(" ");
-  return [...head, tail];
+
+  let parts = byNewline.length > 1 ? byNewline : splitIntoSentences(content.trim());
+  if (parts.length === 0) return [content];
+
+  if (parts.length > max) {
+    const head = parts.slice(0, max - 1);
+    const tail = parts.slice(max - 1).join(" ");
+    parts = [...head, tail];
+  }
+  return parts;
 }
 
 export interface MessageItemProps {
