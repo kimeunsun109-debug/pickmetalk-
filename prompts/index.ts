@@ -1,5 +1,6 @@
 import { getCharacterById } from "@/data";
 import {
+  buildDialogueEngineRules,
   buildRecentDialogueGuard,
   buildSessionContinuityRules,
   generateBaseSystemPrompt,
@@ -7,6 +8,10 @@ import {
 } from "./base";
 import { buildCharacterToppingBlock } from "./characterToppings";
 import { buildCharacterPromptById } from "./characterPrompt";
+import {
+  buildCharacterTopicGuides,
+  buildMealAndContextRules,
+} from "./topicGuides";
 import { buildKickLineHint } from "./kickLines";
 import { getContextMemoryPrompt } from "@/services/memory";
 import { buildSpeechStylePromptBlock } from "@/services/speechStyle";
@@ -47,6 +52,7 @@ export function buildSystemPrompt(
     level
   );
   const baseBlock = generateBaseSystemPrompt({
+    characterId,
     characterName: character?.name ?? "캐릭터",
     emotion,
     emotionDurationTurns,
@@ -69,15 +75,25 @@ export function buildSystemPrompt(
     narrativePauseReturn: timeContext?.absence.narrativePauseReturn,
   });
   const recentDialogueGuard = buildRecentDialogueGuard(recentMessages);
+  const dialogueEngineRules = buildDialogueEngineRules(
+    characterId,
+    character?.name ?? "캐릭터"
+  );
   const speechStyleBlock = buildSpeechStylePromptBlock(speechProfile);
   const toppingBlock = buildCharacterToppingBlock(characterId);
   const kickLineHint = buildKickLineHint({
+    characterId,
     userMessage: latestUserMessage,
     turnCount: userMessageCount,
   });
 
+  const topicGuides = buildCharacterTopicGuides(characterId);
+  const mealContextRules = buildMealAndContextRules();
+
   return [
     dynamicContextBlock,
+    dialogueEngineRules,
+    mealContextRules,
     speechStyleBlock,
     sessionContinuityRules,
     recentDialogueGuard,
@@ -86,6 +102,7 @@ export function buildSystemPrompt(
     baseBlock,
     toppingBlock,
     characterBlock,
+    topicGuides,
     memory,
   ]
     .filter(Boolean)

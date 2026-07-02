@@ -6,60 +6,6 @@ import { useLongPress } from "@/hooks/useLongPress";
 import { formatBubbleTime } from "@/lib/formatMessageTime";
 import { TypingIndicator } from "@/components/chat/TypingIndicator";
 
-function parseNarinContent(
-  content: string,
-  isStreaming: boolean
-): { visible: string; hidden: string | null } {
-  if (isStreaming) return { visible: content, hidden: null };
-
-  const match = content.match(/^([\s\S]+?)\s*(\([^()]+\))\s*$/);
-  if (!match) return { visible: content, hidden: null };
-
-  return {
-    visible: match[1].trim(),
-    hidden: match[2],
-  };
-}
-
-function HiddenTextBlock({
-  text,
-  isPremiumUser,
-  onClickLock,
-}: {
-  text: string;
-  isPremiumUser: boolean;
-  onClickLock: () => void;
-}) {
-  if (isPremiumUser) {
-    return (
-      <span className="mt-1 block text-[12px] font-medium italic text-pink-accent">
-        {text}
-      </span>
-    );
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={onClickLock}
-      className="group relative mt-1 block w-full cursor-pointer rounded-lg text-left"
-      aria-label="프리미엄 콘텐츠 확인"
-      title="프리미엄 구독 후 확인 가능"
-    >
-      <span
-        className="block select-none text-[12px] text-gray-700 blur-[4px] transition-all duration-200 group-hover:blur-[5px]"
-        aria-hidden
-      >
-        {text}
-      </span>
-      <span className="absolute inset-0 flex items-center justify-center gap-1 rounded-lg bg-pink-soft/60 text-[11px] font-semibold text-pink-accent backdrop-blur-[1px] transition-colors group-hover:bg-pink-soft/80">
-        <span aria-hidden>🔒</span>
-        <span>속마음 보기</span>
-      </span>
-    </button>
-  );
-}
-
 function bubbleRadiusClass(
   isUser: boolean,
   isGroupedWithPrev: boolean,
@@ -101,7 +47,7 @@ export function MessageItem({
   onLongPress,
   canDelete = false,
 }: MessageItemProps) {
-  const { character, characterId, isPremiumUser, openPremiumModal } = useChat();
+  const { character } = useChat();
   const { role, content } = message;
   const isUser = role === "user";
 
@@ -109,11 +55,6 @@ export function MessageItem({
     () => onLongPress?.(message.id),
     { disabled: !canDelete || !onLongPress }
   );
-
-  const { visible, hidden } =
-    characterId === "narin" && !isUser
-      ? parseNarinContent(content, isStreaming)
-      : { visible: content, hidden: null };
 
   const rowPadding = isGroupedWithPrev ? "pt-0.5" : "pt-2";
 
@@ -140,28 +81,21 @@ export function MessageItem({
         >
           <div
             className={`px-3.5 py-2 text-[15px] leading-[1.45] ${bubbleRadiusClass(
-            isUser,
-            isGroupedWithPrev,
-            isGroupedWithNext
-          )} ${
-            isUser
-              ? "bg-bubble-user text-gray-900"
-              : "bg-bubble-ai text-gray-800 shadow-sm"
-          } ${canDelete ? "select-none" : ""}`}
-        >
-          {visible ? (
-            <p className="whitespace-pre-wrap break-words">{visible}</p>
-          ) : isStreaming ? (
-            <TypingIndicator />
-          ) : null}
-          {hidden && (
-            <HiddenTextBlock
-              text={hidden}
-              isPremiumUser={isPremiumUser}
-              onClickLock={openPremiumModal}
-            />
-          )}
-        </div>
+              isUser,
+              isGroupedWithPrev,
+              isGroupedWithNext
+            )} ${
+              isUser
+                ? "bg-bubble-user text-gray-900"
+                : "bg-bubble-ai text-gray-800 shadow-sm"
+            } ${canDelete ? "select-none" : ""}`}
+          >
+            {content ? (
+              <p className="whitespace-pre-wrap break-words">{content}</p>
+            ) : isStreaming ? (
+              <TypingIndicator />
+            ) : null}
+          </div>
           {showTimestamp && message.createdAt && (
             <span className="shrink-0 pb-0.5 text-[10px] text-gray-400">
               {formatBubbleTime(message.createdAt)}

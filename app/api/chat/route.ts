@@ -1,6 +1,11 @@
 import { getCharacterById } from "@/data";
 import { streamDeepSeekChat } from "@/lib/ai/deepseek";
 import { getConversationForUser } from "@/lib/db/conversations";
+import {
+  getDailyPatternByType,
+  getDailyPatternsForUser,
+  upsertDailyPattern,
+} from "@/lib/db/dailyPatterns";
 import { mapCharacterState, mapMessage, mapUserProfile } from "@/lib/db/mappers";
 import {
   isDefaultConversationTitle,
@@ -20,8 +25,15 @@ import {
   mergeSpeechProfile,
   parseSpeechProfile,
 } from "@/services/speechStyle";
-import { ENABLE_SHORT_TERM_MEMORY } from "@/lib/constants";
+import { ENABLE_SHORT_TERM_MEMORY, CHAT_CONTEXT_TURNS, CHAT_STREAM_FIRST_CHUNK_MS } from "@/lib/constants";
 import { getSearchContextForMessage } from "@/services/search";
+import { getStreamFallback } from "@/services/chatFallback";
+import { postProcessAssistantReply } from "@/services/responsePostProcess";
+import {
+  inferDailyPatternObservations,
+  mergePatternObservation,
+} from "@/services/dailyPatternInference";
+import { refreshPatternAlertPlans } from "@/services/patternAlertPlanner";
 import {
   extractUserContext,
   buildCommonContextBlock,
@@ -32,11 +44,12 @@ import {
   buildTimeAwareContext,
   buildTimeContextPromptBlock,
 } from "@/services/timeContext";
+import { buildDailyPatternPromptBlock } from "@/prompts/patternNudges";
 import type { ChatRequestBody } from "@/types/api";
 import type { Message, UserCharacterState } from "@/types";
 import { NextResponse } from "next/server";
 
-const CONTEXT_LIMIT = 20;
+const CONTEXT_LIMIT = CHAT_CONTEXT_TURNS;
 const HISTORY_FETCH_LIMIT = 40;
 
 /**
@@ -107,6 +120,43 @@ export async function POST(request: Request) {
 
   if (userMsgError) {
     return NextResponse.json({ error: userMsgError.message }, { status: 500 });
+  }
+
+  let dailyPatternPromptBlock = "";
+  try {
+    const observations = inferDailyPatternObservations(userText, new Date(now));
+    for (const observation of observations) {
+      const existing = await getDailyPatternByType(
+        supabase,
+        user.id,
+        observation.patternType
+      );
+      const merged = mergePatternObservation({
+        existing,
+        observation,
+        observedAt: now,
+        messageId: userMessageRow?.id ?? null,
+      });
+      await upsertDailyPattern(supabase, {
+        userId: user.id,
+        patternType: merged.patternType,
+        timeStartMinute: merged.timeStartMinute,
+        timeEndMinute: merged.timeEndMinute,
+        confidence: merged.confidence,
+        evidenceCount: merged.evidenceCount,
+        timezone: merged.timezone,
+        observedAt: merged.observedAt,
+        messageId: merged.messageId,
+      });
+    }
+
+    const inferredPatterns = await getDailyPatternsForUser(supabase, user.id, 40);
+    dailyPatternPromptBlock = buildDailyPatternPromptBlock(
+      inferredPatterns.filter((pattern) => pattern.evidenceCount >= 2)
+    );
+    await refreshPatternAlertPlans(supabase, user.id, inferredPatterns, now);
+  } catch {
+    /* 생활 패턴 추론 실패 시 채팅은 계속 */
   }
 
   if (ENABLE_SHORT_TERM_MEMORY) {
@@ -288,6 +338,7 @@ export async function POST(request: Request) {
   const dynamicContextBlock = [
     timeContextBlock,
     await getSearchContextForMessage(userText).catch(() => ""),
+    dailyPatternPromptBlock,
     shortTermMemoryBlock,
     commonCtxBlock,
     characterCtxBlock,
@@ -330,13 +381,42 @@ export async function POST(request: Request) {
         );
       };
 
+      let gotModelChunk = false;
+      let fallbackUsed = false;
+      let streamTimeout: ReturnType<typeof setTimeout> | undefined;
+
       try {
+        streamTimeout = setTimeout(() => {
+          if (!gotModelChunk) {
+            fallbackUsed = true;
+            send({ content: getStreamFallback(characterId, userText) });
+          }
+        }, CHAT_STREAM_FIRST_CHUNK_MS);
+
         for await (const chunk of streamDeepSeekChat(aiMessages)) {
+          gotModelChunk = true;
+          if (streamTimeout) clearTimeout(streamTimeout);
           fullReply += chunk;
-          send({ content: chunk });
+          if (!fallbackUsed) {
+            send({ content: chunk });
+          }
         }
 
-        const trimmed = fullReply.trim() || "…";
+        if (streamTimeout) clearTimeout(streamTimeout);
+
+        if (!gotModelChunk && !fallbackUsed) {
+          fallbackUsed = true;
+          send({ content: getStreamFallback(characterId, userText) });
+        }
+
+        const { text: trimmed, follow_up } = postProcessAssistantReply(
+          fullReply || getStreamFallback(characterId, userText)
+        );
+
+        if (fallbackUsed || trimmed !== fullReply.trim()) {
+          send({ content: trimmed, replace: true });
+        }
+
         const newAffection = newAffectionPreview;
         const newLevel = newLevelPreview;
 
@@ -375,8 +455,11 @@ export async function POST(request: Request) {
           affection: newAffection,
           relationshipLevel: newLevel,
           emotion: newEmotion,
+          follow_up,
+          should_stream: true,
         });
       } catch (err) {
+        if (streamTimeout) clearTimeout(streamTimeout);
         const msg =
           err instanceof Error ? err.message : "채팅 처리 중 오류";
         send({ error: msg, done: true });

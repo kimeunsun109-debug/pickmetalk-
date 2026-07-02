@@ -34,3 +34,10 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .env*
+
+# supabase local
+supabase/.temp/
+
+# script debug artifacts
+scripts/inspect_out.txt
+scripts/xlsx_dump.json

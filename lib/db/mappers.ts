@@ -1,9 +1,12 @@
 import { normalizeEmotion } from "@/lib/emotions";
 import type {
   Conversation,
+  DailyPatternType,
   ExpressionState,
   Message,
+  PatternAlertPlan,
   RelationshipLevel,
+  UserDailyPattern,
   UserCharacterState,
   UserProfile,
 } from "@/types";
@@ -104,5 +107,39 @@ export function mapMessage(row: Record<string, unknown>): Message {
       ? normalizeEmotion(row.emotion as string)
       : undefined,
     createdAt: row.created_at as string,
+  };
+}
+
+export function mapUserDailyPattern(
+  row: Record<string, unknown>
+): UserDailyPattern {
+  return {
+    id: row.id as string,
+    userId: row.user_id as string,
+    patternType: row.pattern_type as DailyPatternType,
+    timeStartMinute: row.time_start_minute as number,
+    timeEndMinute: row.time_end_minute as number,
+    confidence: row.confidence as number,
+    evidenceCount: row.evidence_count as number,
+    timezone: (row.timezone as string) ?? "Asia/Seoul",
+    lastObservedAt: row.last_observed_at as string,
+    lastUpdatedAt: row.last_updated_at as string,
+    updatedFromMessageId: (row.updated_from_message_id as string | null) ?? null,
+  };
+}
+
+export function mapPatternAlertPlan(
+  row: Record<string, unknown>
+): PatternAlertPlan {
+  return {
+    id: row.id as string,
+    userId: row.user_id as string,
+    patternType: row.pattern_type as DailyPatternType,
+    offsetMinutes: row.offset_minutes as number,
+    enabled: (row.enabled as boolean) ?? true,
+    nextTriggerAt: (row.next_trigger_at as string | null) ?? null,
+    lastComputedAt: (row.last_computed_at as string | null) ?? null,
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
   };
 }

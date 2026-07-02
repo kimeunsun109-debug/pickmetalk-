@@ -123,6 +123,10 @@ function formatSituationHints(
     if (sr.otherAiPraise) parts.push(`다른 AI: ${sr.otherAiPraise}`);
     if (sr.brokenPromise) parts.push(`약속 파기: ${sr.brokenPromise}`);
     if (sr.userCompliment) parts.push(`칭찬 받을 때: ${sr.userCompliment}`);
+    if (sr.closingGoodnight) parts.push(`잘 자/수면: ${sr.closingGoodnight}`);
+    if (sr.dailyMeal) parts.push(`점심·식사: ${sr.dailyMeal}`);
+    if (sr.shortReply) parts.push(`단답(ㅇㅇ 등): ${sr.shortReply}`);
+    if (sr.affectionHint) parts.push(`호감·고백: ${sr.affectionHint}`);
     return parts.join(" | ");
   }
 

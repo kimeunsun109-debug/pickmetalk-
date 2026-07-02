@@ -277,7 +277,12 @@ export function ChatProvider({
               setMessages((prev) =>
                 prev.map((m) =>
                   m.id === aiMsgId
-                    ? { ...m, content: m.content + chunk.content }
+                    ? {
+                        ...m,
+                        content: chunk.replace
+                          ? chunk.content!
+                          : m.content + chunk.content,
+                      }
                     : m
                 )
               );

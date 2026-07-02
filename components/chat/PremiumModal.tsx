@@ -60,20 +60,20 @@ export function PremiumModal() {
 
         {/* 헤드라인 */}
         <h2 className="text-center text-lg font-bold text-gray-900">
-          {character.name}의 숨겨진 속마음
+          {character.name} 프리미엄 대화
         </h2>
         <p className="mt-2 text-center text-sm text-gray-500 leading-relaxed">
-          프리미엄 멤버만 볼 수 있는 진심이 담겨있어요.
+          프리미엄 멤버만 이용할 수 있는 특별 대화 기능이에요.
           <br />
           지금 구독하면{" "}
           <span className="font-semibold text-pink-accent">모든 캐릭터</span>의
-          숨겨진 대사를 확인할 수 있어요.
+          프리미엄 혜택을 확인할 수 있어요.
         </p>
 
         {/* 혜택 리스트 */}
         <ul className="mt-5 space-y-2.5 rounded-2xl bg-ivory p-4 text-sm text-gray-700">
           {[
-            "💬 캐릭터 속마음 실시간 공개",
+            "💬 프리미엄 전용 대화·이벤트",
             "♾️ 하루 메시지 무제한",
             "🎁 전용 선물·이벤트 우선 오픈",
             "✨ 프리미엄 전용 스토리 해금",

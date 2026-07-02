@@ -12,4 +12,4 @@ additional_redirect_urls = [
 
 [auth.email.template.recovery]
 subject = "픽미톡 비밀번호 재설정"
-content_path = "./templates/recovery.html"
+content_path = "supabase/templates/recovery.html"

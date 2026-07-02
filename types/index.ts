@@ -65,6 +65,10 @@ export interface CharacterPersonality {
     otherAiPraise?: string;
     brokenPromise?: string;
     userCompliment?: string;
+    closingGoodnight?: string;
+    dailyMeal?: string;
+    shortReply?: string;
+    affectionHint?: string;
   };
   /** 하위 호환·상황별 예시 멘트 */
   traits: string[];
@@ -198,6 +202,40 @@ export interface ShortTermMemory {
   status: ShortTermMemoryStatus;
   priority: number;
   sourceMessageId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type DailyPatternType =
+  | "wake"
+  | "work_start"
+  | "lunch"
+  | "work_end"
+  | "exercise"
+  | "sleep";
+
+export interface UserDailyPattern {
+  id: string;
+  userId: string;
+  patternType: DailyPatternType;
+  timeStartMinute: number;
+  timeEndMinute: number;
+  confidence: number;
+  evidenceCount: number;
+  timezone: string;
+  lastObservedAt: string;
+  lastUpdatedAt: string;
+  updatedFromMessageId: string | null;
+}
+
+export interface PatternAlertPlan {
+  id: string;
+  userId: string;
+  patternType: DailyPatternType;
+  offsetMinutes: number;
+  enabled: boolean;
+  nextTriggerAt: string | null;
+  lastComputedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
