@@ -34,4 +34,15 @@ if (!python) {
 }
 
 const result = spawnSync(python, [pyScript], { stdio: "inherit", cwd: root });
+if (result.status === 0) {
+  process.exit(0);
+}
+
+if (existsSync(masterJson)) {
+  console.warn(
+    `warn: kickline sync failed (exit ${result.status ?? 1}), using committed ${path.relative(root, masterJson)}`
+  );
+  process.exit(0);
+}
+
 process.exit(result.status ?? 1);
