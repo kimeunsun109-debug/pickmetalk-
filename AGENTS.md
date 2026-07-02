@@ -1,47 +1,62 @@
-# PickmeTalk — agent notes
+# Cursor Cloud / Agent handoff
 
-Next.js 15 (App Router) AI companion chat app. Supabase auth/DB, DeepSeek streaming chat.
+## Repo
 
-## Common commands
+- **App:** PickmeTalk AI girlfriend chat (`pickmetalk.com`)
+- **Stack:** Next.js 15, Supabase, DeepSeek, Vercel
+
+## Start (Cloud)
 
 ```bash
 npm install
-pip install openpyxl   # Excel sync scripts (also in .cursor/environment.json install)
-npm run dev            # predev syncs kick lines from 킥문장_마스터DB.xlsx
-npm run build
-npm run lint
-npm run sync:kicklines
+pip install openpyxl
+cp .env.example .env.local
+# Fill secrets in Cursor Cloud dashboard Secrets tab
+npm run dev
 ```
 
-## Key paths
+Required secrets: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `DEEPSEEK_API_KEY`  
+Optional: `TAVILY_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_APP_URL`
 
-| Area | Path |
-|------|------|
-| Chat API | `app/api/chat/route.ts` |
-| Prompts | `prompts/` (`base.ts`, `kickLines.ts`, `patternNudges.ts`, `topicGuides.ts`) |
-| Characters | `data/characters.json` |
-| Kick lines (generated) | `data/kickLines/master.json` |
-| Kick lines (source) | `킥문장_마스터DB.xlsx` |
-| Dialogue examples (source) | `character_dialogue_examples.xlsx` |
-| Daily pattern inference | `services/dailyPatternInference.ts`, `lib/db/dailyPatterns.ts` |
-| DB migrations | `supabase/migrations/` |
+See also `docs/CURSOR_CLOUD.md`.
 
-## Cursor Cloud specific instructions
+## Recent work (continue here)
 
-1. **Secrets** — Add these in [Cursor Cloud Agents dashboard](https://cursor.com/dashboard/cloud-agents) (Secrets tab). Do not commit real keys.
-   - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   - `DEEPSEEK_API_KEY`
-   - Optional: `TAVILY_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_APP_URL`
+### App
 
-2. **Environment** — This repo includes `.cursor/environment.json` with `npm install && pip install openpyxl`. Cloud agents use it automatically when starting from this repo.
+- Daily pattern inference + chat route enrichment
+- `services/dailyPatternInference.ts`, `patternAlertPlanner.ts`, `responsePostProcess.ts`
+- `lib/db/dailyPatterns.ts`, migration `006_user_daily_patterns.sql`
+- Prompt updates: `prompts/base.ts`, `patternNudges.ts`, `topicGuides.ts`
+- Kick lines: `킥문장_마스터DB.xlsx` → `data/kickLines/master.json` via `npm run sync:kicklines` (auto on dev/build)
 
-3. **Supabase** — Remote DB already has migration `006_user_daily_patterns`. For a fresh project, run `supabase/schema.sql` or `npx supabase db push --linked`.
+### Blog automation (local path — not in this repo)
 
-4. **Kick lines** — `npm run dev` / `npm run build` auto-run `sync:kicklines`. If the xlsx is missing, existing `data/kickLines/master.json` is used.
+Blog scripts live on the user's machine:
 
-5. **Tests / scripts** (manual, need env + network):
-   - `npx tsx scripts/test_daily_patterns.mts`
-   - `npx tsx scripts/test_character_dialogue.mts`
+`C:\Users\user\OneDrive\Desktop\blog`
 
-6. **Do not commit** — `.env.local`, `.next/`, `supabase/.temp/`, `scripts/inspect_out.txt`, `scripts/xlsx_dump.json`.
+Key files:
+
+- `scripts/blog_daily_run.py` — daily 7AM workflow
+- `scripts/selenium_blog_post.py` — Selenium headless post
+- `scripts/blog_generate_post.py` + `blog_image.py` — post + AI images
+- `scripts/naver_blog_automation.py` — Playwright CDP (port 9222)
+- `.env` — NAVER credentials (never commit)
+
+To bring blog into this repo later: copy `blog/` folder and add `blog/.env` to gitignore.
+
+## Do not
+
+- Auto-publish Naver blog posts (draft only)
+- Commit `.env`, `.env.local`, `supabase/.temp/`
+- Delete user OneDrive files without permission
+
+## Commands
+
+```bash
+npm run build
+npm run lint
+npx tsx scripts/test_daily_patterns.mts
+npx supabase db push   # if linked
+```
