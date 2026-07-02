@@ -86,7 +86,17 @@ Optional: `SUPABASE_SERVICE_ROLE_KEY`, `DEEPSEEK_BASE_URL`, `TAVILY_API_KEY`.
   contains `your_anon`, middleware skips session refresh and redirects protected routes to
   `/login`. Use placeholder patterns or real credentials — fake-looking URLs can stall SSR.
 - **DeepSeek env is re-read per request**, so editing `DEEPSEEK_API_KEY` in `.env.local` does
-  not require a dev-server restart for `/api/chat`.
+ not require a dev-server restart for `/api/chat`.
+- **`NEXT_PUBLIC_*` needs a dev restart**: unlike the server-only DeepSeek key, the client-side
+ `NEXT_PUBLIC_SUPABASE_URL`/`NEXT_PUBLIC_SUPABASE_ANON_KEY` are inlined into the bundle at
+ `next dev` startup. If you fill in real Supabase creds after `npm run dev` is already running,
+ the login page keeps showing "Supabase가 아직 설정되지 않았습니다" until you restart the dev server.
+- **No-email-confirm test account**: to get a working login without SMTP, create a confirmed
+ user via the Supabase Admin API with the service-role key
+ (`POST $NEXT_PUBLIC_SUPABASE_URL/auth/v1/admin/users` with `{"email_confirm": true}`); the
+ `handle_new_user` trigger auto-creates the `profiles` row. Characters are code-defined
+ (`data/characters.json`), so the optional `public.characters` table is not required for the
+ login → select → chat flow.
 - **Network egress in Cursor Cloud**: outbound to `api.deepseek.com`, `*.supabase.co`, and
   Docker registries may be blocked by default. `npx supabase start` and live API calls need
   allowlist entries. Lint, build, and the dev server work offline.
