@@ -19,7 +19,8 @@
     "test:dialogue": "npx tsx scripts/test_character_dialogue.mts",
     "voice:ab:run": "npx tsx scripts/character_voice_ab_run.mts",
     "voice:ab:week": "npx tsx scripts/character_voice_ab_week.mts",
-    "voice:ab:analyze": "npx tsx scripts/analyze_voice_ab_logs.mts"
+    "voice:ab:analyze": "npx tsx scripts/analyze_voice_ab_logs.mts",
+    "voice:journal:export": "npx tsx scripts/export_voice_journal.mts"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.0",

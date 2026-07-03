@@ -40,8 +40,25 @@ npx tsx scripts/character_voice_ab_week.mts --character narin --days 3 --no-dawn
 ## 로그 위치
 
 - **대화 텍스트**: `experiments/voice-ab/logs/{날짜}/{캐릭터}-{슬롯}-{변형}.md`
-- **통합 저널**: `experiments/voice-ab/journal.jsonl`
+- **통합 저널**: `experiments/voice-ab/journal.jsonl` (+ 앱: `journal-app.jsonl`)
 - **일별 선호 기록**: `experiments/voice-ab/daily-notes/YYYY-MM-DD.md`
+
+### 앱 채팅 자동 저널
+
+채팅 1턴이 끝나면 Supabase `chat_voice_journal`에 자동 저장됩니다.
+
+```bash
+# 마이그레이션 (최초 1회)
+npx supabase db push
+
+# 앱에서 대화한 뒤 로컬로 내려받기
+npm run voice:journal:export
+
+# 분석 (AB + 앱 저널 병합)
+npm run voice:ab:analyze
+```
+
+로그인 상태에서 `GET /api/voice-journal/export?format=json` 으로도 export 가능합니다.
 
 ### daily-notes 예시
 

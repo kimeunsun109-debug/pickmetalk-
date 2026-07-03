@@ -379,6 +379,8 @@ export async function POST(request: Request) {
           userContents,
           conversationTitle: conversation.title,
           isFirstUserMessage,
+          assistantReply: trimmed,
+          followUp: follow_up,
         });
       } catch (err) {
         if (streamTimeout) clearTimeout(streamTimeout);

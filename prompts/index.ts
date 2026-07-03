@@ -14,6 +14,8 @@ import {
 } from "./topicGuides";
 import { buildKickLineHint } from "./kickLines";
 import { buildVoiceAbOverlay, type VoiceAbVariant } from "./voiceAbVariants";
+import { buildWitAndRecoveryRules } from "./witAndRecovery";
+import { buildMomentContextBlock } from "@/services/chatMomentContext";
 import { getContextMemoryPrompt } from "@/services/memory";
 import { buildSpeechStylePromptBlock } from "@/services/speechStyle";
 import type { UserSpeechProfile } from "@/services/speechStyle";
@@ -96,14 +98,18 @@ export function buildSystemPrompt(
   const topicGuides = buildCharacterTopicGuides(characterId);
   const mealContextRules = buildMealAndContextRules();
   const voiceAbBlock = buildVoiceAbOverlay(options?.voiceAbVariant);
+  const momentBlock = buildMomentContextBlock(latestUserMessage, recentMessages);
+  const witBlock = buildWitAndRecoveryRules(characterId);
 
   return [
     dynamicContextBlock,
+    momentBlock,
     dialogueEngineRules,
     mealContextRules,
     voiceAbBlock,
     characterBlock,
     toppingBlock,
+    witBlock,
     topicGuides,
     baseBlock,
     speechStyleBlock,

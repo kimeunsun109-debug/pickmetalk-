@@ -45,6 +45,9 @@ export function buildCharacterPromptBlock(
         ...(identity.naturalVoice
           ? [`[말할 때 자연스럽게 나오는 것 — 강제 아님] ${identity.naturalVoice}`]
           : []),
+        ...(identity.witStyle
+          ? [`[센스·받아치기] ${identity.witStyle}`]
+          : []),
       ].join("\n")
     : `[성격] ${p.core}`;
 

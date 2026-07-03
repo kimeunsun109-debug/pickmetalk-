@@ -18,6 +18,8 @@ import {
   mergeSpeechProfile,
   parseSpeechProfile,
 } from "@/services/speechStyle";
+import { appendChatVoiceJournal } from "@/lib/db/chatVoiceJournal";
+import type { ChatFollowUp } from "@/types/api";
 import type { UserProfile } from "@/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -34,6 +36,8 @@ export async function runDeferredChatSideEffects(options: {
   userContents: string[];
   conversationTitle: string;
   isFirstUserMessage: boolean;
+  assistantReply?: string;
+  followUp?: ChatFollowUp;
 }): Promise<void> {
   const {
     supabase,
@@ -47,6 +51,8 @@ export async function runDeferredChatSideEffects(options: {
     userContents,
     conversationTitle,
     isFirstUserMessage,
+    assistantReply,
+    followUp,
   } = options;
 
   const tasks: Promise<unknown>[] = [];
@@ -180,6 +186,20 @@ export async function runDeferredChatSideEffects(options: {
           /* 단기기억 비활성 */
         }
       })()
+    );
+  }
+
+  if (assistantReply?.trim()) {
+    tasks.push(
+      appendChatVoiceJournal(supabase, {
+        userId,
+        conversationId,
+        characterId,
+        userMessage: userText,
+        assistantReply: assistantReply.trim(),
+        followUp,
+        createdAt: now,
+      })
     );
   }
 

@@ -18,6 +18,7 @@ import { VOICE_AB_LABELS, type VoiceAbVariant } from "../prompts/voiceAbVariants
 const ROOT = resolve(import.meta.dirname, "..");
 const EXP = resolve(ROOT, "experiments/voice-ab");
 const JOURNAL = resolve(EXP, "journal.jsonl");
+const JOURNAL_APP = resolve(EXP, "journal-app.jsonl");
 const NOTES_DIR = resolve(EXP, "daily-notes");
 const REPORT_DIR = resolve(EXP, "reports");
 
@@ -25,23 +26,35 @@ interface JournalEntry {
   ts: string;
   date: string;
   characterId: string;
-  variant: VoiceAbVariant;
+  variant?: VoiceAbVariant | null;
+  source?: string;
   slot: string;
-  variantLabel: string;
+  variantLabel?: string;
   userMessage: string;
   reply: string;
 }
 
 const HUMAN_MARKERS = /ㅋ|ㅎ|헐|대박|응응|어머|진짜|ㅠ|…|\.\.\./;
+const WIT_MARKERS = /ㅋㅋ|속았|치매|숙취|머리\s?비|재부팅|미안.*ㅋ|착각.*ㅋ|어이|미쳤|헐/;
 const DATA_MARKERS = /데이터|통계|평균|지수|샘플|확률|분당|%/i;
+const FLAT_APOLOGY = /^아\.?\.?\s*맞다|착각했네|미안해\.?$/;
 const EMPATHY_MARKERS = /힘들|버텼|속상|그랬구나|괜찮|곁에|이해|걱정|수고/;
 
 function loadJournal(): JournalEntry[] {
-  if (!existsSync(JOURNAL)) return [];
-  return readFileSync(JOURNAL, "utf-8")
-    .split("\n")
-    .filter(Boolean)
-    .map((line) => JSON.parse(line) as JournalEntry);
+  const paths = [JOURNAL, JOURNAL_APP].filter((p) => existsSync(p));
+  if (!paths.length) return [];
+  const entries: JournalEntry[] = [];
+  for (const path of paths) {
+    for (const line of readFileSync(path, "utf-8").split("\n")) {
+      if (!line.trim()) continue;
+      try {
+        entries.push(JSON.parse(line) as JournalEntry);
+      } catch {
+        /* skip bad line */
+      }
+    }
+  }
+  return entries;
 }
 
 function loadDailyNotes(): Record<string, string> {
@@ -57,13 +70,17 @@ function loadDailyNotes(): Record<string, string> {
 function scoreReply(reply: string): {
   human: number;
   empathy: number;
+  wit: number;
   dataHeavy: number;
+  flatApology: boolean;
   length: number;
 } {
   return {
-    human: (reply.match(HUMAN_MARKERS) ?? []).length,
+    human: (reply.match(new RegExp(HUMAN_MARKERS.source, "g")) ?? []).length,
     empathy: (reply.match(EMPATHY_MARKERS) ?? []).length,
+    wit: (reply.match(WIT_MARKERS) ?? []).length,
     dataHeavy: (reply.match(DATA_MARKERS) ?? []).length,
+    flatApology: FLAT_APOLOGY.test(reply.trim()),
     length: reply.length,
   };
 }
@@ -79,23 +96,34 @@ function main() {
 
   const byVariant: Record<
     VoiceAbVariant,
-    { count: number; human: number; empathy: number; dataHeavy: number; samples: string[] }
+    { count: number; human: number; empathy: number; wit: number; dataHeavy: number; flatApology: number; samples: string[] }
   > = {
-    A: { count: 0, human: 0, empathy: 0, dataHeavy: 0, samples: [] },
-    B: { count: 0, human: 0, empathy: 0, dataHeavy: 0, samples: [] },
-    C: { count: 0, human: 0, empathy: 0, dataHeavy: 0, samples: [] },
+    A: { count: 0, human: 0, empathy: 0, wit: 0, dataHeavy: 0, flatApology: 0, samples: [] },
+    B: { count: 0, human: 0, empathy: 0, wit: 0, dataHeavy: 0, flatApology: 0, samples: [] },
+    C: { count: 0, human: 0, empathy: 0, wit: 0, dataHeavy: 0, flatApology: 0, samples: [] },
   };
+
+  const appEntries = { count: 0, wit: 0, flatApology: 0 };
 
   const byCharacter: Record<string, number> = {};
 
   for (const e of entries) {
     const s = scoreReply(e.reply);
-    const v = byVariant[e.variant];
-    v.count += 1;
-    v.human += s.human;
-    v.empathy += s.empathy;
-    v.dataHeavy += s.dataHeavy;
-    if (v.samples.length < 3) v.samples.push(e.reply.slice(0, 120));
+    const variant = e.variant as VoiceAbVariant | null;
+    if (variant && byVariant[variant]) {
+      const v = byVariant[variant];
+      v.count += 1;
+      v.human += s.human;
+      v.empathy += s.empathy;
+      v.wit += s.wit;
+      v.dataHeavy += s.dataHeavy;
+      v.flatApology += s.flatApology ? 1 : 0;
+      if (v.samples.length < 3) v.samples.push(e.reply.slice(0, 120));
+    } else {
+      appEntries.count += 1;
+      appEntries.wit += s.wit;
+      appEntries.flatApology += s.flatApology ? 1 : 0;
+    }
     byCharacter[e.characterId] = (byCharacter[e.characterId] ?? 0) + 1;
   }
 
@@ -107,15 +135,27 @@ function main() {
     "",
     "## 변형별 요약",
     "",
-    "| 변형 | 건수 | 인간 리액션 | 공감 키워드 | 데이터 톤 |",
-    "|------|------|------------|------------|----------|",
+    "| 변형 | 건수 | 인간 리액션 | 공감 | 센스(ㅋㅋ·드립) | 데이터 톤 | 뻣뻣한 사과 |",
+    "|------|------|------------|------|----------------|----------|------------|",
   ];
 
   for (const variant of ["A", "B", "C"] as VoiceAbVariant[]) {
     const v = byVariant[variant];
     const label = VOICE_AB_LABELS[variant].label;
     lines.push(
-      `| ${variant} ${label} | ${v.count} | ${v.human} | ${v.empathy} | ${v.dataHeavy} |`
+      `| ${variant} ${label} | ${v.count} | ${v.human} | ${v.empathy} | ${v.wit} | ${v.dataHeavy} | ${v.flatApology} |`
+    );
+  }
+
+  if (appEntries.count > 0) {
+    lines.push(
+      "",
+      "## 앱 실사용 저널",
+      "",
+      `- 건수: ${appEntries.count}`,
+      `- 센스 마커 합: ${appEntries.wit}`,
+      `- 뻣뻣한 사과(착각했네만): ${appEntries.flatApology}건 → **낮을수록 좋음**`,
+      ""
     );
   }
 
