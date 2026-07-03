@@ -33,7 +33,7 @@ export const WEB_SEARCH_MAX_RESULTS = 4;
 export const WEB_SEARCH_TIMEOUT_MS = 8000;
 
 /** LLM에 주입하는 최근 대화 메시지 수 (턴) */
-export const CHAT_CONTEXT_TURNS = 6;
+export const CHAT_CONTEXT_TURNS = 12;
 
 /**
  * 첫 스트림 청크 지연 시 폴백 전송 (ms).

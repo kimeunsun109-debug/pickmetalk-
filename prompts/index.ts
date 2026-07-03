@@ -13,11 +13,16 @@ import {
   buildMealAndContextRules,
 } from "./topicGuides";
 import { buildKickLineHint } from "./kickLines";
+import { buildVoiceAbOverlay, type VoiceAbVariant } from "./voiceAbVariants";
 import { getContextMemoryPrompt } from "@/services/memory";
 import { buildSpeechStylePromptBlock } from "@/services/speechStyle";
 import type { UserSpeechProfile } from "@/services/speechStyle";
 import type { TimeAwareContext } from "@/services/timeContext";
 import type { EmotionState, Message, RelationshipLevel } from "@/types";
+
+export interface BuildSystemPromptOptions {
+  voiceAbVariant?: VoiceAbVariant | null;
+}
 
 /**
  * 최종 시스템 프롬프트 — 캐릭터 + 감정 + 호감도 + 관계 레벨 + 동적 컨텍스트
@@ -42,7 +47,8 @@ export function buildSystemPrompt(
   recentMessages: Message[] = [],
   speechProfile: UserSpeechProfile | null = null,
   latestUserMessage = "",
-  timeContext: TimeAwareContext | null = null
+  timeContext: TimeAwareContext | null = null,
+  options?: BuildSystemPromptOptions
 ): string {
   const character = getCharacterById(characterId);
   const characterBlock = buildCharacterPromptById(
@@ -89,20 +95,22 @@ export function buildSystemPrompt(
 
   const topicGuides = buildCharacterTopicGuides(characterId);
   const mealContextRules = buildMealAndContextRules();
+  const voiceAbBlock = buildVoiceAbOverlay(options?.voiceAbVariant);
 
   return [
     dynamicContextBlock,
     dialogueEngineRules,
     mealContextRules,
+    voiceAbBlock,
+    characterBlock,
+    toppingBlock,
+    topicGuides,
+    baseBlock,
     speechStyleBlock,
     sessionContinuityRules,
     recentDialogueGuard,
     kickLineHint,
     memoryPriorityHints,
-    baseBlock,
-    toppingBlock,
-    characterBlock,
-    topicGuides,
     memory,
   ]
     .filter(Boolean)

@@ -216,41 +216,39 @@ const LAUGH_HINT: Record<LaughLevel, string> = {
 export function buildSpeechStylePromptBlock(
   profile: UserSpeechProfile | null
 ): string {
+  const header = [
+    "[상대와의 대화 리듬]",
+    "캐릭터 정체성·자기소개서가 최우선이다. 성격을 유지한 채 상대에 맞춘다.",
+    "사용자 말투를 흉내 내거나 이모지·ㅋㅋ를 억지로 복사하지 않는다.",
+  ];
+
   if (!profile || profile.messageSampleCount < 2) {
     return [
-      "[사용자 말투 학습 — 초기]",
-      "아직 패턴이 적다. 사용자 첫 몇 턴 말투를 빠르게 따라가라.",
-      "반말이면 반말, 존댓말이면 존댓말. 짧으면 짧게.",
+      ...header,
+      "아직 패턴이 적다. 반말/존댓말·길이만 자연스럽게 맞춘다.",
     ].join("\n");
   }
 
   const honorificRule =
     profile.honorific === "banmal"
-      ? "사용자가 반말 → 너도 반말 (캐릭터 Lv·토핑 범위 내)."
+      ? "상대가 반말 → 반말 (Lv·캐릭터 범위 내)."
       : profile.honorific === "jondaemal"
-        ? "사용자가 존댓말 → 너도 존댓말 또는 부드러운 존댓."
-        : "반말·존댓말 혼용 OK. 사용자 리듬에 맞춘다.";
+        ? "상대가 존댓말 → 존댓말 또는 부드러운 존댓."
+        : "반말·존댓말 혼용 OK.";
 
   const lines = [
-    "[사용자 말투 학습 — 최우선 적용]",
-    `- 평균 답변 길이: ${LENGTH_HINT[profile.avgLength]}`,
-    `- 이모지: ${profile.emojiUsage === "high" ? "자주 씀 → 맞춰 준다" : "거의 안 씀 → 이모지 자제"}`,
-    `- ㅋㅋ: ${LAUGH_HINT[profile.laughUsage]}`,
-    `- 톤: ${profile.tone === "serious" ? "진지한 편 → 가볍게 깨지 말 것" : profile.tone === "light" ? "가벼운 편 → 리액션·유머 OK" : "진지·가벼움 오감"}`,
+    ...header,
+    `- 답 길이 감각: ${LENGTH_HINT[profile.avgLength]}`,
+    `- 상대 톤: ${profile.tone === "serious" ? "진지한 편 — 가볍게 깨지 말 것" : profile.tone === "light" ? "가벼운 편 — 유머 OK" : "진지·가벼움 오감"}`,
     `- ${honorificRule}`,
   ];
 
-  if (profile.commonPatterns.length > 0) {
-    lines.push(
-      `- 자주 쓰는 말: "${profile.commonPatterns.join('", "')}" — 가끔 자연스럽게 맞춰 쓴다.`
-    );
-  }
   if (profile.interests.length > 0) {
-    lines.push(`- 관심사 추정: ${profile.interests.join(", ")}`);
+    lines.push(`- 관심사 참고: ${profile.interests.join(", ")}`);
   }
 
   lines.push(
-    "※ 캐릭터 토핑·성격보다 사용자 말투 맞춤이 우선. 단, 싸가지·무시는 절대 금지."
+    "※ 캐릭터가 이모지·ㅋㅋ를 쓰지 않는 성격이면 상대 빈도와 관계없이 자제한다."
   );
 
   return lines.join("\n");
