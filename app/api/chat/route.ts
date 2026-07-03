@@ -1,19 +1,12 @@
 import { getCharacterById } from "@/data";
 import { streamDeepSeekChat } from "@/lib/ai/deepseek";
 import { getConversationForUser } from "@/lib/db/conversations";
-import {
-  getDailyPatternByType,
-  getDailyPatternsForUser,
-  upsertDailyPattern,
-} from "@/lib/db/dailyPatterns";
+import { getDailyPatternsForUser } from "@/lib/db/dailyPatterns";
 import { mapCharacterState, mapMessage, mapUserProfile } from "@/lib/db/mappers";
-import {
-  isDefaultConversationTitle,
-  titleFromFirstMessage,
-} from "@/lib/conversationTitle";
 import { createClient } from "@/lib/supabase/server";
 import { buildSystemPrompt } from "@/prompts";
 import { affectionToLevel, clampAffection } from "@/services/affection";
+import { runDeferredChatSideEffects } from "@/services/chatSideEffects";
 import {
   countEmotionDurationTurns,
   isOngoingChatSession,
@@ -25,15 +18,15 @@ import {
   mergeSpeechProfile,
   parseSpeechProfile,
 } from "@/services/speechStyle";
-import { ENABLE_SHORT_TERM_MEMORY, CHAT_CONTEXT_TURNS, CHAT_STREAM_FIRST_CHUNK_MS } from "@/lib/constants";
+import {
+  ENABLE_SHORT_TERM_MEMORY,
+  CHAT_CONTEXT_TURNS,
+  CHAT_STREAM_FIRST_CHUNK_MS,
+  WEB_SEARCH_CHAT_BUDGET_MS,
+} from "@/lib/constants";
 import { getSearchContextForMessage } from "@/services/search";
 import { getStreamFallback } from "@/services/chatFallback";
 import { postProcessAssistantReply } from "@/services/responsePostProcess";
-import {
-  inferDailyPatternObservations,
-  mergePatternObservation,
-} from "@/services/dailyPatternInference";
-import { refreshPatternAlertPlans } from "@/services/patternAlertPlanner";
 import {
   extractUserContext,
   buildCommonContextBlock,
@@ -52,9 +45,21 @@ import { NextResponse } from "next/server";
 const CONTEXT_LIMIT = CHAT_CONTEXT_TURNS;
 const HISTORY_FETCH_LIMIT = 40;
 
+function searchContextWithBudget(userMessage: string): Promise<string> {
+  return Promise.race([
+    getSearchContextForMessage(userMessage).catch(() => ""),
+    new Promise<string>((resolve) =>
+      setTimeout(() => resolve(""), WEB_SEARCH_CHAT_BUDGET_MS)
+    ),
+  ]);
+}
+
 /**
  * POST /api/chat — DeepSeek 스트리밍 + 대화방별 메시지·호감도 저장
  * Body: { conversationId, message }
+ *
+ * TTFB 최적화: 사용자 메시지 저장 직후 SSE Response를 반환하고,
+ * 프롬프트 준비·LLM 호출은 stream.start() 안에서 처리한다.
  */
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -99,13 +104,6 @@ export async function POST(request: Request) {
   const userText = message.trim();
   const now = new Date().toISOString();
 
-  const { data: profileRow } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .maybeSingle();
-  const profile = profileRow ? mapUserProfile(profileRow) : null;
-
   const { data: userMessageRow, error: userMsgError } = await supabase
     .from("messages")
     .insert({
@@ -122,256 +120,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: userMsgError.message }, { status: 500 });
   }
 
-  let dailyPatternPromptBlock = "";
-  try {
-    const observations = inferDailyPatternObservations(userText, new Date(now));
-    for (const observation of observations) {
-      const existing = await getDailyPatternByType(
-        supabase,
-        user.id,
-        observation.patternType
-      );
-      const merged = mergePatternObservation({
-        existing,
-        observation,
-        observedAt: now,
-        messageId: userMessageRow?.id ?? null,
-      });
-      await upsertDailyPattern(supabase, {
-        userId: user.id,
-        patternType: merged.patternType,
-        timeStartMinute: merged.timeStartMinute,
-        timeEndMinute: merged.timeEndMinute,
-        confidence: merged.confidence,
-        evidenceCount: merged.evidenceCount,
-        timezone: merged.timezone,
-        observedAt: merged.observedAt,
-        messageId: merged.messageId,
-      });
-    }
-
-    const inferredPatterns = await getDailyPatternsForUser(supabase, user.id, 40);
-    dailyPatternPromptBlock = buildDailyPatternPromptBlock(
-      inferredPatterns.filter((pattern) => pattern.evidenceCount >= 2)
-    );
-    await refreshPatternAlertPlans(supabase, user.id, inferredPatterns, now);
-  } catch {
-    /* 생활 패턴 추론 실패 시 채팅은 계속 */
-  }
-
-  if (ENABLE_SHORT_TERM_MEMORY) {
-    try {
-      const {
-        completeMostRelevantShortTermMemory,
-        createShortTermMemory,
-        expireShortTermMemories,
-      } = await import("@/lib/db/shortTermMemories");
-      const {
-        extractShortTermMemory,
-        isShortTermCompletionMessage,
-      } = await import("@/services/shortTermMemory");
-
-      await expireShortTermMemories(supabase, user.id, now).catch(() => {});
-
-      if (isShortTermCompletionMessage(userText)) {
-        await completeMostRelevantShortTermMemory(
-          supabase,
-          user.id,
-          userText,
-          now
-        );
-      } else {
-        const extractedShortTermMemory = extractShortTermMemory(
-          userText,
-          new Date(now)
-        );
-        if (extractedShortTermMemory) {
-          await createShortTermMemory(supabase, {
-            userId: user.id,
-            conversationId,
-            characterId,
-            memoryType: extractedShortTermMemory.memoryType,
-            content: extractedShortTermMemory.content,
-            dueDate: extractedShortTermMemory.dueDate,
-            expiresAt: extractedShortTermMemory.expiresAt,
-            priority: extractedShortTermMemory.priority,
-            sourceMessageId: userMessageRow?.id ?? null,
-          });
-        }
-      }
-    } catch {
-      /* 단기기억 비활성 — 채팅은 계속 */
-    }
-  }
-
-  // 첫 메시지면 제목 자동 생성
-  const { count: msgCount } = await supabase
-    .from("messages")
-    .select("*", { count: "exact", head: true })
-    .eq("conversation_id", conversationId)
-    .eq("role", "user");
-
-  if (
-    msgCount === 1 &&
-    isDefaultConversationTitle(conversation.title)
-  ) {
-    await supabase
-      .from("conversations")
-      .update({
-        title: titleFromFirstMessage(userText),
-        updated_at: now,
-      })
-      .eq("id", conversationId);
-  }
-
-  const { data: historyRows } = await supabase
-    .from("messages")
-    .select("*")
-    .eq("conversation_id", conversationId)
-    .in("role", ["user", "assistant"])
-    .order("created_at", { ascending: true })
-    .limit(HISTORY_FETCH_LIMIT);
-
-  const history: Message[] = (historyRows ?? []).map((r) => mapMessage(r));
-  const userContents = history
-    .filter((m) => m.role === "user")
-    .map((m) => m.content);
-
-  const sessionSpeech = analyzeSpeechFromMessages(userContents.slice(-12));
-  const storedSpeech = parseSpeechProfile(profile?.speechProfile ?? null);
-  const speechProfile = mergeSpeechProfile(storedSpeech, sessionSpeech);
-
-  if (profile) {
-    try {
-      await supabase
-        .from("profiles")
-        .update({
-          speech_profile: speechProfile,
-          speech_profile_session: sessionSpeech,
-        })
-        .eq("id", user.id);
-    } catch {
-      /* speech_profile 컬럼 미마이그레이션 시 무시 */
-    }
-  }
-
-  const updatedMemory = updateMemorySummary(
-    conversation.summary,
-    userContents
-  );
-  const { recent, summary } = pickMessagesForContext(history, updatedMemory);
-
-  const newAffectionPreview = clampAffection(conversation.affection + 1);
-  const newLevelPreview = affectionToLevel(newAffectionPreview);
-
-  const ongoingSession = isOngoingChatSession(history);
-
-  const newEmotion = resolveCharacterEmotion(
-    {
-      userMessage: userText,
-      lastChatAt: conversation.lastMessageAt,
-      lastSeenAt: conversation.updatedAt,
-      currentEmotion: conversation.emotion,
-      affectionWillIncrease: true,
-    },
-    undefined,
-    history
-  );
-
-  const emotionDurationTurns = countEmotionDurationTurns(history, newEmotion);
-
-  const { data: ucsRow } = await supabase
-    .from("user_character_states")
-    .select("*")
-    .eq("user_id", user.id)
-    .eq("character_id", characterId)
-    .maybeSingle();
-  const characterState: UserCharacterState | null = ucsRow
-    ? mapCharacterState(ucsRow)
-    : null;
-
-  const timeAwareCtx = buildTimeAwareContext({
-    history,
-    ongoingSession,
-    conversationSummary: summary,
-    lastSeenAt: characterState?.lastSeenAt ?? null,
-    lastChatAt:
-      characterState?.lastChatAt ?? conversation.lastMessageAt ?? null,
-    now: new Date(now),
-  });
-  const timeContextBlock = buildTimeContextPromptBlock(
-    timeAwareCtx,
-    characterId
-  );
-
-  const userCtx = extractUserContext(
-    updatedMemory,
-    profile?.userContext ?? {}
-  );
-  const commonCtxBlock = buildCommonContextBlock(userCtx);
-  let shortTermMemoryBlock = "";
-  if (ENABLE_SHORT_TERM_MEMORY && !ongoingSession) {
-    try {
-      const {
-        buildShortTermMemoryContextBlock,
-        getActiveShortTermMemories,
-      } = await import("@/lib/db/shortTermMemories");
-      const activeShortTermMemories = await getActiveShortTermMemories(
-        supabase,
-        user.id,
-        now
-      );
-      shortTermMemoryBlock = buildShortTermMemoryContextBlock(
-        activeShortTermMemories
-      );
-    } catch {
-      /* 단기기억 비활성 — 채팅은 계속 */
-    }
-  }
-
-  let characterCtxBlock = "";
-  if (characterId === "yoonseo" && characterState) {
-    const yoonseoStats = computeYoonseoStats(history, characterState);
-    characterCtxBlock = buildYoonseoStatsBlock(yoonseoStats);
-  }
-
-  const dynamicContextBlock = [
-    timeContextBlock,
-    await getSearchContextForMessage(userText).catch(() => ""),
-    dailyPatternPromptBlock,
-    shortTermMemoryBlock,
-    commonCtxBlock,
-    characterCtxBlock,
-  ]
-    .filter(Boolean)
-    .join("\n\n");
-
-  const systemPrompt = buildSystemPrompt(
-    characterId,
-    newEmotion,
-    newLevelPreview,
-    newAffectionPreview,
-    summary,
-    emotionDurationTurns,
-    userContents.length,
-    dynamicContextBlock,
-    ongoingSession,
-    recent,
-    speechProfile,
-    userText,
-    timeAwareCtx
-  );
-
-  const aiMessages = [
-    { role: "system" as const, content: systemPrompt },
-    ...recent.slice(-CONTEXT_LIMIT).map((m) => ({
-      role: m.role as "user" | "assistant",
-      content: m.content,
-    })),
-  ];
-
+  const userMessageId = userMessageRow?.id ?? null;
   const encoder = new TextEncoder();
-  let fullReply = "";
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -386,6 +136,169 @@ export async function POST(request: Request) {
       let streamTimeout: ReturnType<typeof setTimeout> | undefined;
 
       try {
+        send({ streaming: true });
+
+        const [
+          profileResult,
+          historyResult,
+          ucsResult,
+          searchBlock,
+          inferredPatterns,
+        ] = await Promise.all([
+          supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
+          supabase
+            .from("messages")
+            .select("*")
+            .eq("conversation_id", conversationId)
+            .in("role", ["user", "assistant"])
+            .order("created_at", { ascending: true })
+            .limit(HISTORY_FETCH_LIMIT),
+          supabase
+            .from("user_character_states")
+            .select("*")
+            .eq("user_id", user.id)
+            .eq("character_id", characterId)
+            .maybeSingle(),
+          searchContextWithBudget(userText),
+          getDailyPatternsForUser(supabase, user.id, 40).catch(() => []),
+        ]);
+
+        const profile = profileResult.data
+          ? mapUserProfile(profileResult.data)
+          : null;
+        const history: Message[] = (historyResult.data ?? []).map((r) =>
+          mapMessage(r)
+        );
+        const userContents = history
+          .filter((m) => m.role === "user")
+          .map((m) => m.content);
+        const isFirstUserMessage = userContents.length === 1;
+
+        const sessionSpeech = analyzeSpeechFromMessages(userContents.slice(-12));
+        const storedSpeech = parseSpeechProfile(profile?.speechProfile ?? null);
+        const speechProfile = mergeSpeechProfile(storedSpeech, sessionSpeech);
+
+        const updatedMemory = updateMemorySummary(
+          conversation.summary,
+          userContents
+        );
+        const { recent, summary } = pickMessagesForContext(
+          history,
+          updatedMemory
+        );
+
+        const newAffectionPreview = clampAffection(conversation.affection + 1);
+        const newLevelPreview = affectionToLevel(newAffectionPreview);
+        const ongoingSession = isOngoingChatSession(history);
+
+        const newEmotion = resolveCharacterEmotion(
+          {
+            userMessage: userText,
+            lastChatAt: conversation.lastMessageAt,
+            lastSeenAt: conversation.updatedAt,
+            currentEmotion: conversation.emotion,
+            affectionWillIncrease: true,
+          },
+          undefined,
+          history
+        );
+
+        const emotionDurationTurns = countEmotionDurationTurns(
+          history,
+          newEmotion
+        );
+
+        const characterState: UserCharacterState | null = ucsResult.data
+          ? mapCharacterState(ucsResult.data)
+          : null;
+
+        const timeAwareCtx = buildTimeAwareContext({
+          history,
+          ongoingSession,
+          conversationSummary: summary,
+          lastSeenAt: characterState?.lastSeenAt ?? null,
+          lastChatAt:
+            characterState?.lastChatAt ?? conversation.lastMessageAt ?? null,
+          now: new Date(now),
+        });
+        const timeContextBlock = buildTimeContextPromptBlock(
+          timeAwareCtx,
+          characterId
+        );
+
+        const userCtx = extractUserContext(
+          updatedMemory,
+          profile?.userContext ?? {}
+        );
+        const commonCtxBlock = buildCommonContextBlock(userCtx);
+
+        let shortTermMemoryBlock = "";
+        if (ENABLE_SHORT_TERM_MEMORY && !ongoingSession) {
+          try {
+            const {
+              buildShortTermMemoryContextBlock,
+              getActiveShortTermMemories,
+            } = await import("@/lib/db/shortTermMemories");
+            const activeShortTermMemories = await getActiveShortTermMemories(
+              supabase,
+              user.id,
+              now
+            );
+            shortTermMemoryBlock = buildShortTermMemoryContextBlock(
+              activeShortTermMemories
+            );
+          } catch {
+            /* 단기기억 비활성 */
+          }
+        }
+
+        let characterCtxBlock = "";
+        if (characterId === "yoonseo" && characterState) {
+          const yoonseoStats = computeYoonseoStats(history, characterState);
+          characterCtxBlock = buildYoonseoStatsBlock(yoonseoStats);
+        }
+
+        const dailyPatternPromptBlock = buildDailyPatternPromptBlock(
+          inferredPatterns.filter((pattern) => pattern.evidenceCount >= 2)
+        );
+
+        const dynamicContextBlock = [
+          timeContextBlock,
+          searchBlock,
+          dailyPatternPromptBlock,
+          shortTermMemoryBlock,
+          commonCtxBlock,
+          characterCtxBlock,
+        ]
+          .filter(Boolean)
+          .join("\n\n");
+
+        const systemPrompt = buildSystemPrompt(
+          characterId,
+          newEmotion,
+          newLevelPreview,
+          newAffectionPreview,
+          summary,
+          emotionDurationTurns,
+          userContents.length,
+          dynamicContextBlock,
+          ongoingSession,
+          recent,
+          speechProfile,
+          userText,
+          timeAwareCtx
+        );
+
+        const aiMessages = [
+          { role: "system" as const, content: systemPrompt },
+          ...recent.slice(-CONTEXT_LIMIT).map((m) => ({
+            role: m.role as "user" | "assistant",
+            content: m.content,
+          })),
+        ];
+
+        let fullReply = "";
+
         streamTimeout = setTimeout(() => {
           if (!gotModelChunk) {
             fallbackUsed = true;
@@ -420,35 +333,40 @@ export async function POST(request: Request) {
         const newAffection = newAffectionPreview;
         const newLevel = newLevelPreview;
 
-        await supabase.from("messages").insert({
-          user_id: user.id,
-          character_id: characterId,
-          conversation_id: conversationId,
-          role: "assistant",
-          content: trimmed,
-          emotion: newEmotion,
-        });
-
-        await supabase
-          .from("conversations")
-          .update({
-            affection: newAffection,
-            relationship_level: newLevel,
+        const { data: assistantRow } = await supabase
+          .from("messages")
+          .insert({
+            user_id: user.id,
+            character_id: characterId,
+            conversation_id: conversationId,
+            role: "assistant",
+            content: trimmed,
             emotion: newEmotion,
-            summary: updatedMemory,
-            last_message_at: now,
-            updated_at: now,
           })
-          .eq("id", conversationId);
+          .select("id, created_at")
+          .single();
 
-        await supabase
-          .from("user_character_states")
-          .update({
-            last_chat_at: now,
-            last_seen_at: now,
-          })
-          .eq("user_id", user.id)
-          .eq("character_id", characterId);
+        await Promise.all([
+          supabase
+            .from("conversations")
+            .update({
+              affection: newAffection,
+              relationship_level: newLevel,
+              emotion: newEmotion,
+              summary: updatedMemory,
+              last_message_at: now,
+              updated_at: now,
+            })
+            .eq("id", conversationId),
+          supabase
+            .from("user_character_states")
+            .update({
+              last_chat_at: now,
+              last_seen_at: now,
+            })
+            .eq("user_id", user.id)
+            .eq("character_id", characterId),
+        ]);
 
         send({
           done: true,
@@ -457,6 +375,22 @@ export async function POST(request: Request) {
           emotion: newEmotion,
           follow_up,
           should_stream: true,
+          assistantMessageId: assistantRow?.id,
+          assistantCreatedAt: assistantRow?.created_at,
+        });
+
+        void runDeferredChatSideEffects({
+          supabase,
+          userId: user.id,
+          characterId,
+          conversationId,
+          userText,
+          now,
+          userMessageId,
+          profile,
+          userContents,
+          conversationTitle: conversation.title,
+          isFirstUserMessage,
         });
       } catch (err) {
         if (streamTimeout) clearTimeout(streamTimeout);

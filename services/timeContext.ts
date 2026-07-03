@@ -17,6 +17,8 @@ export type AbsenceTier =
   | "reunion_3d"
   | "special_7d";
 
+export type Season = "봄" | "여름" | "가을" | "겨울";
+
 export interface SeoulTimeContext {
   timezone: typeof SEOUL_TZ;
   currentDateTime: string;
@@ -24,6 +26,9 @@ export interface SeoulTimeContext {
   dayOfWeek: string;
   timeOfDay: TimeOfDay;
   hour: number;
+  month: number;
+  season: Season;
+  seasonWeatherHint: string;
 }
 
 export interface AbsenceContext {
@@ -111,11 +116,28 @@ export function classifyTimeOfDay(hour: number): TimeOfDay {
   return "late_night";
 }
 
+/** 한국 기준 월 → 계절 */
+export function classifySeason(month: number): Season {
+  if (month >= 3 && month <= 5) return "봄";
+  if (month >= 6 && month <= 8) return "여름";
+  if (month >= 9 && month <= 11) return "가을";
+  return "겨울";
+}
+
+const SEASON_WEATHER_HINT: Record<Season, string> = {
+  봄: "포근하고 따뜻한 편, 환절기·꽃가루·미세먼지",
+  여름: "덥고 습함, 장마·에어컨·무더위 (절대 '춥다'고 하지 말 것)",
+  가을: "선선하고 쾌청, 일교차·단풍",
+  겨울: "춥고 건조, 눈·감기·난방 (절대 '덥다'고 하지 말 것)",
+};
+
 /** 서버 기준 현재 서울 시간 */
 export function getSeoulTimeContext(now = new Date()): SeoulTimeContext {
   const { year, month, day, weekday, hour, minute } = getSeoulParts(now);
   const timeOfDay = classifyTimeOfDay(hour);
-  const dateLabel = `${year}년 ${parseInt(month, 10)}월 ${parseInt(day, 10)}일 (${weekday})`;
+  const monthNum = parseInt(month, 10);
+  const season = classifySeason(monthNum);
+  const dateLabel = `${year}년 ${monthNum}월 ${parseInt(day, 10)}일 (${weekday})`;
   const currentDateTime = `${dateLabel} ${hour}:${minute} · ${TIME_OF_DAY_KO[timeOfDay]}`;
 
   return {
@@ -125,6 +147,9 @@ export function getSeoulTimeContext(now = new Date()): SeoulTimeContext {
     dayOfWeek: weekday,
     timeOfDay,
     hour,
+    month: monthNum,
+    season,
+    seasonWeatherHint: SEASON_WEATHER_HINT[season],
   };
 }
 
@@ -349,6 +374,11 @@ export function buildTimeContextPromptBlock(
     `- currentDateTime: ${seoul.currentDateTime}`,
     `- dayOfWeek: ${seoul.dayOfWeek}요일`,
     `- timeOfDay: ${seoul.timeOfDay} (${TIME_OF_DAY_KO[seoul.timeOfDay]})`,
+    `- 현재 계절: ${seoul.season} (${seoul.month}월)`,
+    `- 계절 감각: ${seoul.seasonWeatherHint}`,
+    "[날씨·계절 정합성 — 필수]",
+    `- 지금은 ${seoul.season}(${seoul.month}월)이다. 계절에 어긋나는 날씨 멘트 절대 금지 (여름에 '춥다', 겨울에 '덥다' 등).`,
+    "- 실제 날씨 데이터([웹 검색 결과])가 없으면 '오늘 진짜 춥지?/덥지?'처럼 단정하지 마라. 날씨 얘기는 위 계절 감각 안에서만 자연스럽게.",
   ];
 
   if (absence.ongoingSession) {

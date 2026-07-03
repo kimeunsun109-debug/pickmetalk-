@@ -19,34 +19,31 @@ export default async function SettingsPage() {
 
   if (!user) redirect("/login");
 
-  // 프로필 + 현재 캐릭터 상태
-  const [{ data: profile }, { data: ucsRows }] = await Promise.all([
-    supabase.from("profiles").select("*").eq("id", user.id).single(),
-    supabase
-      .from("user_character_states")
-      .select("character_id, affection, relationship_level, last_chat_at")
-      .eq("user_id", user.id)
-      .order("last_chat_at", { ascending: false }),
-  ]);
-
-  // 오늘 보낸 메시지 수
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
-  const { count: todayMsgCount } = await supabase
-    .from("messages")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", user.id)
-    .eq("role", "user")
-    .gte("created_at", todayStart.toISOString());
 
-  // 재방문 통계 — 다음날 복귀 여부
-  const { data: sessionRows } = await supabase
-    .from("session_logs")
-    .select("created_at")
-    .eq("user_id", user.id)
-    .eq("event_type", "session_start")
-    .order("created_at", { ascending: false })
-    .limit(30);
+  const [{ data: profile }, { data: ucsRows }, { count: todayMsgCount }, { data: sessionRows }] =
+    await Promise.all([
+      supabase.from("profiles").select("*").eq("id", user.id).single(),
+      supabase
+        .from("user_character_states")
+        .select("character_id, affection, relationship_level, last_chat_at")
+        .eq("user_id", user.id)
+        .order("last_chat_at", { ascending: false }),
+      supabase
+        .from("messages")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("role", "user")
+        .gte("created_at", todayStart.toISOString()),
+      supabase
+        .from("session_logs")
+        .select("created_at")
+        .eq("user_id", user.id)
+        .eq("event_type", "session_start")
+        .order("created_at", { ascending: false })
+        .limit(30),
+    ]);
 
   const joinedDaysAgo = profile?.created_at
     ? Math.floor(

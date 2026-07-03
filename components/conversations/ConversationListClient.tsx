@@ -1,6 +1,6 @@
 "use client";
 
-import { characterChatPath } from "@/lib/chatRoute";
+import { characterChatHref } from "@/lib/navigateChat";
 import type { Conversation } from "@/types";
 import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
@@ -140,18 +140,13 @@ export function ConversationListClient({
               key={conv.id}
               className={index > 0 ? "border-t border-gray-50" : undefined}
             >
-              <div
-                role="link"
-                tabIndex={0}
-                onClick={() => {
+              <Link
+                href={characterChatHref(conv.characterId, conv.id)}
+                onClick={(event) => {
                   if (suppressNextClickRef.current) {
+                    event.preventDefault();
                     suppressNextClickRef.current = false;
-                    return;
                   }
-                  window.location.href = characterChatPath(
-                    conv.characterId,
-                    conv.id
-                  );
                 }}
                 onContextMenu={(event) => {
                   event.preventDefault();
@@ -161,14 +156,6 @@ export function ConversationListClient({
                 onPointerUp={clearLongPressTimer}
                 onPointerLeave={clearLongPressTimer}
                 onPointerCancel={clearLongPressTimer}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    window.location.href = characterChatPath(
-                      conv.characterId,
-                      conv.id
-                    );
-                  }
-                }}
                 className={`flex cursor-pointer items-center gap-3 px-4 py-3.5 transition-colors active:bg-gray-50 ${
                   deletingId === conv.id ? "opacity-50" : ""
                 }`}
@@ -190,7 +177,7 @@ export function ConversationListClient({
                     {preview}
                   </p>
                 </div>
-              </div>
+              </Link>
             </li>
           );
         })}

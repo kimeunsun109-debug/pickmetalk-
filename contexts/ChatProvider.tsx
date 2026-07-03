@@ -59,6 +59,12 @@ interface ChatProviderProps {
   characterId: string;
   conversationId: string | null;
   isPremiumUser: boolean;
+  /** SSR에서 미리 불러온 메시지 — 클라이언트 재요청 생략 */
+  initialMessages?: ChatMessage[];
+  initialAffection?: number;
+  initialRelationshipLevel?: RelationshipLevel;
+  initialEmotion?: EmotionState;
+  initialLastChatAt?: string | null;
   children: ReactNode;
 }
 
@@ -67,6 +73,11 @@ export function ChatProvider({
   characterId,
   conversationId,
   isPremiumUser,
+  initialMessages,
+  initialAffection = 0,
+  initialRelationshipLevel = 1,
+  initialEmotion,
+  initialLastChatAt = null,
   children,
 }: ChatProviderProps) {
   const safeCharacterId = resolveCharacterId(characterId);
@@ -75,19 +86,22 @@ export function ChatProvider({
       ? character
       : (getCharacterById(safeCharacterId) ?? character);
 
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages ?? []);
   const [isTyping, setIsTyping] = useState(false);
-  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(
+    !initialMessages?.length && Boolean(conversationId?.trim())
+  );
   const streamingIdRef = useRef<string | null>(null);
   const proactiveDoneRef = useRef<string | null>(null);
+  const hydratedFromServerRef = useRef(Boolean(initialMessages?.length));
 
-  const [affection, setAffection] = useState(0);
+  const [affection, setAffection] = useState(initialAffection);
   const [relationshipLevel, setRelationshipLevel] =
-    useState<RelationshipLevel>(1);
+    useState<RelationshipLevel>(initialRelationshipLevel);
   const [emotion, setEmotion] = useState<EmotionState>(
-    resolvedCharacter.defaultEmotion ?? "happy"
+    initialEmotion ?? resolvedCharacter.defaultEmotion ?? "happy"
   );
-  const [lastChatAt, setLastChatAt] = useState<string | null>(null);
+  const [lastChatAt, setLastChatAt] = useState<string | null>(initialLastChatAt);
   const [showPremiumModal, setShowPremiumModal] = useState(false);
 
   const safeConversationId = conversationId?.trim() || null;
@@ -124,10 +138,38 @@ export function ChatProvider({
   }, []);
 
   const loadHistory = useCallback(
-    async (options?: { proactive?: boolean }) => {
+    async (options?: { proactive?: boolean; skipIfHydrated?: boolean }) => {
     if (!safeConversationId) {
       setMessages([]);
       setIsLoadingHistory(false);
+      return;
+    }
+
+    if (
+      options?.skipIfHydrated &&
+      hydratedFromServerRef.current &&
+      messages.length > 0
+    ) {
+      hydratedFromServerRef.current = false;
+      setIsLoadingHistory(false);
+      const runProactive =
+        options?.proactive !== false &&
+        proactiveDoneRef.current !== safeConversationId;
+      if (runProactive) {
+        fetch(`/api/conversations/${safeConversationId}/proactive`, {
+          method: "POST",
+        })
+          .then(() => {
+            proactiveDoneRef.current = safeConversationId;
+            return fetchMessages(safeConversationId);
+          })
+          .then((refreshed) => {
+            setMessages((prev) =>
+              refreshed.length > prev.length ? refreshed : prev
+            );
+          })
+          .catch(() => undefined);
+      }
       return;
     }
 
@@ -138,17 +180,18 @@ export function ChatProvider({
         options?.proactive !== false &&
         proactiveDoneRef.current !== safeConversationId;
 
-      if (runProactive) {
-        try {
-          await fetch(
+      const proactivePromise = runProactive
+        ? fetch(
             `/api/conversations/${safeConversationId}/proactive?_=${cacheBust}`,
             { method: "POST" }
-          );
-        } catch {
-          /* 선제 메시지 실패해도 채팅은 열림 */
-        }
-        proactiveDoneRef.current = safeConversationId;
-      }
+          )
+            .then(() => {
+              proactiveDoneRef.current = safeConversationId;
+            })
+            .catch(() => {
+              /* 선제 메시지 실패해도 채팅은 열림 */
+            })
+        : null;
 
       const [loadedMessages, relRes] = await Promise.all([
         fetchMessages(safeConversationId),
@@ -175,9 +218,19 @@ export function ChatProvider({
         setEmotion(normalizeEmotion(relData.state.emotion as string));
         setLastChatAt((relData.state.lastChatAt as string) ?? null);
       }
+
+      setIsLoadingHistory(false);
+
+      if (proactivePromise) {
+        proactivePromise.then(async () => {
+          const refreshed = await fetchMessages(safeConversationId);
+          setMessages((prev) =>
+            refreshed.length > prev.length ? refreshed : prev
+          );
+        });
+      }
     } catch {
       /* 히스토리 로드 실패 시 빈 채팅으로 시작 */
-    } finally {
       setIsLoadingHistory(false);
     }
   },
@@ -189,22 +242,23 @@ export function ChatProvider({
   }, []);
 
   useEffect(() => {
+    streamingIdRef.current = null;
+    proactiveDoneRef.current = null;
+
+    if (hydratedFromServerRef.current && (initialMessages?.length ?? 0) > 0) {
+      loadHistory({ proactive: true, skipIfHydrated: true });
+      return;
+    }
+
     setMessages([]);
     setIsTyping(false);
     setIsLoadingHistory(true);
-    setAffection(0);
-    setRelationshipLevel(1);
-    setEmotion(resolvedCharacter.defaultEmotion ?? "happy");
-    setLastChatAt(null);
-    streamingIdRef.current = null;
-    proactiveDoneRef.current = null;
+    setAffection(initialAffection);
+    setRelationshipLevel(initialRelationshipLevel);
+    setEmotion(initialEmotion ?? resolvedCharacter.defaultEmotion ?? "happy");
+    setLastChatAt(initialLastChatAt);
     loadHistory({ proactive: true });
-  }, [
-    safeConversationId,
-    resolvedCharacter.id,
-    resolvedCharacter.defaultEmotion,
-    loadHistory,
-  ]);
+  }, [safeConversationId, loadHistory]);
 
   const sendMessage = useCallback(
     async (text: string) => {
@@ -269,6 +323,8 @@ export function ChatProvider({
               affection?: number;
               relationshipLevel?: RelationshipLevel;
               emotion?: EmotionState;
+              assistantMessageId?: string;
+              assistantCreatedAt?: string;
             };
 
             if (chunk.error) throw new Error(chunk.error);
@@ -293,11 +349,23 @@ export function ChatProvider({
               if (chunk.relationshipLevel != null)
                 setRelationshipLevel(chunk.relationshipLevel);
               if (chunk.emotion) setEmotion(normalizeEmotion(chunk.emotion));
+              if (chunk.assistantMessageId) {
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === aiMsgId
+                      ? {
+                          ...m,
+                          id: chunk.assistantMessageId!,
+                          createdAt:
+                            chunk.assistantCreatedAt ?? m.createdAt,
+                        }
+                      : m
+                  )
+                );
+              }
             }
           }
         }
-
-        await loadHistory({ proactive: false });
       } catch (e) {
         setMessages((prev) =>
           prev.map((m) =>
@@ -317,7 +385,7 @@ export function ChatProvider({
         streamingIdRef.current = null;
       }
     },
-    [safeConversationId, isTyping, loadHistory]
+    [safeConversationId, isTyping]
   );
 
   const deleteMessage = useCallback(async (messageId: string) => {
