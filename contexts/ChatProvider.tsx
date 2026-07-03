@@ -4,6 +4,8 @@ import { getCharacterById } from "@/data";
 import { markBrowserSessionActive } from "@/lib/auth/browserSession";
 import { normalizeEmotion } from "@/lib/emotions";
 import { resolveCharacterId } from "@/lib/chatRoute";
+import { perfClientTrace, usePerfRenderCount } from "@/lib/perf/client";
+import { isPerfEnabled } from "@/lib/perf/trace";
 import type { Character, EmotionState, RelationshipLevel } from "@/types";
 import type { ChatStreamChunk } from "@/types/api";
 import {
@@ -80,6 +82,7 @@ export function ChatProvider({
   initialLastChatAt = null,
   children,
 }: ChatProviderProps) {
+  usePerfRenderCount("ChatProvider");
   const safeCharacterId = resolveCharacterId(characterId);
   const resolvedCharacter =
     character.id === safeCharacterId
@@ -139,6 +142,9 @@ export function ChatProvider({
 
   const loadHistory = useCallback(
     async (options?: { proactive?: boolean; skipIfHydrated?: boolean }) => {
+    const clientTrace = isPerfEnabled()
+      ? perfClientTrace("Enter Chat — Client")
+      : null;
     if (!safeConversationId) {
       setMessages([]);
       setIsLoadingHistory(false);
@@ -232,6 +238,8 @@ export function ChatProvider({
     } catch {
       /* 히스토리 로드 실패 시 빈 채팅으로 시작 */
       setIsLoadingHistory(false);
+    } finally {
+      clientTrace?.end();
     }
   },
     [safeConversationId, fetchMessages]

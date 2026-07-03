@@ -6,6 +6,7 @@ import { MessageActionSheet } from "@/components/chat/MessageActionSheet";
 import { MessageItem } from "@/components/chat/MessageItem";
 import { PremiumModal } from "@/components/chat/PremiumModal";
 import { useChat } from "@/contexts/ChatProvider";
+import { usePerfRenderCount } from "@/lib/perf/client";
 import { getMessageGroupMeta } from "@/lib/chatMessageLayout";
 import {
   formatDateSeparator,
@@ -20,6 +21,7 @@ export function ChatScreen({
 }: {
   conversationTitle?: string;
 } = {}) {
+  usePerfRenderCount("ChatScreen");
   const {
     character,
     characterId,

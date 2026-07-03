@@ -1,0 +1,173 @@
+{
+  "capturedAt": "2026-07-03T14:55:00.121Z",
+  "allTimings": [
+    {
+      "name": "Home Load",
+      "ms": 1374,
+      "category": "SSR",
+      "detail": "HTTP 200, TTFB ~1364ms"
+    },
+    {
+      "name": "Characters Page SSR",
+      "ms": 1913,
+      "category": "SSR",
+      "detail": "TTFB ~758ms"
+    },
+    {
+      "name": "Conversations List SSR",
+      "ms": 2134,
+      "category": "SSR",
+      "detail": "TTFB ~592ms"
+    },
+    {
+      "name": "Settings Page SSR",
+      "ms": 2442,
+      "category": "SSR",
+      "detail": "TTFB ~1027ms"
+    },
+    {
+      "name": "Enter Chat — SSR HTML (TTFB)",
+      "ms": 468,
+      "category": "Enter Chat",
+      "detail": "full 1604ms"
+    },
+    {
+      "name": "Enter Chat — Messages API",
+      "ms": 1588,
+      "category": "Supabase",
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "Enter Chat — Relationship API",
+      "ms": 1275,
+      "category": "Supabase"
+    },
+    {
+      "name": "Enter Chat — Proactive API",
+      "ms": 1974,
+      "category": "Supabase",
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "Journal REST 조회 (chat_voice_journal)",
+      "ms": 243,
+      "category": "Supabase",
+      "detail": "OK"
+    },
+    {
+      "name": "Middleware — getUser (per navigation)",
+      "ms": 205,
+      "category": "Auth",
+      "detail": "추정: TTFB의 ~15% (실측은 서버 PERF_TRACE 필요)"
+    },
+    {
+      "name": "AI Response — TTFB (headers)",
+      "ms": 2038,
+      "category": "AI",
+      "detail": "user message insert 후 Response 반환"
+    },
+    {
+      "name": "AI Response — First SSE chunk",
+      "ms": 2042,
+      "category": "AI",
+      "detail": "첫 토큰/폴백까지"
+    },
+    {
+      "name": "AI Response — Total stream",
+      "ms": 6128,
+      "category": "AI"
+    }
+  ],
+  "top10": [
+    {
+      "rank": 1,
+      "name": "AI Response — Total stream",
+      "ms": 6128,
+      "category": "AI",
+      "cause": "DeepSeek 토큰 생성 + 스트림 완료까지 전체 시간",
+      "fix": "max_tokens 제한, 짧은 답변 유도, 스트리밍 청크 버퍼 최적화",
+      "expectedSavingMs": 1532
+    },
+    {
+      "rank": 2,
+      "name": "Settings Page SSR",
+      "ms": 2442,
+      "category": "SSR",
+      "cause": "네트워크 RTT + Supabase/Next.js SSR 오버헤드",
+      "fix": "프로파일링 후 해당 구간 최적화",
+      "expectedSavingMs": 733
+    },
+    {
+      "rank": 3,
+      "name": "Conversations List SSR",
+      "ms": 2134,
+      "category": "SSR",
+      "cause": "대화 목록 + fetchLastMessagePreviews (messages in 쿼리)",
+      "fix": "last_message_at 컬럼 denormalize, preview limit",
+      "expectedSavingMs": 1174
+    },
+    {
+      "rank": 4,
+      "name": "AI Response — First SSE chunk",
+      "ms": 2042,
+      "category": "AI",
+      "cause": "스트림 시작 전 DB 5건 병렬 조회 + 프롬프트 빌드 + DeepSeek TTFB. 외부 LLM RTT가 지배적.",
+      "fix": "프롬프트 축소·캐시, 검색/패턴 defer, 더 빠른 모델/리전",
+      "expectedSavingMs": 817
+    },
+    {
+      "rank": 5,
+      "name": "AI Response — TTFB (headers)",
+      "ms": 2038,
+      "category": "AI",
+      "cause": "네트워크 RTT + Supabase/Next.js SSR 오버헤드",
+      "fix": "프로파일링 후 해당 구간 최적화",
+      "expectedSavingMs": 611
+    },
+    {
+      "rank": 6,
+      "name": "Enter Chat — Proactive API",
+      "ms": 1974,
+      "category": "Supabase",
+      "cause": "runProactiveMessageFlow: 대화·UCS·absence·last message 조회 + 조건부 insert",
+      "fix": "최근 메시지 있으면 skip, 백그라운드만 유지(이미 적용), 쿨다운 단축",
+      "expectedSavingMs": 1184
+    },
+    {
+      "rank": 7,
+      "name": "Characters Page SSR",
+      "ms": 1913,
+      "category": "SSR",
+      "cause": "getUser + active character DB",
+      "fix": "캐시·병렬",
+      "expectedSavingMs": 670
+    },
+    {
+      "rank": 8,
+      "name": "Enter Chat — Messages API",
+      "ms": 1588,
+      "category": "Supabase",
+      "cause": "getUser + getConversationForUser + messages select (최대 60건)",
+      "fix": "SSR 하이드레이션 시 클라이언트 재호출 제거, limit 30",
+      "expectedSavingMs": 1112
+    },
+    {
+      "rank": 9,
+      "name": "Home Load",
+      "ms": 1374,
+      "category": "SSR",
+      "cause": "force-dynamic + getUser SSR",
+      "fix": "정적 셸 + 클라이언트 세션",
+      "expectedSavingMs": 550
+    },
+    {
+      "rank": 10,
+      "name": "Enter Chat — Relationship API",
+      "ms": 1275,
+      "category": "Supabase",
+      "cause": "네트워크 RTT + Supabase/Next.js SSR 오버헤드",
+      "fix": "프로파일링 후 해당 구간 최적화",
+      "expectedSavingMs": 383
+    }
+  ]
+}

@@ -15,7 +15,8 @@
     "android:open": "npx cap open android",
     "android:run": "npx cap run android",
     "cap:sync": "npx cap sync",
-    "cap:init": "npx cap init"
+    "cap:init": "npx cap init",
+    "perf:benchmark": "npx tsx scripts/perf_benchmark.mts"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.0",

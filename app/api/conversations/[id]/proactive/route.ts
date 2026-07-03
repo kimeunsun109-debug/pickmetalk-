@@ -1,4 +1,5 @@
 import { runProactiveMessageFlow } from "@/lib/proactiveMessage";
+import { ServerPerfTrace } from "@/lib/perf/trace";
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
@@ -8,22 +9,23 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id: conversationId } = await params;
+  const trace = new ServerPerfTrace("Proactive API");
 
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  trace.mark("Auth getUser");
 
   if (!user) {
     return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
   }
 
   try {
-    const result = await runProactiveMessageFlow(
-      supabase,
-      user.id,
-      conversationId
+    const result = await trace.span("runProactiveMessageFlow", () =>
+      runProactiveMessageFlow(supabase, user.id, conversationId)
     );
+    trace.end(result.inserted ? "inserted" : "skipped");
     return NextResponse.json(result);
   } catch (e) {
     const msg = e instanceof Error ? e.message : "선제 메시지 처리 실패";
