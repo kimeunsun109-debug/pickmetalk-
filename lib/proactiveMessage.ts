@@ -1,4 +1,5 @@
 import { getConversationForUser } from "@/lib/db/conversations";
+import { updateConversationLastMessage } from "@/lib/db/updateConversationPreview";
 import { mapCharacterState } from "@/lib/db/mappers";
 import { getAbsenceTier, getReturnVisitData } from "@/lib/returnVisit";
 import { checkAbsenceTrigger, PUSH_COOLDOWN_HOURS } from "@/services/absenceEvent";
@@ -98,15 +99,15 @@ export async function insertProactiveMessage(
     throw new Error(error?.message ?? "선제 메시지 저장 실패");
   }
 
-  await supabase
-    .from("conversations")
-    .update({
-      emotion: candidate.emotion,
-      last_message_at: now,
-      updated_at: now,
-    })
-    .eq("id", conversationId)
-    .eq("user_id", userId);
+  await updateConversationLastMessage(
+    supabase,
+    conversationId,
+    userId,
+    candidate.message,
+    "assistant",
+    now,
+    { emotion: candidate.emotion }
+  ).catch(() => undefined);
 
   await supabase
     .from("user_character_states")
