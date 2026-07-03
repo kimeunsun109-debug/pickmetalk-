@@ -1,12 +1,11 @@
 import { getCharacterById } from "@/data";
 import { streamDeepSeekChat } from "@/lib/ai/deepseek";
 import { getConversationForUser } from "@/lib/db/conversations";
-import { getDailyPatternsForUser } from "@/lib/db/dailyPatterns";
 import { mapCharacterState, mapMessage, mapUserProfile } from "@/lib/db/mappers";
 import { createClient } from "@/lib/supabase/server";
 import { buildSystemPrompt } from "@/prompts";
 import { affectionToLevel, clampAffection } from "@/services/affection";
-import { runDeferredChatSideEffects } from "@/services/chatSideEffects";
+import { runDeferredChatSideEffects, applySameTurnPromptSideEffects } from "@/services/chatSideEffects";
 import {
   countEmotionDurationTurns,
   isOngoingChatSession,
@@ -39,7 +38,7 @@ import {
 import { buildDailyPatternPromptBlock } from "@/prompts/patternNudges";
 import type { ChatRequestBody } from "@/types/api";
 import type { Message, UserCharacterState } from "@/types";
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 
 const CONTEXT_LIMIT = CHAT_CONTEXT_TURNS;
 const HISTORY_FETCH_LIMIT = 40;
@@ -131,7 +130,6 @@ export async function POST(request: Request) {
           historyResult,
           ucsResult,
           searchBlock,
-          inferredPatterns,
         ] = await Promise.all([
           supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
           supabase
@@ -148,7 +146,6 @@ export async function POST(request: Request) {
             .eq("character_id", characterId)
             .maybeSingle(),
           getSearchContextForMessage(userText).catch(() => ""),
-          getDailyPatternsForUser(supabase, user.id, 40).catch(() => []),
         ]);
 
         const profile = profileResult.data
@@ -178,6 +175,16 @@ export async function POST(request: Request) {
         const newAffectionPreview = clampAffection(conversation.affection + 1);
         const newLevelPreview = affectionToLevel(newAffectionPreview);
         const ongoingSession = isOngoingChatSession(history);
+
+        const inferredPatterns = await applySameTurnPromptSideEffects({
+          supabase,
+          userId: user.id,
+          characterId,
+          conversationId,
+          userText,
+          now,
+          userMessageId,
+        });
 
         const newEmotion = resolveCharacterEmotion(
           {
@@ -363,23 +370,26 @@ export async function POST(request: Request) {
           emotion: newEmotion,
           follow_up,
           should_stream: true,
+          userMessageId,
           assistantMessageId: assistantRow?.id,
           assistantCreatedAt: assistantRow?.created_at,
         });
 
-        void runDeferredChatSideEffects({
-          supabase,
-          userId: user.id,
-          characterId,
-          conversationId,
-          userText,
-          now,
-          userMessageId,
-          profile,
-          userContents,
-          conversationTitle: conversation.title,
-          isFirstUserMessage,
-        });
+        after(() =>
+          runDeferredChatSideEffects({
+            supabase,
+            userId: user.id,
+            characterId,
+            conversationId,
+            userText,
+            now,
+            userMessageId,
+            profile,
+            userContents,
+            conversationTitle: conversation.title,
+            isFirstUserMessage,
+          })
+        );
       } catch (err) {
         if (streamTimeout) clearTimeout(streamTimeout);
         const msg =

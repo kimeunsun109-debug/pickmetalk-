@@ -19,6 +19,8 @@ export interface ChatStreamChunk {
   /** true면 content로 메시지 전체 교체 (폴백 후 본문 확정 등) */
   replace?: boolean;
   should_stream?: boolean;
+  /** DB에 저장된 user 메시지 id (done 시) */
+  userMessageId?: string;
   /** DB에 저장된 assistant 메시지 id (done 시) */
   assistantMessageId?: string;
   assistantCreatedAt?: string;

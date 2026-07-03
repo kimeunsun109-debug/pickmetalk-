@@ -280,6 +280,7 @@ export function ChatProvider({
               affection?: number;
               relationshipLevel?: RelationshipLevel;
               emotion?: EmotionState;
+              userMessageId?: string;
               assistantMessageId?: string;
               assistantCreatedAt?: string;
             };
@@ -306,18 +307,22 @@ export function ChatProvider({
               if (chunk.relationshipLevel != null)
                 setRelationshipLevel(chunk.relationshipLevel);
               if (chunk.emotion) setEmotion(normalizeEmotion(chunk.emotion));
-              if (chunk.assistantMessageId) {
+              if (chunk.userMessageId || chunk.assistantMessageId) {
                 setMessages((prev) =>
-                  prev.map((m) =>
-                    m.id === aiMsgId
-                      ? {
-                          ...m,
-                          id: chunk.assistantMessageId!,
-                          createdAt:
-                            chunk.assistantCreatedAt ?? m.createdAt,
-                        }
-                      : m
-                  )
+                  prev.map((m) => {
+                    if (chunk.userMessageId && m.id === userMsgId) {
+                      return { ...m, id: chunk.userMessageId };
+                    }
+                    if (chunk.assistantMessageId && m.id === aiMsgId) {
+                      return {
+                        ...m,
+                        id: chunk.assistantMessageId,
+                        createdAt:
+                          chunk.assistantCreatedAt ?? m.createdAt,
+                      };
+                    }
+                    return m;
+                  })
                 );
               }
             }

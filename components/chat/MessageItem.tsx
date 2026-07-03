@@ -101,7 +101,8 @@ export function MessageItem({
 
   const rowPadding = isGroupedWithPrev ? "pt-0.5" : "pt-2";
 
-  const bubbleSegments = isUser ? [content] : splitAssistantBubbles(content);
+  const bubbleSegments =
+    isUser || isStreaming ? [content] : splitAssistantBubbles(content);
   const hasContent = content.trim().length > 0;
 
   return (
