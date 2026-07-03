@@ -114,7 +114,7 @@ npm start
 
 1. [Cloud Agents 대시보드](https://cursor.com/dashboard/cloud-agents)에서 GitHub 저장소 `kimeunsun109-debug/app_girl-friend` 연결
 2. **Secrets**에 `.env.example` 항목 등록 (`DEEPSEEK_API_KEY`, Supabase URL/anon key 등)
-3. 저장소의 `.cursor/environment.json`이 `npm install` + `openpyxl` 설치를 자동 실행
+3. Cursor Cloud 팀 환경(스냅샷) 설정 스크립트가 `python` 심볼릭 링크 + `npm install` + `openpyxl` 설치를 자동 실행 (저장소에 `.cursor/environment.json`은 두지 않음)
 4. 상세 가이드는 루트 `AGENTS.md` 참고
 
 ## 라이선스
