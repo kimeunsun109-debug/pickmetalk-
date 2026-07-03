@@ -20,7 +20,9 @@
     "voice:ab:run": "npx tsx scripts/character_voice_ab_run.mts",
     "voice:ab:week": "npx tsx scripts/character_voice_ab_week.mts",
     "voice:ab:analyze": "npx tsx scripts/analyze_voice_ab_logs.mts",
-    "voice:journal:export": "npx tsx scripts/export_voice_journal.mts"
+    "voice:journal:export": "npx tsx scripts/export_voice_journal.mts",
+    "supabase:db-push": "npx tsx scripts/supabase_db_push.mts",
+    "dataset:daily": "npx tsx scripts/dataset_daily_run.mts"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.0",
@@ -45,6 +47,7 @@
     "@types/react-dom": "^19.0.4",
     "eslint": "^9.21.0",
     "eslint-config-next": "^15.2.0",
+    "pg": "^8.22.0",
     "postcss": "^8.5.3",
     "sharp": "^0.34.5",
     "tailwindcss": "^3.4.17",
