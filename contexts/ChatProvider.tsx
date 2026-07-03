@@ -138,17 +138,18 @@ export function ChatProvider({
         options?.proactive !== false &&
         proactiveDoneRef.current !== safeConversationId;
 
-      if (runProactive) {
-        try {
-          await fetch(
+      const proactivePromise = runProactive
+        ? fetch(
             `/api/conversations/${safeConversationId}/proactive?_=${cacheBust}`,
             { method: "POST" }
-          );
-        } catch {
-          /* 선제 메시지 실패해도 채팅은 열림 */
-        }
-        proactiveDoneRef.current = safeConversationId;
-      }
+          )
+            .then(() => {
+              proactiveDoneRef.current = safeConversationId;
+            })
+            .catch(() => {
+              /* 선제 메시지 실패해도 채팅은 열림 */
+            })
+        : null;
 
       const [loadedMessages, relRes] = await Promise.all([
         fetchMessages(safeConversationId),
@@ -175,9 +176,19 @@ export function ChatProvider({
         setEmotion(normalizeEmotion(relData.state.emotion as string));
         setLastChatAt((relData.state.lastChatAt as string) ?? null);
       }
+
+      setIsLoadingHistory(false);
+
+      if (proactivePromise) {
+        proactivePromise.then(async () => {
+          const refreshed = await fetchMessages(safeConversationId);
+          setMessages((prev) =>
+            refreshed.length > prev.length ? refreshed : prev
+          );
+        });
+      }
     } catch {
       /* 히스토리 로드 실패 시 빈 채팅으로 시작 */
-    } finally {
       setIsLoadingHistory(false);
     }
   },
@@ -269,6 +280,8 @@ export function ChatProvider({
               affection?: number;
               relationshipLevel?: RelationshipLevel;
               emotion?: EmotionState;
+              assistantMessageId?: string;
+              assistantCreatedAt?: string;
             };
 
             if (chunk.error) throw new Error(chunk.error);
@@ -293,11 +306,23 @@ export function ChatProvider({
               if (chunk.relationshipLevel != null)
                 setRelationshipLevel(chunk.relationshipLevel);
               if (chunk.emotion) setEmotion(normalizeEmotion(chunk.emotion));
+              if (chunk.assistantMessageId) {
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === aiMsgId
+                      ? {
+                          ...m,
+                          id: chunk.assistantMessageId!,
+                          createdAt:
+                            chunk.assistantCreatedAt ?? m.createdAt,
+                        }
+                      : m
+                  )
+                );
+              }
             }
           }
         }
-
-        await loadHistory({ proactive: false });
       } catch (e) {
         setMessages((prev) =>
           prev.map((m) =>
@@ -317,7 +342,7 @@ export function ChatProvider({
         streamingIdRef.current = null;
       }
     },
-    [safeConversationId, isTyping, loadHistory]
+    [safeConversationId, isTyping]
   );
 
   const deleteMessage = useCallback(async (messageId: string) => {
