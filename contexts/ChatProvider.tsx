@@ -59,6 +59,12 @@ interface ChatProviderProps {
   characterId: string;
   conversationId: string | null;
   isPremiumUser: boolean;
+  /** SSR에서 미리 불러온 메시지 — 클라이언트 재요청 생략 */
+  initialMessages?: ChatMessage[];
+  initialAffection?: number;
+  initialRelationshipLevel?: RelationshipLevel;
+  initialEmotion?: EmotionState;
+  initialLastChatAt?: string | null;
   children: ReactNode;
 }
 
@@ -67,6 +73,11 @@ export function ChatProvider({
   characterId,
   conversationId,
   isPremiumUser,
+  initialMessages,
+  initialAffection = 0,
+  initialRelationshipLevel = 1,
+  initialEmotion,
+  initialLastChatAt = null,
   children,
 }: ChatProviderProps) {
   const safeCharacterId = resolveCharacterId(characterId);
@@ -75,19 +86,22 @@ export function ChatProvider({
       ? character
       : (getCharacterById(safeCharacterId) ?? character);
 
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages ?? []);
   const [isTyping, setIsTyping] = useState(false);
-  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(
+    !initialMessages?.length && Boolean(conversationId?.trim())
+  );
   const streamingIdRef = useRef<string | null>(null);
   const proactiveDoneRef = useRef<string | null>(null);
+  const hydratedFromServerRef = useRef(Boolean(initialMessages?.length));
 
-  const [affection, setAffection] = useState(0);
+  const [affection, setAffection] = useState(initialAffection);
   const [relationshipLevel, setRelationshipLevel] =
-    useState<RelationshipLevel>(1);
+    useState<RelationshipLevel>(initialRelationshipLevel);
   const [emotion, setEmotion] = useState<EmotionState>(
-    resolvedCharacter.defaultEmotion ?? "happy"
+    initialEmotion ?? resolvedCharacter.defaultEmotion ?? "happy"
   );
-  const [lastChatAt, setLastChatAt] = useState<string | null>(null);
+  const [lastChatAt, setLastChatAt] = useState<string | null>(initialLastChatAt);
   const [showPremiumModal, setShowPremiumModal] = useState(false);
 
   const safeConversationId = conversationId?.trim() || null;
@@ -124,10 +138,38 @@ export function ChatProvider({
   }, []);
 
   const loadHistory = useCallback(
-    async (options?: { proactive?: boolean }) => {
+    async (options?: { proactive?: boolean; skipIfHydrated?: boolean }) => {
     if (!safeConversationId) {
       setMessages([]);
       setIsLoadingHistory(false);
+      return;
+    }
+
+    if (
+      options?.skipIfHydrated &&
+      hydratedFromServerRef.current &&
+      messages.length > 0
+    ) {
+      hydratedFromServerRef.current = false;
+      setIsLoadingHistory(false);
+      const runProactive =
+        options?.proactive !== false &&
+        proactiveDoneRef.current !== safeConversationId;
+      if (runProactive) {
+        fetch(`/api/conversations/${safeConversationId}/proactive`, {
+          method: "POST",
+        })
+          .then(() => {
+            proactiveDoneRef.current = safeConversationId;
+            return fetchMessages(safeConversationId);
+          })
+          .then((refreshed) => {
+            setMessages((prev) =>
+              refreshed.length > prev.length ? refreshed : prev
+            );
+          })
+          .catch(() => undefined);
+      }
       return;
     }
 
@@ -200,22 +242,23 @@ export function ChatProvider({
   }, []);
 
   useEffect(() => {
+    streamingIdRef.current = null;
+    proactiveDoneRef.current = null;
+
+    if (hydratedFromServerRef.current && (initialMessages?.length ?? 0) > 0) {
+      loadHistory({ proactive: true, skipIfHydrated: true });
+      return;
+    }
+
     setMessages([]);
     setIsTyping(false);
     setIsLoadingHistory(true);
-    setAffection(0);
-    setRelationshipLevel(1);
-    setEmotion(resolvedCharacter.defaultEmotion ?? "happy");
-    setLastChatAt(null);
-    streamingIdRef.current = null;
-    proactiveDoneRef.current = null;
+    setAffection(initialAffection);
+    setRelationshipLevel(initialRelationshipLevel);
+    setEmotion(initialEmotion ?? resolvedCharacter.defaultEmotion ?? "happy");
+    setLastChatAt(initialLastChatAt);
     loadHistory({ proactive: true });
-  }, [
-    safeConversationId,
-    resolvedCharacter.id,
-    resolvedCharacter.defaultEmotion,
-    loadHistory,
-  ]);
+  }, [safeConversationId, loadHistory]);
 
   const sendMessage = useCallback(
     async (text: string) => {

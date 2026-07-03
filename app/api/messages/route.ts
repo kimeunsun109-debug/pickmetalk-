@@ -3,7 +3,7 @@ import { mapMessage } from "@/lib/db/mappers";
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
-const MESSAGE_LIMIT = 200;
+const MESSAGE_LIMIT = 60;
 
 /** GET — 대화방별 최근 메시지 (스크롤 복원용, 최대 200개) */
 export async function GET(request: Request) {

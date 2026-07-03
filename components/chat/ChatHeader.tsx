@@ -8,6 +8,7 @@ import {
 } from "@/lib/relationship";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 interface ChatHeaderProps {
@@ -15,6 +16,7 @@ interface ChatHeaderProps {
 }
 
 export function ChatHeader({ conversationTitle }: ChatHeaderProps) {
+  const router = useRouter();
   const { character, characterId, emotion, affection, relationshipLevel } =
     useChat();
 
@@ -60,7 +62,7 @@ export function ChatHeader({ conversationTitle }: ChatHeaderProps) {
       if (!res.ok) {
         throw new Error(data.error ?? "새 대화를 만들 수 없습니다.");
       }
-      goToCharacterChat(characterId, data.conversation.id);
+      goToCharacterChat(router, characterId, data.conversation.id);
     } catch (e) {
       setCreateError(
         e instanceof Error

@@ -102,7 +102,7 @@ export function ChatScreen({
       <ChatHeader conversationTitle={conversationTitle} />
 
       <main className="flex-1 overflow-y-auto scroll-ios pb-2">
-        {isLoadingHistory ? (
+        {isLoadingHistory && messages.length === 0 ? (
           <div className="flex h-full items-center justify-center py-20">
             <div className="flex flex-col items-center gap-3">
               <div className="h-8 w-8 animate-spin rounded-full border-2 border-pink-accent/30 border-t-pink-accent" />
@@ -161,7 +161,7 @@ export function ChatScreen({
         </div>
       )}
 
-      <ChatInput disabled={isTyping || isLoadingHistory} onSend={handleSend} />
+      <ChatInput disabled={isTyping} onSend={handleSend} />
 
       <MessageActionSheet
         open={menuMessageId !== null}

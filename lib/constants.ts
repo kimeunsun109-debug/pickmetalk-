@@ -40,4 +40,7 @@ export const CHAT_CONTEXT_TURNS = 6;
  * 너무 짧으면 실제 응답이 오기 전에 임시 문장이 떴다가 교체되며 깜빡임이 생긴다.
  * 타이핑 인디케이터가 대기를 가려주므로 진짜 지연(스톨)일 때만 폴백한다.
  */
-export const CHAT_STREAM_FIRST_CHUNK_MS = 3500;
+export const CHAT_STREAM_FIRST_CHUNK_MS = 1800;
+
+/** 웹 검색 대기 상한 — 초과 시 검색 없이 바로 LLM 스트림 */
+export const WEB_SEARCH_CHAT_BUDGET_MS = 1200;

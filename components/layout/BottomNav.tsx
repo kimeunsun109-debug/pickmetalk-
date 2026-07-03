@@ -19,10 +19,11 @@ export function BottomNav() {
       {tabs.map((t) => {
         const isActive = pathname.startsWith(t.href);
         return (
-          <Link
-            key={t.href}
-            href={t.href}
-            className={`flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[10px] transition-colors ${
+        <Link
+          key={t.href}
+          href={t.href}
+          prefetch
+          className={`flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[10px] transition-colors ${
               isActive ? "text-pink-accent" : "text-gray-400"
             }`}
           >

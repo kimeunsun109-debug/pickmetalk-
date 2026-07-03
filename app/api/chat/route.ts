@@ -22,6 +22,7 @@ import {
   ENABLE_SHORT_TERM_MEMORY,
   CHAT_CONTEXT_TURNS,
   CHAT_STREAM_FIRST_CHUNK_MS,
+  WEB_SEARCH_CHAT_BUDGET_MS,
 } from "@/lib/constants";
 import { getSearchContextForMessage } from "@/services/search";
 import { getStreamFallback } from "@/services/chatFallback";
@@ -43,6 +44,15 @@ import { NextResponse } from "next/server";
 
 const CONTEXT_LIMIT = CHAT_CONTEXT_TURNS;
 const HISTORY_FETCH_LIMIT = 40;
+
+function searchContextWithBudget(userMessage: string): Promise<string> {
+  return Promise.race([
+    getSearchContextForMessage(userMessage).catch(() => ""),
+    new Promise<string>((resolve) =>
+      setTimeout(() => resolve(""), WEB_SEARCH_CHAT_BUDGET_MS)
+    ),
+  ]);
+}
 
 /**
  * POST /api/chat — DeepSeek 스트리밍 + 대화방별 메시지·호감도 저장
@@ -126,6 +136,8 @@ export async function POST(request: Request) {
       let streamTimeout: ReturnType<typeof setTimeout> | undefined;
 
       try {
+        send({ streaming: true });
+
         const [
           profileResult,
           historyResult,
@@ -147,7 +159,7 @@ export async function POST(request: Request) {
             .eq("user_id", user.id)
             .eq("character_id", characterId)
             .maybeSingle(),
-          getSearchContextForMessage(userText).catch(() => ""),
+          searchContextWithBudget(userText),
           getDailyPatternsForUser(supabase, user.id, 40).catch(() => []),
         ]);
 
