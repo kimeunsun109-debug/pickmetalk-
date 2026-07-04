@@ -38,6 +38,10 @@ import {
 import { ServerPerfTrace } from "@/lib/perf/trace";
 import type { ChatRequestBody } from "@/types/api";
 import type { Message, UserCharacterState } from "@/types";
+import type {
+  PostgrestResponse,
+  PostgrestSingleResponse,
+} from "@supabase/supabase-js";
 
 const CONTEXT_LIMIT = CHAT_CONTEXT_TURNS;
 const HISTORY_FETCH_LIMIT = 40;
@@ -104,6 +108,7 @@ export async function POST(request: Request) {
         const conversation = await trace.span("Load Conversation", () =>
           getConversationForUser(supabase, userId, conversationId)
         );
+
         if (!conversation) {
           send({ error: "대화방을 찾을 수 없습니다.", done: true });
           return;
@@ -119,21 +124,22 @@ export async function POST(request: Request) {
 
         const now = new Date().toISOString();
 
-        const { data: userMessageRow, error: userMsgError } = await trace.span(
-          "DB Save — user message",
-          () =>
-            supabase
-              .from("messages")
-              .insert({
-                user_id: userId,
-                character_id: characterId,
-                conversation_id: conversationId,
-                role: "user",
-                content: userText,
-              })
-              .select("id")
-              .single()
-        );
+        const { data: userMessageRow, error: userMsgError } =
+          await trace.span<PostgrestSingleResponse<{ id: string }>>(
+            "DB Save — user message",
+            async () =>
+              await supabase
+                .from("messages")
+                .insert({
+                  user_id: userId,
+                  character_id: characterId,
+                  conversation_id: conversationId,
+                  role: "user",
+                  content: userText,
+                })
+                .select("id")
+                .single()
+          );
 
         if (userMsgError) {
           send({ error: userMsgError.message, done: true });
@@ -153,7 +159,14 @@ export async function POST(request: Request) {
         );
 
         const [profileResult, historyResult, ucsResult, shortTermMemoryBlock] =
-          await trace.span("Parallel DB + short-term memory", async () => {
+          await trace.span<
+            [
+              PostgrestSingleResponse<Record<string, unknown>>,
+              PostgrestResponse<Record<string, unknown>>,
+              PostgrestSingleResponse<Record<string, unknown>>,
+              string,
+            ]
+          >("Parallel DB + short-term memory", async () => {
             const shortTermPromise = (async (): Promise<string> => {
               if (!ENABLE_SHORT_TERM_MEMORY) return "";
               try {
@@ -356,7 +369,9 @@ export async function POST(request: Request) {
         const newAffection = newAffectionPreview;
         const newLevel = newLevelPreview;
 
-        const { data: assistantRow } = await trace.span(
+        const { data: assistantRow } = await trace.span<{
+          data: { id: string; created_at: string } | null;
+        }>(
           "DB Save — assistant + conversation",
           async () => {
             const { data: row } = await supabase
