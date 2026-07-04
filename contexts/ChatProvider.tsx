@@ -373,7 +373,9 @@ export function ChatProvider({
             if (chunk.done) {
               if (chunk.affection != null) setAffection(chunk.affection);
               if (chunk.relationshipLevel != null)
-                setRelationshipLevel(chunk.relationshipLevel);
+                setRelationshipLevel(
+                  chunk.relationshipLevel as RelationshipLevel
+                );
               if (chunk.emotion) setEmotion(normalizeEmotion(chunk.emotion));
               if (chunk.userMessageId) {
                 setMessages((prev) =>
