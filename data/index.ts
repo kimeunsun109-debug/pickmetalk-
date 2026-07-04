@@ -10,6 +10,12 @@ export const gifts = giftsJson as Gift[];
 export const relationshipLevels = relationshipLevelsJson;
 export const subscriptionPlans = subscriptionPlansJson as SubscriptionPlan[];
 
+const characterMap = new Map<string, Character>(
+  characters.map((c) => [c.id, c])
+);
+
+const DEFAULT_CHARACTER_ID = "yuna";
+
 export function getCharacterById(id: string): Character | undefined {
-  return characters.find((c) => c.id === id);
+  return characterMap.get(id) ?? characterMap.get(DEFAULT_CHARACTER_ID);
 }

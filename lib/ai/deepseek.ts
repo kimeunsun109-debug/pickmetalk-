@@ -3,6 +3,8 @@ import OpenAI from "openai";
 
 const MODEL = "deepseek-chat";
 
+let deepseekClientInstance: OpenAI | null = null;
+
 function getApiKey(): string {
   const key = process.env.DEEPSEEK_API_KEY?.trim();
   if (!key) {
@@ -18,21 +20,26 @@ function getBaseURL(): string {
   );
 }
 
-/**
- * OpenAI SDK 호환 클라이언트 — baseURL만 DeepSeek
- * 요청마다 env를 다시 읽어 dev 서버 재시작 없이 .env 변경이 반영되도록 함
- */
-export function createDeepSeekClient(): OpenAI {
-  return new OpenAI({
-    apiKey: getApiKey(),
-    baseURL: getBaseURL(),
-  });
+/** 싱글톤 — 요청마다 OpenAI 클라이언트 재생성 방지 */
+export function getDeepSeekClient(): OpenAI {
+  if (!deepseekClientInstance) {
+    deepseekClientInstance = new OpenAI({
+      apiKey: getApiKey(),
+      baseURL: getBaseURL(),
+    });
+  }
+  return deepseekClientInstance;
 }
 
-/** @deprecated createDeepSeekClient() 사용 권장 */
+/** @deprecated getDeepSeekClient() 사용 권장 */
+export function createDeepSeekClient(): OpenAI {
+  return getDeepSeekClient();
+}
+
+/** @deprecated getDeepSeekClient() 사용 권장 */
 export const deepseek = {
   get chat() {
-    return createDeepSeekClient().chat;
+    return getDeepSeekClient().chat;
   },
 };
 
@@ -40,7 +47,7 @@ export const deepseek = {
 export async function* streamDeepSeekChat(
   messages: ChatMessage[]
 ): AsyncGenerator<string> {
-  const client = createDeepSeekClient();
+  const client = getDeepSeekClient();
 
   try {
     const stream = await client.chat.completions.create({

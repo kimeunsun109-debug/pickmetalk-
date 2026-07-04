@@ -313,15 +313,6 @@ function serializeEntity(entity: MemoryEntity): string {
  */
 const STABLE_USER_MESSAGE_THRESHOLD = 0;
 
-function findLatestByCategory(
-  entities: MemoryEntity[],
-  category: MemoryCategory
-): MemoryEntity | undefined {
-  return entities
-    .filter((e) => e.category === category)
-    .sort((a, b) => b.timestamp - a.timestamp)[0];
-}
-
 export interface ContextMemoryOptions {
   /** 대화 안정기 판단용 (유저 메시지 수) */
   userMessageCount?: number;
@@ -358,37 +349,39 @@ export function getContextMemoryPrompt(
 
   if (!isStablePhase) return "";
 
-  const workMemory = findLatestByCategory(entities, "work");
-  const hobbyMemory = findLatestByCategory(entities, "hobby");
-  const scheduleMemory = findLatestByCategory(entities, "schedule");
-  const financeMemory = findLatestByCategory(entities, "finance");
-
-  if (!workMemory && !hobbyMemory && !scheduleMemory && !financeMemory) return "";
+  const topEntities = sortByPriority(entities).slice(0, 2);
+  if (topEntities.length === 0) return "";
 
   const lines = ["[기억 활용 지침 — 선택적 회상]"];
 
-  if (workMemory) {
-    lines.push(
-      `- 유저가 예전에 "${workMemory.fact}"를 언급했다. 관련 있을 때만 1번 자연스럽게 언급. 이미 이번 대화에서 다뤘거나 사용자가 답했다면 반복 금지.`
-    );
-  }
-
-  if (hobbyMemory) {
-    lines.push(
-      `- 유저가 "${hobbyMemory.fact}"에 관심을 보였다. 맥락이 맞을 때만 가볍게 이어가기. 같은 질문·안부 반복 금지.`
-    );
-  }
-
-  if (scheduleMemory) {
-    lines.push(
-      `- 유저가 "${scheduleMemory.fact}" 일정을 말했다. 아직 안 물어봤을 때만 후속 안부 OK. 이미 "갔다/했다"고 답했으면 다시 묻지 마라.`
-    );
-  }
-
-  if (financeMemory) {
-    lines.push(
-      `- 유저가 "${financeMemory.fact}" 관련 이야기를 했다. 맥락이 맞을 때만 넌지시 언급. 반복 금지.`
-    );
+  for (const entity of topEntities) {
+    switch (entity.category) {
+      case "work":
+        lines.push(
+          `- 유저가 예전에 "${entity.fact}"를 언급했다. 관련 있을 때만 1번 자연스럽게 언급. 이미 이번 대화에서 다뤘거나 사용자가 답했다면 반복 금지.`
+        );
+        break;
+      case "hobby":
+        lines.push(
+          `- 유저가 "${entity.fact}"에 관심을 보였다. 맥락이 맞을 때만 가볍게 이어가기. 같은 질문·안부 반복 금지.`
+        );
+        break;
+      case "schedule":
+        lines.push(
+          `- 유저가 "${entity.fact}" 일정을 말했다. 아직 안 물어봤을 때만 후속 안부 OK. 이미 "갔다/했다"고 답했으면 다시 묻지 마라.`
+        );
+        break;
+      case "finance":
+        lines.push(
+          `- 유저가 "${entity.fact}" 관련 이야기를 했다. 맥락이 맞을 때만 넌지시 언급. 반복 금지.`
+        );
+        break;
+      case "emotion":
+        lines.push(
+          `- 유저가 "${entity.fact}" 감정을 표현했다. 공감은 유지하되 같은 안부·감정 질문 반복 금지.`
+        );
+        break;
+    }
   }
 
   return lines.join("\n");
@@ -401,21 +394,21 @@ export function extractFactsFromUserMessage(message: string): string[] {
   );
 }
 
-/** Fact 우선 가중치로 memory_summary 갱신 */
+/** Fact 우선 가중치로 memory_summary 갱신 (최신 유저 메시지만 점진 반영) */
 export function updateMemorySummary(
   existing: string | null,
-  userMessages: string[]
+  newUserMessage: string
 ): string | null {
-  const recentUser = userMessages.slice(-20);
-  const extracted = recentUser.flatMap((msg, i) =>
-    extractKeyMemories(msg, i + 1)
-  );
+  const trimmed = newUserMessage.trim();
+  if (!trimmed || SKIP_MESSAGE.test(trimmed)) return existing;
+
+  const extracted = extractKeyMemories(trimmed);
+  if (extracted.length === 0) return existing;
+
   const merged = mergeEntities([
     ...parseStoredSummary(existing),
     ...extracted,
   ]);
-
-  if (merged.length === 0) return existing;
 
   const prioritized = capWithEmotionLimit(sortByPriority(merged));
   return prioritized.map(serializeEntity).join("\n");

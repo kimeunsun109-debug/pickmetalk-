@@ -1,6 +1,7 @@
 import { getCharacterById } from "@/data";
 import { streamDeepSeekChat } from "@/lib/ai/deepseek";
 import { getConversationForUser } from "@/lib/db/conversations";
+import { MESSAGE_LIST_COLUMNS } from "@/lib/db/messages";
 import { updateConversationLastMessage } from "@/lib/db/updateConversationPreview";
 import { mapCharacterState, mapMessage, mapUserProfile } from "@/lib/db/mappers";
 import { createClient } from "@/lib/supabase/server";
@@ -141,22 +142,74 @@ export async function POST(request: Request) {
 
         const now = new Date().toISOString();
 
-        const { data: userMessageRow, error: userMsgError } =
-          await trace.span<PostgrestSingleResponse<{ id: string }>>(
-            "DB Save — user message",
-            async () =>
-              await supabase
-                .from("messages")
-                .insert({
-                  user_id: userId,
-                  character_id: characterId,
-                  conversation_id: conversationId,
-                  role: "user",
-                  content: userText,
-                })
-                .select("id")
-                .single()
-          );
+        const [
+          userMessageResult,
+          profileResult,
+          historyResult,
+          ucsResult,
+          shortTermMemoryBlock,
+        ] = await trace.span<
+          [
+            PostgrestSingleResponse<{ id: string }>,
+            PostgrestSingleResponse<Record<string, unknown>>,
+            PostgrestResponse<Record<string, unknown>>,
+            PostgrestSingleResponse<Record<string, unknown>>,
+            string,
+          ]
+        >("Parallel DB — user insert + context load", async () => {
+          const shortTermPromise = (async (): Promise<string> => {
+            if (!ENABLE_SHORT_TERM_MEMORY) return "";
+            try {
+              const {
+                buildShortTermMemoryContextBlock,
+                getActiveShortTermMemories,
+              } = await import("@/lib/db/shortTermMemories");
+              const activeShortTermMemories = await getActiveShortTermMemories(
+                supabase,
+                userId,
+                now
+              );
+              return buildShortTermMemoryContextBlock(activeShortTermMemories);
+            } catch {
+              return "";
+            }
+          })();
+
+          return Promise.all([
+            supabase
+              .from("messages")
+              .insert({
+                user_id: userId,
+                character_id: characterId,
+                conversation_id: conversationId,
+                role: "user",
+                content: userText,
+              })
+              .select("id")
+              .single(),
+            supabase
+              .from("profiles")
+              .select("*")
+              .eq("id", userId)
+              .maybeSingle(),
+            supabase
+              .from("messages")
+              .select(MESSAGE_LIST_COLUMNS)
+              .eq("conversation_id", conversationId)
+              .in("role", ["user", "assistant"])
+              .order("created_at", { ascending: true })
+              .limit(HISTORY_FETCH_LIMIT),
+            supabase
+              .from("user_character_states")
+              .select("*")
+              .eq("user_id", userId)
+              .eq("character_id", characterId)
+              .maybeSingle(),
+            shortTermPromise,
+          ]);
+        });
+
+        const { data: userMessageRow, error: userMsgError } = userMessageResult;
 
         if (userMsgError) {
           send({ error: userMsgError.message, done: true });
@@ -166,7 +219,7 @@ export async function POST(request: Request) {
         const userMessageId = userMessageRow?.id ?? null;
         send({ userMessageId });
 
-        await updateConversationLastMessage(
+        void updateConversationLastMessage(
           supabase,
           conversationId,
           userId,
@@ -174,56 +227,6 @@ export async function POST(request: Request) {
           "user",
           now
         );
-
-        const [profileResult, historyResult, ucsResult, shortTermMemoryBlock] =
-          await trace.span<
-            [
-              PostgrestSingleResponse<Record<string, unknown>>,
-              PostgrestResponse<Record<string, unknown>>,
-              PostgrestSingleResponse<Record<string, unknown>>,
-              string,
-            ]
-          >("Parallel DB + short-term memory", async () => {
-            const shortTermPromise = (async (): Promise<string> => {
-              if (!ENABLE_SHORT_TERM_MEMORY) return "";
-              try {
-                const {
-                  buildShortTermMemoryContextBlock,
-                  getActiveShortTermMemories,
-                } = await import("@/lib/db/shortTermMemories");
-                const activeShortTermMemories = await getActiveShortTermMemories(
-                  supabase,
-                  userId,
-                  now
-                );
-                return buildShortTermMemoryContextBlock(activeShortTermMemories);
-              } catch {
-                return "";
-              }
-            })();
-
-            return Promise.all([
-              supabase
-                .from("profiles")
-                .select("*")
-                .eq("id", userId)
-                .maybeSingle(),
-              supabase
-                .from("messages")
-                .select("*")
-                .eq("conversation_id", conversationId)
-                .in("role", ["user", "assistant"])
-                .order("created_at", { ascending: true })
-                .limit(HISTORY_FETCH_LIMIT),
-              supabase
-                .from("user_character_states")
-                .select("*")
-                .eq("user_id", userId)
-                .eq("character_id", characterId)
-                .maybeSingle(),
-              shortTermPromise,
-            ]);
-          });
 
         trace.mark(
           "Memory/History load",
@@ -236,6 +239,17 @@ export async function POST(request: Request) {
         const history: Message[] = (historyResult.data ?? []).map((r) =>
           mapMessage(r)
         );
+        if (userMessageId && !history.some((m) => m.id === userMessageId)) {
+          history.push({
+            id: userMessageId,
+            userId,
+            characterId,
+            conversationId,
+            role: "user",
+            content: userText,
+            createdAt: now,
+          });
+        }
         const userContents = history
           .filter((m) => m.role === "user")
           .map((m) => m.content);
@@ -247,7 +261,7 @@ export async function POST(request: Request) {
 
         const updatedMemory = updateMemorySummary(
           conversation.summary,
-          userContents
+          userText
         );
         const { recent, summary } = pickMessagesForContext(
           history,
@@ -486,8 +500,9 @@ export async function POST(request: Request) {
   return new Response(stream, {
     headers: {
       "Content-Type": "text/event-stream; charset=utf-8",
-      "Cache-Control": "no-cache, no-transform",
+      "Cache-Control": "no-cache",
       Connection: "keep-alive",
+      "X-Content-Type-Options": "nosniff",
     },
   });
 }
