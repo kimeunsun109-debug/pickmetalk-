@@ -15,7 +15,7 @@
 |------|------------:|---------------:|-------------------:|------------:|------|
 | **AI Response TTFB (headers)** | 1705 | 714 | **837** | −868 | ≤800 (~변동) |
 | AI Response — Total stream | 5754 | 5338 | **4766** | −988 | — |
-| Conversations List SSR | 2215 | 1451 | **(see JSON)** | — | denormalize ✅ |
+| Conversations List SSR | 2215 | 1451 | **1616** | −599 | denormalize ✅ |
 | **Enter Chat — Proactive API** | 1658 | 1978 | **688** | **−970** | non-blocking ✅ |
 | Enter Chat — SSR HTML (TTFB) | 1543 | 722 | **749** | −794 | — |
 
@@ -35,6 +35,10 @@
 1. **AI TTFB**: auth/DB/프롬프트를 `stream.start()`로 이동. `getSession`. 검색·일일패턴 defer. 단기기억 prompt 유지.
 2. **Conversations List**: `fetchLastMessagePreviews` 제거 → denormalized 컬럼
 3. **SSR 중복 fetch** / **Proactive 백그라운드** / **BugBot** 수정
+
+### 2차 (migration 적용 후)
+1. **AI TTFB**: `request.json()` 포함 **모든 pre-stream await 제거** → 즉시 SSE Response
+2. preview 갱신을 migration 컬럼에 **동기 반영**
 
 ### 3차
 1. **Proactive fast-path**: `lastMessageRole=user` / `recent_activity`(<3h) / `no_history` 즉시 skip
