@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, memo, useCallback } from "react";
 
 /** KakaoTalk-style message input bar. */
-export function ChatInput({
+export const ChatInput = memo(function ChatInput({
   disabled,
   onSend,
 }: {
@@ -12,13 +12,16 @@ export function ChatInput({
 }) {
   const [text, setText] = useState("");
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const trimmed = text.trim();
-    if (!trimmed || disabled) return;
-    onSend(trimmed);
-    setText("");
-  }
+  const handleSubmit = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      const trimmed = text.trim();
+      if (!trimmed || disabled) return;
+      onSend(trimmed);
+      setText("");
+    },
+    [text, disabled, onSend]
+  );
 
   const canSend = Boolean(text.trim()) && !disabled;
 
@@ -56,4 +59,4 @@ export function ChatInput({
       </form>
     </footer>
   );
-}
+});

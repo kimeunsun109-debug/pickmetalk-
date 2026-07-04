@@ -1,10 +1,10 @@
 "use client";
 
-import { useChat } from "@/contexts/ChatProvider";
 import type { ChatMessage } from "@/contexts/ChatProvider";
 import { useLongPress } from "@/hooks/useLongPress";
 import { formatBubbleTime } from "@/lib/formatMessageTime";
 import { TypingIndicator } from "@/components/chat/TypingIndicator";
+import { memo } from "react";
 
 function bubbleRadiusClass(
   isUser: boolean,
@@ -69,6 +69,7 @@ function splitAssistantBubbles(content: string, max = 4): string[] {
 
 export interface MessageItemProps {
   message: ChatMessage;
+  characterName: string;
   isStreaming?: boolean;
   showAvatar?: boolean;
   showAvatarSpacer?: boolean;
@@ -79,8 +80,9 @@ export interface MessageItemProps {
   canDelete?: boolean;
 }
 
-export function MessageItem({
+export const MessageItem = memo(function MessageItem({
   message,
+  characterName,
   isStreaming = false,
   showAvatar = true,
   showAvatarSpacer = false,
@@ -90,7 +92,6 @@ export function MessageItem({
   onLongPress,
   canDelete = false,
 }: MessageItemProps) {
-  const { character } = useChat();
   const { role, content } = message;
   const isUser = role === "user";
 
@@ -112,7 +113,7 @@ export function MessageItem({
     >
       {!isUser && showAvatar && (
         <div className="mr-1.5 mt-auto flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-pink-200 to-pink-400 text-[11px] font-bold text-white shadow-sm">
-          {character.name[0]}
+          {characterName[0]}
         </div>
       )}
 
@@ -176,4 +177,4 @@ export function MessageItem({
       </div>
     </div>
   );
-}
+});

@@ -3,18 +3,15 @@
 import { ChatHeader } from "@/components/chat/ChatHeader";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { MessageActionSheet } from "@/components/chat/MessageActionSheet";
-import { MessageItem } from "@/components/chat/MessageItem";
+import { MessageAreaSkeleton } from "@/components/chat/MessageAreaSkeleton";
+import { MessageList } from "@/components/chat/MessageList";
 import { PremiumModal } from "@/components/chat/PremiumModal";
 import { useChat } from "@/contexts/ChatProvider";
 import { usePerfRenderCount } from "@/lib/perf/client";
 import { getMessageGroupMeta } from "@/lib/chatMessageLayout";
-import {
-  formatDateSeparator,
-  shouldShowDateSeparator,
-} from "@/lib/formatMessageTime";
 import { getAbsenceTier } from "@/lib/returnVisit";
 import { trackEvent } from "@/services/analytics";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export function ChatScreen({
   conversationTitle,
@@ -27,7 +24,7 @@ export function ChatScreen({
     characterId,
     messages,
     isTyping,
-    isLoadingHistory,
+    isSyncingHistory,
     lastChatAt,
     sendMessage,
     deleteMessage,
@@ -39,7 +36,7 @@ export function ChatScreen({
   const returnVisitTrackedRef = useRef(false);
 
   useEffect(() => {
-    if (isLoadingHistory || returnVisitTrackedRef.current) return;
+    if (returnVisitTrackedRef.current) return;
 
     trackEvent("session_start", characterId);
 
@@ -60,57 +57,64 @@ export function ChatScreen({
     }
 
     returnVisitTrackedRef.current = true;
-  }, [isLoadingHistory, lastChatAt, characterId]);
+  }, [lastChatAt, characterId]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
 
-  async function handleSend(text: string) {
-    setSendError(null);
-    try {
-      await sendMessage(text);
-      trackEvent("message_sent", characterId);
-    } catch {
-      setSendError("메시지 전송에 실패했어요. 잠시 후 다시 시도해 주세요.");
-    }
-  }
+  const handleSend = useCallback(
+    async (text: string) => {
+      setSendError(null);
+      try {
+        await sendMessage(text);
+        trackEvent("message_sent", characterId);
+      } catch {
+        setSendError("메시지 전송에 실패했어요. 잠시 후 다시 시도해 주세요.");
+      }
+    },
+    [sendMessage, characterId]
+  );
 
-  async function handleDeleteMessage(messageId: string) {
-    setSendError(null);
-    try {
-      await deleteMessage(messageId);
-    } catch (e) {
-      setSendError(
-        e instanceof Error ? e.message : "메시지를 삭제하지 못했습니다."
-      );
-    }
-  }
+  const handleDeleteMessage = useCallback(
+    async (messageId: string) => {
+      setSendError(null);
+      try {
+        await deleteMessage(messageId);
+      } catch (e) {
+        setSendError(
+          e instanceof Error ? e.message : "메시지를 삭제하지 못했습니다."
+        );
+      }
+    },
+    [deleteMessage]
+  );
 
-  function handleMessageLongPress(messageId: string) {
-    const meta = messages.findIndex((m) => m.id === messageId);
-    if (meta < 0) return;
-    const { canDelete } = getMessageGroupMeta(messages, meta);
-    const isStreamingLast =
-      isTyping &&
-      meta === messages.length - 1 &&
-      messages[meta]?.role === "assistant";
-    if (!canDelete || isStreamingLast) return;
-    setMenuMessageId(messageId);
-  }
+  const handleMessageLongPress = useCallback(
+    (messageId: string) => {
+      const meta = messages.findIndex((m) => m.id === messageId);
+      if (meta < 0) return;
+      const { canDelete } = getMessageGroupMeta(messages, meta);
+      const isStreamingLast =
+        isTyping &&
+        meta === messages.length - 1 &&
+        messages[meta]?.role === "assistant";
+      if (!canDelete || isStreamingLast) return;
+      setMenuMessageId(messageId);
+    },
+    [messages, isTyping]
+  );
+
+  const showMessageSkeleton =
+    isSyncingHistory && messages.length === 0;
 
   return (
     <div className="flex min-h-[100dvh] flex-col bg-[#b2c7d9]/30">
       <ChatHeader conversationTitle={conversationTitle} />
 
       <main className="flex-1 overflow-y-auto scroll-ios pb-2">
-        {isLoadingHistory && messages.length === 0 ? (
-          <div className="flex h-full items-center justify-center py-20">
-            <div className="flex flex-col items-center gap-3">
-              <div className="h-8 w-8 animate-spin rounded-full border-2 border-pink-accent/30 border-t-pink-accent" />
-              <p className="text-sm text-gray-500">대화 불러오는 중…</p>
-            </div>
-          </div>
+        {showMessageSkeleton ? (
+          <MessageAreaSkeleton />
         ) : messages.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 px-8 py-20 text-center">
             <p className="text-sm text-gray-500">
@@ -118,40 +122,12 @@ export function ChatScreen({
             </p>
           </div>
         ) : (
-          messages.map((msg, idx) => {
-            const isStreaming =
-              isTyping &&
-              idx === messages.length - 1 &&
-              msg.role === "assistant";
-            const group = getMessageGroupMeta(messages, idx);
-            const prevMsg = idx > 0 ? messages[idx - 1] : null;
-            const showDate =
-              msg.createdAt &&
-              shouldShowDateSeparator(prevMsg?.createdAt, msg.createdAt);
-
-            return (
-              <div key={msg.id}>
-                {showDate && msg.createdAt && (
-                  <div className="flex justify-center py-3">
-                    <span className="rounded-full bg-black/10 px-3 py-1 text-[11px] text-gray-600">
-                      {formatDateSeparator(msg.createdAt)}
-                    </span>
-                  </div>
-                )}
-                <MessageItem
-                  message={msg}
-                  isStreaming={isStreaming}
-                  showAvatar={group.showAvatar}
-                  showAvatarSpacer={group.showAvatarSpacer}
-                  isGroupedWithPrev={group.isGroupedWithPrev}
-                  isGroupedWithNext={group.isGroupedWithNext}
-                  showTimestamp={!group.isGroupedWithNext && !isStreaming}
-                  canDelete={group.canDelete && !isStreaming}
-                  onLongPress={handleMessageLongPress}
-                />
-              </div>
-            );
-          })
+          <MessageList
+            messages={messages}
+            characterName={character.name}
+            isTyping={isTyping}
+            onLongPress={handleMessageLongPress}
+          />
         )}
 
         <div ref={bottomRef} />

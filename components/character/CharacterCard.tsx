@@ -1,4 +1,10 @@
+"use client";
+
+import { characterChatHref } from "@/lib/navigateChat";
+import { resolveCharacterId } from "@/lib/chatRoute";
 import type { Character } from "@/types";
+import { useRouter } from "next/navigation";
+import { useCallback } from "react";
 
 /** Character selection card. */
 export function CharacterCard({
@@ -12,10 +18,20 @@ export function CharacterCard({
   isLoading?: boolean;
   isActive?: boolean;
 }) {
+  const router = useRouter();
+  const characterId = resolveCharacterId(character.id);
+  const chatHref = characterChatHref(characterId);
+
+  const prefetchChat = useCallback(() => {
+    router.prefetch(chatHref);
+  }, [router, chatHref]);
+
   return (
     <button
       type="button"
       onClick={onSelect}
+      onMouseEnter={prefetchChat}
+      onFocus={prefetchChat}
       disabled={isLoading}
       className={`w-full rounded-2xl border bg-white p-4 text-left shadow-sm transition hover:border-pink-accent disabled:opacity-60 ${
         isActive ? "border-pink-accent ring-1 ring-pink-accent" : ""

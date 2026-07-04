@@ -1,6 +1,6 @@
 "use client";
 
-import { useChat } from "@/contexts/ChatProvider";
+import { useChatMeta } from "@/contexts/ChatProvider";
 import { goToCharacterChat } from "@/lib/navigateChat";
 import {
   affectionProgressBlocks,
@@ -9,16 +9,18 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 
 interface ChatHeaderProps {
   conversationTitle?: string;
 }
 
-export function ChatHeader({ conversationTitle }: ChatHeaderProps) {
+export const ChatHeader = memo(function ChatHeader({
+  conversationTitle,
+}: ChatHeaderProps) {
   const router = useRouter();
   const { character, characterId, emotion, affection, relationshipLevel } =
-    useChat();
+    useChatMeta();
 
   const stage = getRelationshipStage(affection);
   const { filled, total, percent } = affectionProgressBlocks(affection);
@@ -190,4 +192,4 @@ export function ChatHeader({ conversationTitle }: ChatHeaderProps) {
       </div>
     </header>
   );
-}
+});

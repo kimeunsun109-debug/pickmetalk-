@@ -17,7 +17,9 @@ export function goToCharacterChat(
   conversationId?: string
 ) {
   markBrowserSessionActive();
-  router.push(characterChatHref(characterId, conversationId));
+  const href = characterChatHref(characterId, conversationId);
+  router.prefetch(href);
+  router.push(href);
 }
 
 /** @deprecated conversationId만으로 이동 — characterId URL 사용 권장 */
