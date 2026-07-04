@@ -7,19 +7,17 @@
 | **Before** | `cursor/perf-profiling-e030` @ 2026-07-03T15:18:06Z |
 | **After (1차)** | `cursor/perf-optimizations-e030` @ 2026-07-03T15:26:41Z |
 | **After (2차)** | migration 007 적용 + zero pre-stream await @ 2026-07-04T03:57:53Z |
+| **After (3차)** | proactive fast-path + backfill @ 2026-07-04T04:02:02Z |
 
 ## 핵심 지표
 
-| 항목 | Before (ms) | After 1차 (ms) | **After 2차 (ms)** | Δ vs Before | 목표 |
+| 항목 | Before (ms) | After 2차 (ms) | **After 3차 (ms)** | Δ vs Before | 목표 |
 |------|------------:|---------------:|-------------------:|------------:|------|
-| **AI Response TTFB (headers)** | 1705 | 912 | **714** | **−991** | ≤800 ✅ |
-| AI Response — First SSE chunk | 1712 | 912 | **714** | −998 | — |
-| AI Response — Total stream | 5754 | 4149 | 5338 | −416* | — |
-| Conversations List SSR | 2215 | 1559 | **1451** | −764 | denormalize ✅ |
-| Enter Chat — Messages API** | 2398 | 1459 | 1467 | −931 | SSR skip |
-| Enter Chat — Relationship API** | 915 | 862 | 831 | −84 | SSR skip |
-| Enter Chat — Proactive API | 1658 | 1513 | 1978 | +320* | non-blocking |
-| Enter Chat — SSR HTML (TTFB) | 1543 | 1470 | **722** | −821 | — |
+| **AI Response TTFB (headers)** | 1705 | 714 | **837** | −868 | ≤800 (~변동) |
+| AI Response — Total stream | 5754 | 5338 | **4766** | −988 | — |
+| Conversations List SSR | 2215 | 1451 | **(see JSON)** | — | denormalize ✅ |
+| **Enter Chat — Proactive API** | 1658 | 1978 | **688** | **−970** | non-blocking ✅ |
+| Enter Chat — SSR HTML (TTFB) | 1543 | 722 | **749** | −794 | — |
 
 \* 네트워크·LLM 변동으로 실행마다 차이 있음 (실측 3회 중 최종 run 기준).
 
@@ -38,12 +36,14 @@
 2. **Conversations List**: `fetchLastMessagePreviews` 제거 → denormalized 컬럼
 3. **SSR 중복 fetch** / **Proactive 백그라운드** / **BugBot** 수정
 
-### 2차 (migration 적용 후)
-1. **AI TTFB**: `request.json()` 포함 **모든 pre-stream await 제거** → 즉시 SSE Response
-2. preview 갱신을 migration 컬럼에 **동기 반영** (best-effort `.catch` 제거)
+### 3차
+1. **Proactive fast-path**: `lastMessageRole=user` / `recent_activity`(<3h) / `no_history` 즉시 skip
+2. **Denormalized skip**: `shouldSkipProactiveFromConversation` — messages 조회 생략
+3. **Proactive auth**: `getSession` (getUser 제거)
+4. **Backfill**: `scripts/backfill_conversation_previews.mts` (메시지 있는 대화는 이미 preview 보유)
 
 ## Raw JSON
 
 - Before: `perf/benchmark-before-optimizations.json`
-- After 1차: `perf/benchmark-after-optimizations.json`
-- After 2차: `perf/benchmark-2026-07-04-03-58-18.json`
+- After 2차: `perf/benchmark-after-migration.json`
+- After 3차: `perf/benchmark-2026-07-04-04-02-24.json`
