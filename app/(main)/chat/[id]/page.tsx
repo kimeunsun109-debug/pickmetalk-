@@ -19,7 +19,7 @@ import {
 import { normalizeEmotion } from "@/lib/emotions";
 import { ServerPerfTrace } from "@/lib/perf/trace";
 import { createClient } from "@/lib/supabase/server";
-import type { EmotionState, RelationshipLevel } from "@/types";
+import type { Conversation, EmotionState, RelationshipLevel } from "@/types";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -98,8 +98,8 @@ export default async function ChatPage({
     return getOrCreateRecentConversation(supabase, user.id, characterId);
   };
 
-  let conversation;
-  let profileRow;
+  let conversation: Conversation;
+  let profileRow: { is_premium?: boolean } | null = null;
   let initialMessages: ChatMessage[] = [];
 
   try {
