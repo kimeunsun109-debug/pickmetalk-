@@ -1,6 +1,6 @@
 "use client";
 
-import { goToCharacterChat } from "@/lib/navigateChat";
+import { characterChatHref, goToCharacterChat } from "@/lib/navigateChat";
 import { resolveCharacterId } from "@/lib/chatRoute";
 import type { Character, Conversation } from "@/types";
 import Link from "next/link";
@@ -25,6 +25,7 @@ export function CharacterSelectClient({
 
   async function selectCharacter(character: Character) {
     const characterId = resolveCharacterId(character.id);
+    router.prefetch(characterChatHref(characterId));
     setLoadingId(characterId);
     setError(null);
     setPickerLoading(true);
@@ -46,8 +47,8 @@ export function CharacterSelectClient({
 
       const convs: Conversation[] = data.conversations ?? [];
 
-      if (convs.length === 0) {
-        goToCharacterChat(router, characterId);
+      if (convs.length <= 1) {
+        goToCharacterChat(router, characterId, convs[0]?.id);
         return;
       }
 

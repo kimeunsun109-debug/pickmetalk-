@@ -163,7 +163,6 @@ export default async function ChatPage({
   return (
     <ChatErrorBoundary>
       <ChatProvider
-        key={`${characterId}-${conversation.id}`}
         character={character}
         characterId={characterId}
         conversationId={conversation.id}

@@ -69,6 +69,27 @@ export async function POST(request: Request) {
       let gotModelChunk = false;
       let fallbackUsed = false;
       let streamTimeout: ReturnType<typeof setTimeout> | undefined;
+      let chunkBuffer = "";
+      let flushTimer: ReturnType<typeof setTimeout> | null = null;
+
+      const flushChunkBuffer = () => {
+        if (chunkBuffer && !fallbackUsed) {
+          send({ content: chunkBuffer });
+          chunkBuffer = "";
+        }
+        if (flushTimer) {
+          clearTimeout(flushTimer);
+          flushTimer = null;
+        }
+      };
+
+      const enqueueChunk = (chunk: string) => {
+        if (fallbackUsed) return;
+        chunkBuffer += chunk;
+        if (!flushTimer) {
+          flushTimer = setTimeout(flushChunkBuffer, 50);
+        }
+      };
 
       try {
         send({ streaming: true });
@@ -93,18 +114,14 @@ export async function POST(request: Request) {
         const userText = message.trim();
 
         const supabase = await createClient();
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        const user = session?.user ?? null;
-        trace.mark("Auth getSession");
+        const { data: claimsData } = await supabase.auth.getClaims();
+        const userId = claimsData?.claims?.sub as string | undefined;
+        trace.mark("Auth getClaims");
 
-        if (!user) {
+        if (!userId) {
           send({ error: "로그인이 필요합니다.", done: true });
           return;
         }
-
-        const userId = user.id;
         const conversation = await trace.span("Load Conversation", () =>
           getConversationForUser(supabase, userId, conversationId)
         );
@@ -328,7 +345,7 @@ export async function POST(request: Request) {
         const llmStart = process.hrtime.bigint();
 
         streamTimeout = setTimeout(() => {
-          if (!gotModelChunk) {
+          if (!gotModelChunk && fullReply.length === 0) {
             fallbackUsed = true;
             send({ content: getStreamFallback(characterId, userText) });
           }
@@ -345,11 +362,12 @@ export async function POST(request: Request) {
           if (streamTimeout) clearTimeout(streamTimeout);
           fullReply += chunk;
           if (!fallbackUsed) {
-            send({ content: chunk });
+            enqueueChunk(chunk);
           }
         }
 
         if (streamTimeout) clearTimeout(streamTimeout);
+        flushChunkBuffer();
 
         if (!gotModelChunk && !fallbackUsed) {
           fallbackUsed = true;
@@ -362,8 +380,15 @@ export async function POST(request: Request) {
           )
         );
 
-        if (fallbackUsed || trimmed !== fullReply.trim()) {
-          send({ content: trimmed, replace: true });
+        if (fallbackUsed) {
+          send({ content: trimmed, replace: true, clearFallback: true });
+        } else {
+          const streamed = fullReply.trim();
+          if (trimmed.length > streamed.length && trimmed.startsWith(streamed)) {
+            send({ content: trimmed.slice(streamed.length) });
+          } else if (trimmed !== streamed) {
+            send({ content: trimmed, replace: true });
+          }
         }
 
         const newAffection = newAffectionPreview;
