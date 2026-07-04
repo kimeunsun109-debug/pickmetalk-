@@ -3,8 +3,7 @@
 import type { ChatMessage } from "@/contexts/ChatProvider";
 import { useLongPress } from "@/hooks/useLongPress";
 import { formatBubbleTime } from "@/lib/formatMessageTime";
-import { TypingIndicator } from "@/components/chat/TypingIndicator";
-import { memo } from "react";
+import { memo, useMemo } from "react";
 
 function bubbleRadiusClass(
   isUser: boolean,
@@ -102,8 +101,13 @@ export const MessageItem = memo(function MessageItem({
 
   const rowPadding = isGroupedWithPrev ? "pt-0.5" : "pt-2";
 
-  const bubbleSegments =
-    isUser || isStreaming ? [content || ""] : splitAssistantBubbles(content);
+  const bubbleSegments = useMemo(
+    () =>
+      isUser || isStreaming
+        ? [content || ""]
+        : splitAssistantBubbles(content),
+    [isUser, isStreaming, content]
+  );
   const hasContent = content.trim().length > 0;
 
   return (
@@ -155,25 +159,7 @@ export const MessageItem = memo(function MessageItem({
               </div>
             );
           })
-        ) : (
-          <div
-            className={`flex items-end gap-1.5 ${isUser ? "flex-row-reverse" : "flex-row"}`}
-          >
-            <div
-              className={`px-3.5 py-2 text-[15px] leading-[1.45] ${bubbleRadiusClass(
-                isUser,
-                isGroupedWithPrev,
-                isGroupedWithNext
-              )} ${
-                isUser
-                  ? "bg-bubble-user text-gray-900"
-                  : "bg-bubble-ai text-gray-800 shadow-sm"
-              }`}
-            >
-              {isStreaming ? <TypingIndicator /> : null}
-            </div>
-          </div>
-        )}
+        ) : null}
       </div>
     </div>
   );

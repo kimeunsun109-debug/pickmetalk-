@@ -47,8 +47,8 @@ export function CharacterSelectClient({
 
       const convs: Conversation[] = data.conversations ?? [];
 
-      if (convs.length === 0) {
-        goToCharacterChat(router, characterId);
+      if (convs.length <= 1) {
+        goToCharacterChat(router, characterId, convs[0]?.id);
         return;
       }
 

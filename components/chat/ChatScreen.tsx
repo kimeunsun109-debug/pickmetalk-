@@ -3,7 +3,6 @@
 import { ChatHeader } from "@/components/chat/ChatHeader";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { MessageActionSheet } from "@/components/chat/MessageActionSheet";
-import { MessageAreaSkeleton } from "@/components/chat/MessageAreaSkeleton";
 import { MessageList } from "@/components/chat/MessageList";
 import { PremiumModal } from "@/components/chat/PremiumModal";
 import { useChat } from "@/contexts/ChatProvider";
@@ -24,13 +23,23 @@ export function ChatScreen({
     characterId,
     messages,
     isTyping,
-    isSyncingHistory,
     lastChatAt,
     sendMessage,
     deleteMessage,
   } = useChat();
 
   const bottomRef = useRef<HTMLDivElement>(null);
+  const lastMsg = messages[messages.length - 1];
+  const streamScrollBucket = isTyping
+    ? Math.floor((lastMsg?.content?.length ?? 0) / 48)
+    : 0;
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      bottomRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [messages.length, isTyping, streamScrollBucket]);
   const [sendError, setSendError] = useState<string | null>(null);
   const [menuMessageId, setMenuMessageId] = useState<string | null>(null);
   const returnVisitTrackedRef = useRef(false);
@@ -58,10 +67,6 @@ export function ChatScreen({
 
     returnVisitTrackedRef.current = true;
   }, [lastChatAt, characterId]);
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isTyping]);
 
   const handleSend = useCallback(
     async (text: string) => {
@@ -105,17 +110,12 @@ export function ChatScreen({
     [messages, isTyping]
   );
 
-  const showMessageSkeleton =
-    isSyncingHistory && messages.length === 0;
-
   return (
     <div className="flex min-h-[100dvh] flex-col bg-[#b2c7d9]/30">
       <ChatHeader conversationTitle={conversationTitle} />
 
       <main className="flex-1 overflow-y-auto scroll-ios pb-2">
-        {showMessageSkeleton ? (
-          <MessageAreaSkeleton />
-        ) : messages.length === 0 ? (
+        {messages.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 px-8 py-20 text-center">
             <p className="text-sm text-gray-500">
               {character.name}에게 첫 인사를 건네보세요
@@ -139,7 +139,11 @@ export function ChatScreen({
         </div>
       )}
 
-      <ChatInput disabled={isTyping} onSend={handleSend} />
+      <ChatInput
+        disabled={isTyping}
+        isWaitingReply={isTyping}
+        onSend={handleSend}
+      />
 
       <MessageActionSheet
         open={menuMessageId !== null}

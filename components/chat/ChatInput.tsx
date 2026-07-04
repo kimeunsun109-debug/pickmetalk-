@@ -5,9 +5,12 @@ import { useState, memo, useCallback } from "react";
 /** KakaoTalk-style message input bar. */
 export const ChatInput = memo(function ChatInput({
   disabled,
+  isWaitingReply,
   onSend,
 }: {
   disabled?: boolean;
+  /** AI 답변 대기 중 — 말풍선 ... 대신 입력창 힌트만 */
+  isWaitingReply?: boolean;
   onSend: (text: string) => void;
 }) {
   const [text, setText] = useState("");
@@ -32,7 +35,7 @@ export const ChatInput = memo(function ChatInput({
           type="text"
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="메시지 입력"
+          placeholder={isWaitingReply ? "답변 작성 중…" : "메시지 입력"}
           disabled={disabled}
           enterKeyHint="send"
           className="min-w-0 flex-1 rounded-[20px] border border-gray-200 bg-gray-50 px-4 py-2.5 text-[15px] outline-none transition-colors focus:border-pink-accent/50 focus:bg-white"

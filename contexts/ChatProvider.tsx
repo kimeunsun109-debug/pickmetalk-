@@ -130,9 +130,8 @@ export function ChatProvider({
   const hasSsrMessages = Boolean(initialMessages?.length);
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages ?? []);
   const [isTyping, setIsTyping] = useState(false);
-  const [isSyncingHistory, setIsSyncingHistory] = useState(
-    !hasSsrMessages && Boolean(conversationId?.trim())
-  );
+  /** UI에 사용하지 않음 — 백그라운드 동기화만 (로딩 화면·skeleton 없음) */
+  const [isSyncingHistory] = useState(false);
   const streamingIdRef = useRef<string | null>(null);
   const proactiveDoneRef = useRef<string | null>(null);
   const ssrHydratedRef = useRef(hasSsrMessages);
@@ -221,7 +220,6 @@ export function ChatProvider({
         : null;
 
       if (!safeConversationId) {
-        setIsSyncingHistory(false);
         return;
       }
 
@@ -230,7 +228,6 @@ export function ChatProvider({
         ssrHydratedRef.current &&
         messagesRef.current.length > 0
       ) {
-        setIsSyncingHistory(false);
         if (options?.proactive !== false) {
           runProactiveInBackground(safeConversationId);
         }
@@ -238,7 +235,6 @@ export function ChatProvider({
         return;
       }
 
-      setIsSyncingHistory(true);
       try {
         const skipRelationship = ssrRelationshipHydratedRef.current;
 
@@ -278,7 +274,6 @@ export function ChatProvider({
       } catch {
         /* 기존 화면 유지 */
       } finally {
-        setIsSyncingHistory(false);
         clientTrace?.end();
       }
     },
@@ -302,7 +297,6 @@ export function ChatProvider({
 
     setMessages(msgs);
     setIsTyping(false);
-    setIsSyncingHistory(!hasMessages && Boolean(safeConversationId));
     setAffection(snap.initialAffection);
     setRelationshipLevel(snap.initialRelationshipLevel);
     setEmotion(
@@ -330,10 +324,6 @@ export function ChatProvider({
 
       const aiMsgId = `stream-${Date.now()}`;
       streamingIdRef.current = aiMsgId;
-      setMessages((prev) => [
-        ...prev,
-        { id: aiMsgId, role: "assistant", content: "" },
-      ]);
 
       try {
         if (!safeConversationId) {
@@ -392,8 +382,19 @@ export function ChatProvider({
             }
 
             if (chunk.content) {
-              setMessages((prev) =>
-                prev.map((m) =>
+              setMessages((prev) => {
+                const existing = prev.find((m) => m.id === aiMsgId);
+                if (!existing) {
+                  return [
+                    ...prev,
+                    {
+                      id: aiMsgId,
+                      role: "assistant",
+                      content: chunk.content!,
+                    },
+                  ];
+                }
+                return prev.map((m) =>
                   m.id === aiMsgId
                     ? {
                         ...m,
@@ -402,8 +403,8 @@ export function ChatProvider({
                           : m.content + chunk.content,
                       }
                     : m
-                )
-              );
+                );
+              });
             }
 
             if (chunk.done) {
@@ -440,19 +441,22 @@ export function ChatProvider({
           }
         }
       } catch (e) {
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === aiMsgId
-              ? {
-                  ...m,
-                  content:
-                    e instanceof Error
-                      ? `오류: ${e.message}`
-                      : "오류가 발생했어요.",
-                }
-              : m
-          )
-        );
+        const errText =
+          e instanceof Error
+            ? `오류: ${e.message}`
+            : "오류가 발생했어요.";
+        setMessages((prev) => {
+          const existing = prev.find((m) => m.id === aiMsgId);
+          if (!existing) {
+            return [
+              ...prev,
+              { id: aiMsgId, role: "assistant", content: errText },
+            ];
+          }
+          return prev.map((m) =>
+            m.id === aiMsgId ? { ...m, content: errText } : m
+          );
+        });
       } finally {
         setIsTyping(false);
         streamingIdRef.current = null;
