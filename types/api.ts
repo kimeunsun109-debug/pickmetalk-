@@ -22,6 +22,8 @@ export interface ChatStreamChunk {
   follow_up?: ChatFollowUp;
   /** true면 content로 메시지 전체 교체 (폴백 후 본문 확정 등) */
   replace?: boolean;
+  /** 폴백 문장을 실제 응답으로 교체할 때 */
+  clearFallback?: boolean;
   should_stream?: boolean;
   /** DB에 저장된 assistant 메시지 id (done 시) */
   assistantMessageId?: string;

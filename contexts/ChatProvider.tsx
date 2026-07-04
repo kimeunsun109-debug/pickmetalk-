@@ -384,6 +384,8 @@ export function ChatProvider({
             if (chunk.content) {
               setMessages((prev) => {
                 const existing = prev.find((m) => m.id === aiMsgId);
+                const shouldReplace =
+                  Boolean(chunk.replace) || Boolean(chunk.clearFallback);
                 if (!existing) {
                   return [
                     ...prev,
@@ -398,7 +400,7 @@ export function ChatProvider({
                   m.id === aiMsgId
                     ? {
                         ...m,
-                        content: chunk.replace
+                        content: shouldReplace
                           ? chunk.content!
                           : m.content + chunk.content,
                       }
