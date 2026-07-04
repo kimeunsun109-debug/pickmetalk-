@@ -44,3 +44,6 @@ export const CHAT_STREAM_FIRST_CHUNK_MS = 1800;
 
 /** 웹 검색 대기 상한 — 초과 시 검색 없이 바로 LLM 스트림 */
 export const WEB_SEARCH_CHAT_BUDGET_MS = 1200;
+
+/** 선제 메시지: 최소 부재 간격(나린 3h). 이보다 최근이면 absence·return visit 불가 */
+export const PROACTIVE_MIN_GAP_HOURS = 3;

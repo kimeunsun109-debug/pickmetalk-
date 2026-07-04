@@ -4,6 +4,8 @@ import { getCharacterById } from "@/data";
 import { markBrowserSessionActive } from "@/lib/auth/browserSession";
 import { normalizeEmotion } from "@/lib/emotions";
 import { resolveCharacterId } from "@/lib/chatRoute";
+import { perfClientTrace, usePerfRenderCount } from "@/lib/perf/client";
+import { isPerfEnabled } from "@/lib/perf/trace";
 import type { Character, EmotionState, RelationshipLevel } from "@/types";
 import type { ChatStreamChunk } from "@/types/api";
 import {
@@ -68,6 +70,23 @@ interface ChatProviderProps {
   children: ReactNode;
 }
 
+/** proactive refresh 시 스트리밍 중 덮어쓰지 않고 신규 메시지만 병합 */
+function mergeNewServerMessages(
+  prev: ChatMessage[],
+  server: ChatMessage[]
+): ChatMessage[] {
+  const prevIds = new Set(prev.map((m) => m.id));
+  const novel = server.filter((m) => !prevIds.has(m.id));
+  if (novel.length === 0) return prev;
+  const merged = [...prev, ...novel];
+  merged.sort((a, b) => {
+    const ta = a.createdAt ? Date.parse(a.createdAt) : 0;
+    const tb = b.createdAt ? Date.parse(b.createdAt) : 0;
+    return ta - tb;
+  });
+  return merged;
+}
+
 export function ChatProvider({
   character,
   characterId,
@@ -80,6 +99,7 @@ export function ChatProvider({
   initialLastChatAt = null,
   children,
 }: ChatProviderProps) {
+  usePerfRenderCount("ChatProvider");
   const safeCharacterId = resolveCharacterId(characterId);
   const resolvedCharacter =
     character.id === safeCharacterId
@@ -93,7 +113,10 @@ export function ChatProvider({
   );
   const streamingIdRef = useRef<string | null>(null);
   const proactiveDoneRef = useRef<string | null>(null);
-  const hydratedFromServerRef = useRef(Boolean(initialMessages?.length));
+  const ssrMessagesHydratedRef = useRef(Boolean(initialMessages?.length));
+  const ssrRelationshipHydratedRef = useRef(
+    Boolean(initialMessages?.length)
+  );
 
   const [affection, setAffection] = useState(initialAffection);
   const [relationshipLevel, setRelationshipLevel] =
@@ -137,104 +160,99 @@ export function ChatProvider({
     }));
   }, []);
 
+  const runProactiveInBackground = useCallback(
+    (convId: string) => {
+      if (proactiveDoneRef.current === convId) return;
+
+      void fetch(`/api/conversations/${convId}/proactive`, {
+        method: "POST",
+      })
+        .then(() => {
+          proactiveDoneRef.current = convId;
+          return fetchMessages(convId);
+        })
+        .then((refreshed) => {
+          if (streamingIdRef.current) return;
+          setMessages((prev) => mergeNewServerMessages(prev, refreshed));
+        })
+        .catch(() => undefined);
+    },
+    [fetchMessages]
+  );
+
   const loadHistory = useCallback(
     async (options?: { proactive?: boolean; skipIfHydrated?: boolean }) => {
-    if (!safeConversationId) {
-      setMessages([]);
-      setIsLoadingHistory(false);
-      return;
-    }
-
-    if (
-      options?.skipIfHydrated &&
-      hydratedFromServerRef.current &&
-      messages.length > 0
-    ) {
-      hydratedFromServerRef.current = false;
-      setIsLoadingHistory(false);
-      const runProactive =
-        options?.proactive !== false &&
-        proactiveDoneRef.current !== safeConversationId;
-      if (runProactive) {
-        fetch(`/api/conversations/${safeConversationId}/proactive`, {
-          method: "POST",
-        })
-          .then(() => {
-            proactiveDoneRef.current = safeConversationId;
-            return fetchMessages(safeConversationId);
-          })
-          .then((refreshed) => {
-            setMessages((prev) =>
-              refreshed.length > prev.length ? refreshed : prev
-            );
-          })
-          .catch(() => undefined);
-      }
-      return;
-    }
-
-    setIsLoadingHistory(true);
-    try {
-      const cacheBust = Date.now();
-      const runProactive =
-        options?.proactive !== false &&
-        proactiveDoneRef.current !== safeConversationId;
-
-      const proactivePromise = runProactive
-        ? fetch(
-            `/api/conversations/${safeConversationId}/proactive?_=${cacheBust}`,
-            { method: "POST" }
-          )
-            .then(() => {
-              proactiveDoneRef.current = safeConversationId;
-            })
-            .catch(() => {
-              /* 선제 메시지 실패해도 채팅은 열림 */
-            })
+      const clientTrace = isPerfEnabled()
+        ? perfClientTrace("Enter Chat — Client")
         : null;
+      if (!safeConversationId) {
+        setMessages([]);
+        setIsLoadingHistory(false);
+        return;
+      }
 
-      const [loadedMessages, relRes] = await Promise.all([
-        fetchMessages(safeConversationId),
-        fetch(
-          `/api/relationship?conversationId=${safeConversationId}&_=${cacheBust}`,
-          { cache: "no-store" }
-        ),
-      ]);
+      if (
+        options?.skipIfHydrated &&
+        ssrMessagesHydratedRef.current &&
+        messages.length > 0
+      ) {
+        setIsLoadingHistory(false);
+        if (options?.proactive !== false) {
+          runProactiveInBackground(safeConversationId);
+        }
+        clientTrace?.end();
+        return;
+      }
 
-      setMessages(loadedMessages);
-
-      let relData: { state?: Record<string, unknown> } = {};
+      setIsLoadingHistory(true);
       try {
-        relData = await relRes.json();
+        const skipRelationship = ssrRelationshipHydratedRef.current;
+
+        const messagePromise = fetchMessages(safeConversationId);
+        const relationshipPromise = skipRelationship
+          ? Promise.resolve(null)
+          : fetch(
+              `/api/relationship?conversationId=${safeConversationId}&_=${Date.now()}`,
+              { cache: "no-store" }
+            );
+
+        const [loadedMessages, relRes] = await Promise.all([
+          messagePromise,
+          relationshipPromise,
+        ]);
+
+        setMessages(loadedMessages);
+
+        if (relRes) {
+          let relData: { state?: Record<string, unknown> } = {};
+          try {
+            relData = await relRes.json();
+          } catch {
+            /* 기본 관계 상태 유지 */
+          }
+
+          if (relRes.ok && relData.state) {
+            setAffection((relData.state.affection as number) ?? 0);
+            setRelationshipLevel(
+              (relData.state.relationshipLevel as RelationshipLevel) ?? 1
+            );
+            setEmotion(normalizeEmotion(relData.state.emotion as string));
+            setLastChatAt((relData.state.lastChatAt as string) ?? null);
+          }
+        }
+
+        setIsLoadingHistory(false);
+
+        if (options?.proactive !== false) {
+          runProactiveInBackground(safeConversationId);
+        }
       } catch {
-        /* 기본 관계 상태 유지 */
+        setIsLoadingHistory(false);
+      } finally {
+        clientTrace?.end();
       }
-
-      if (relRes.ok && relData.state) {
-        setAffection((relData.state.affection as number) ?? 0);
-        setRelationshipLevel(
-          (relData.state.relationshipLevel as RelationshipLevel) ?? 1
-        );
-        setEmotion(normalizeEmotion(relData.state.emotion as string));
-        setLastChatAt((relData.state.lastChatAt as string) ?? null);
-      }
-
-      setIsLoadingHistory(false);
-
-      if (proactivePromise) {
-        proactivePromise.then(async () => {
-          const refreshed = await fetchMessages(safeConversationId);
-          setMessages((prev) =>
-            refreshed.length > prev.length ? refreshed : prev
-          );
-        });
-      }
-    } catch {
-      /* 히스토리 로드 실패 시 빈 채팅으로 시작 */
-      setIsLoadingHistory(false);
-    }
-  },
-    [safeConversationId, fetchMessages]
+    },
+    [safeConversationId, fetchMessages, messages.length, runProactiveInBackground]
   );
 
   useEffect(() => {
@@ -245,11 +263,13 @@ export function ChatProvider({
     streamingIdRef.current = null;
     proactiveDoneRef.current = null;
 
-    if (hydratedFromServerRef.current && (initialMessages?.length ?? 0) > 0) {
+    if (ssrMessagesHydratedRef.current && (initialMessages?.length ?? 0) > 0) {
       loadHistory({ proactive: true, skipIfHydrated: true });
       return;
     }
 
+    ssrMessagesHydratedRef.current = false;
+    ssrRelationshipHydratedRef.current = false;
     setMessages([]);
     setIsTyping(false);
     setIsLoadingHistory(true);
@@ -320,14 +340,20 @@ export function ChatProvider({
 
             const chunk = JSON.parse(json) as ChatStreamChunk & {
               error?: string;
-              affection?: number;
-              relationshipLevel?: RelationshipLevel;
               emotion?: EmotionState;
-              assistantMessageId?: string;
-              assistantCreatedAt?: string;
             };
 
             if (chunk.error) throw new Error(chunk.error);
+
+            if (chunk.userMessageId) {
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === userMsgId
+                    ? { ...m, id: chunk.userMessageId! }
+                    : m
+                )
+              );
+            }
 
             if (chunk.content) {
               setMessages((prev) =>
@@ -349,6 +375,15 @@ export function ChatProvider({
               if (chunk.relationshipLevel != null)
                 setRelationshipLevel(chunk.relationshipLevel);
               if (chunk.emotion) setEmotion(normalizeEmotion(chunk.emotion));
+              if (chunk.userMessageId) {
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === userMsgId
+                      ? { ...m, id: chunk.userMessageId! }
+                      : m
+                  )
+                );
+              }
               if (chunk.assistantMessageId) {
                 setMessages((prev) =>
                   prev.map((m) =>

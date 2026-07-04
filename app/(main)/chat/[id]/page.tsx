@@ -17,8 +17,9 @@ import {
   resolveCharacterId,
 } from "@/lib/chatRoute";
 import { normalizeEmotion } from "@/lib/emotions";
+import { ServerPerfTrace } from "@/lib/perf/trace";
 import { createClient } from "@/lib/supabase/server";
-import type { EmotionState, RelationshipLevel } from "@/types";
+import type { Conversation, EmotionState, RelationshipLevel } from "@/types";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -37,6 +38,7 @@ export default async function ChatPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ conversationId?: string }>;
 }) {
+  const trace = new ServerPerfTrace("Enter Chat — SSR");
   const { id } = await params;
   const { conversationId: queryConversationId } = await searchParams;
 
@@ -44,6 +46,7 @@ export default async function ChatPage({
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  trace.mark("Auth getUser");
 
   if (!user) redirect("/login");
 
@@ -67,6 +70,7 @@ export default async function ChatPage({
 
   const characterId = isCharacterId(id) ? id : resolveCharacterId(id);
   const character = getCharacterById(characterId);
+  trace.mark("Load Character", characterId);
   if (!character) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center gap-4 p-6">
@@ -94,28 +98,32 @@ export default async function ChatPage({
     return getOrCreateRecentConversation(supabase, user.id, characterId);
   };
 
-  let conversation;
-  let profileRow;
+  let conversation: Conversation;
+  let profileRow: { is_premium?: boolean } | null = null;
   let initialMessages: ChatMessage[] = [];
 
   try {
-    const [convResult, profileResult] = await Promise.all([
-      resolveConversation(),
-      supabase
-        .from("profiles")
-        .select("is_premium")
-        .eq("id", user.id)
-        .maybeSingle(),
-      touchCharacterSelection(supabase, user.id, characterId).catch(() => undefined),
-    ]);
+    const [convResult, profileResult] = await trace.span(
+      "Resolve conversation + profile",
+      () =>
+        Promise.all([
+          resolveConversation(),
+          supabase
+            .from("profiles")
+            .select("is_premium")
+            .eq("id", user.id)
+            .maybeSingle(),
+          touchCharacterSelection(supabase, user.id, characterId).catch(
+            () => undefined
+          ),
+        ])
+    );
 
     conversation = convResult;
     profileRow = profileResult.data;
 
-    const history = await fetchConversationMessages(
-      supabase,
-      user.id,
-      conversation.id
+    const history = await trace.span("Load Messages (SSR)", () =>
+      fetchConversationMessages(supabase, user.id, conversation.id)
     );
     initialMessages = history.map((m) => ({
       id: m.id,
@@ -150,6 +158,7 @@ export default async function ChatPage({
   }
 
   const isPremiumUser = profileRow?.is_premium ?? false;
+  trace.end(`${initialMessages.length} messages hydrated`);
 
   return (
     <ChatErrorBoundary>

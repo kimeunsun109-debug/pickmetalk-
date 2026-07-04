@@ -160,8 +160,9 @@ export interface Conversation {
   createdAt: string;
   updatedAt: string;
   lastMessageAt: string | null;
-  /** Server-enriched preview for conversation list */
+  /** DB denormalized preview (raw text, no prefix) */
   lastMessagePreview?: string | null;
+  lastMessageRole?: "user" | "assistant" | null;
 }
 
 export interface Message {
