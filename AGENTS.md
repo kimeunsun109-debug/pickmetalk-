@@ -78,6 +78,8 @@ Optional: `SUPABASE_SERVICE_ROLE_KEY`, `DEEPSEEK_BASE_URL`, `TAVILY_API_KEY`.
 - **Network egress in Cursor Cloud**: outbound to `api.deepseek.com`, `*.supabase.co`, and
   Docker registries may be blocked by default. `npx supabase start` and live API calls need
   allowlist entries. Lint, build, and the dev server work offline.
+- **Supabase** `ap-northeast-2` (Seoul) — Vercel Functions는 `vercel.json` `icn1` 사용.
+  미설정 시 Supabase RTT 300–600ms 가능. `docs/VERCEL_DEPLOY.md`, `scripts/check_regions.mts`.
 
 ### Hello-world flow (when creds + egress are available)
 
