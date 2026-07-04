@@ -435,7 +435,7 @@ async function main() {
       name: "AI Response — TTFB (headers)",
       ms: stream.ttfbMs,
       category: "AI",
-      detail: "user message insert 후 Response 반환",
+      detail: "pre-stream await 없이 SSE headers 반환",
     },
     {
       name: "AI Response — First SSE chunk",

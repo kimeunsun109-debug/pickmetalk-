@@ -38,7 +38,6 @@ import {
 import { ServerPerfTrace } from "@/lib/perf/trace";
 import type { ChatRequestBody } from "@/types/api";
 import type { Message, UserCharacterState } from "@/types";
-import { NextResponse } from "next/server";
 
 const CONTEXT_LIMIT = CHAT_CONTEXT_TURNS;
 const HISTORY_FETCH_LIMIT = 40;
@@ -47,28 +46,11 @@ const HISTORY_FETCH_LIMIT = 40;
  * POST /api/chat — DeepSeek 스트리밍 + 대화방별 메시지·호감도 저장
  * Body: { conversationId, message }
  *
- * TTFB: auth·body 검증 직후 SSE Response 반환.
- * DB·프롬프트·LLM은 stream.start() 안에서 처리한다.
+ * TTFB: pre-stream await 없이 즉시 SSE Response 반환.
+ * body 파싱·auth·DB·프롬프트·LLM은 stream.start() 안에서 처리한다.
  */
 export async function POST(request: Request) {
   const trace = new ServerPerfTrace("AI Response");
-
-  let body: ChatRequestBody;
-  try {
-    body = (await request.json()) as ChatRequestBody;
-  } catch {
-    return NextResponse.json({ error: "잘못된 요청" }, { status: 400 });
-  }
-
-  const { conversationId, message } = body;
-  if (!conversationId || !message?.trim()) {
-    return NextResponse.json(
-      { error: "conversationId와 message가 필요합니다." },
-      { status: 400 }
-    );
-  }
-
-  const userText = message.trim();
   const encoder = new TextEncoder();
   trace.mark("Pre-stream setup", "SSE Response 반환 직전");
 
@@ -86,6 +68,25 @@ export async function POST(request: Request) {
 
       try {
         send({ streaming: true });
+
+        let body: ChatRequestBody;
+        try {
+          body = (await request.json()) as ChatRequestBody;
+        } catch {
+          send({ error: "잘못된 요청", done: true });
+          return;
+        }
+
+        const { conversationId, message } = body;
+        if (!conversationId || !message?.trim()) {
+          send({
+            error: "conversationId와 message가 필요합니다.",
+            done: true,
+          });
+          return;
+        }
+
+        const userText = message.trim();
 
         const supabase = await createClient();
         const {
@@ -142,14 +143,14 @@ export async function POST(request: Request) {
         const userMessageId = userMessageRow?.id ?? null;
         send({ userMessageId });
 
-        void updateConversationLastMessage(
+        await updateConversationLastMessage(
           supabase,
           conversationId,
           userId,
           userText,
           "user",
           now
-        ).catch(() => undefined);
+        );
 
         const [profileResult, historyResult, ucsResult, shortTermMemoryBlock] =
           await trace.span("Parallel DB + short-term memory", async () => {
@@ -391,16 +392,15 @@ export async function POST(request: Request) {
                 })
                 .eq("user_id", userId)
                 .eq("character_id", characterId),
+              updateConversationLastMessage(
+                supabase,
+                conversationId,
+                userId,
+                trimmed,
+                "assistant",
+                now
+              ),
             ]);
-
-            void updateConversationLastMessage(
-              supabase,
-              conversationId,
-              userId,
-              trimmed,
-              "assistant",
-              now
-            ).catch(() => undefined);
             return { data: row };
           }
         );
