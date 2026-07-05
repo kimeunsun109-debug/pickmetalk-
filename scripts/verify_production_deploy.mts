@@ -100,7 +100,10 @@ async function main() {
       loginBundle.includes("닉네임") &&
       loginBundle.includes("birthDate") &&
       loginBundle.includes("privacyConsent"),
-    hasDeviceSessionGuard: layoutBundle.includes("DeviceSessionGuard"),
+    hasDeviceSessionGuard:
+      layoutBundle.includes("pickmetalk:device-session") ||
+      loginBundle.includes("pickmetalk:device-session") ||
+      bundleText.includes("pickmetalk:device-session"),
     hasCharacterTaglines:
       loginBundle.includes("편안한 생활여친") ||
       layoutBundle.includes("편안한 생활여친") ||
@@ -114,6 +117,7 @@ async function main() {
   if (!report.hasTermsPage) failures.push("terms page missing PR#10 content");
   if (!report.hasSignupProfileFields) failures.push("signup profile fields missing");
   if (!report.hasDeviceSessionGuard) failures.push("DeviceSessionGuard not deployed");
+  if (!report.hasCharacterTaglines) failures.push("character taglines missing");
 
   if (failures.length > 0) {
     console.error("Production verification failed:", failures.join("; "));
