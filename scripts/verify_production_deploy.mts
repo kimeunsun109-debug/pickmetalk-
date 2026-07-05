@@ -19,6 +19,24 @@ function loadEnv(): Record<string, string> {
   return env;
 }
 
+async function fetchText(path: string, init?: RequestInit): Promise<string> {
+  const res = await fetch(path, init);
+  return res.text();
+}
+
+async function collectBundleText(base: string, html: string, maxChunks = 16): Promise<string> {
+  const chunkUrls = [...html.matchAll(/\/_next\/static\/chunks\/[^"']+/g)].map((m) => m[0]);
+  let bundleText = html;
+  for (const path of chunkUrls.slice(0, maxChunks)) {
+    try {
+      bundleText += await fetchText(`${base}${path}`);
+    } catch {
+      /* ignore */
+    }
+  }
+  return bundleText;
+}
+
 async function main() {
   const env = loadEnv();
   const url = env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -26,6 +44,11 @@ async function main() {
   const email = env.TEST_USER_EMAIL ?? "demo.tester@pickmetalk.dev";
   const password = env.TEST_USER_PASSWORD ?? "DemoPass123!";
   const base = process.argv[2] ?? "https://pickmetalk.com";
+
+  const termsHtml = await fetchText(`${base}/terms`);
+  const loginHtml = await fetchText(`${base}/login`);
+  const loginBundle = await collectBundleText(base, loginHtml, 12);
+  const layoutBundle = await collectBundleText(base, termsHtml, 4);
 
   const jar: { name: string; value: string }[] = [];
   const server = createServerClient(url, anon, {
@@ -63,20 +86,7 @@ async function main() {
     redirect: "follow",
   });
   const html = await res.text();
-
-  const chunkUrls = [...html.matchAll(/\/_next\/static\/chunks\/[^"']+/g)].map(
-    (m) => m[0]
-  );
-
-  let bundleText = html;
-  for (const path of chunkUrls.slice(0, 12)) {
-    try {
-      const r = await fetch(`${base}${path}`);
-      bundleText += await r.text();
-    } catch {
-      /* ignore */
-    }
-  }
+  const bundleText = await collectBundleText(base, html);
 
   const report = {
     base,
@@ -85,10 +95,28 @@ async function main() {
     hasOldLoadingText: bundleText.includes("대화 불러오는"),
     hasFirstGreetText: bundleText.includes("첫 인사"),
     hasReplyWaitingPlaceholder: bundleText.includes("답변 작성 중"),
+    hasTermsPage: termsHtml.includes("이용약관") && termsHtml.includes("제3조"),
+    hasSignupProfileFields:
+      loginBundle.includes("닉네임") &&
+      loginBundle.includes("birthDate") &&
+      loginBundle.includes("privacyConsent"),
+    hasDeviceSessionGuard: layoutBundle.includes("DeviceSessionGuard"),
+    hasCharacterTaglines:
+      loginBundle.includes("편안한 생활여친") ||
+      layoutBundle.includes("편안한 생활여친") ||
+      bundleText.includes("편안한 생활여친"),
   };
 
   console.log(JSON.stringify(report, null, 2));
-  if (report.hasOldLoadingText) {
+
+  const failures: string[] = [];
+  if (report.hasOldLoadingText) failures.push("old loading UI still present");
+  if (!report.hasTermsPage) failures.push("terms page missing PR#10 content");
+  if (!report.hasSignupProfileFields) failures.push("signup profile fields missing");
+  if (!report.hasDeviceSessionGuard) failures.push("DeviceSessionGuard not deployed");
+
+  if (failures.length > 0) {
+    console.error("Production verification failed:", failures.join("; "));
     process.exit(1);
   }
 }

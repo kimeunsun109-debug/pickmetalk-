@@ -70,8 +70,19 @@ npx tsx scripts/check_regions.mts
 ### 5) 배포 흐름 (연동 후)
 
 ```
-git push origin main  →  Vercel Production Deploy  →  pickmetalk.com
-PR / feature branch →  Preview URL (*.vercel.app)
+PR 머지 (draft 해제 필수)  →  git push origin main  →  Vercel Production  →  pickmetalk.com
+PR / feature branch       →  Preview URL (*.vercel.app) 만 (프로덕션 미반영)
+```
+
+**PR이 프로덕션에 안 보일 때**
+
+1. PR이 **Draft**면 GitHub에서 머지 불가 → `gh pr ready <번호>` 후 머지
+2. **Production Branch**가 `main`인지 [Git 설정](https://vercel.com/kimeunsun-s-projects/app-girl-friend/settings/git) 확인
+3. 머지 후 검증:
+
+```bash
+npm run verify:prod
+npm run verify:migrations
 ```
 
 ## 수동 배포 (비상)
