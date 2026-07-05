@@ -100,7 +100,9 @@ async function main() {
       loginBundle.includes("닉네임") &&
       loginBundle.includes("birthDate") &&
       loginBundle.includes("privacyConsent"),
-    hasDeviceSessionGuard: layoutBundle.includes("DeviceSessionGuard"),
+    hasDeviceSessionGuard:
+      loginBundle.includes("DeviceSessionGuard") ||
+      layoutBundle.includes("DeviceSessionGuard"),
     hasCharacterTaglines:
       loginBundle.includes("편안한 생활여친") ||
       layoutBundle.includes("편안한 생활여친") ||
