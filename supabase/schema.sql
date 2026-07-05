@@ -34,6 +34,10 @@ create table if not exists public.profiles (
   is_premium boolean default false,
   daily_message_count int default 0,
   daily_message_reset_at timestamptz default now(),
+  subscription_status text default 'free',
+  stripe_customer_id text,
+  stripe_subscription_id text,
+  premium_started_at timestamptz,
   created_at timestamptz default now()
 );
 

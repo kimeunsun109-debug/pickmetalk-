@@ -44,7 +44,8 @@ interface ChatContextValue {
   deleteMessage: (messageId: string) => Promise<void>;
   reload: () => Promise<void>;
   showPremiumModal: boolean;
-  openPremiumModal: () => void;
+  premiumModalReason: "daily_limit" | "content" | null;
+  openPremiumModal: (reason?: "daily_limit" | "content") => void;
   closePremiumModal: () => void;
 }
 
@@ -160,6 +161,9 @@ export function ChatProvider({
   );
   const [lastChatAt, setLastChatAt] = useState<string | null>(initialLastChatAt);
   const [showPremiumModal, setShowPremiumModal] = useState(false);
+  const [premiumModalReason, setPremiumModalReason] = useState<
+    "daily_limit" | "content" | null
+  >(null);
 
   const safeConversationId = conversationId?.trim() || null;
 
@@ -350,7 +354,18 @@ export function ChatProvider({
         });
 
         if (!res.ok) {
-          const err = (await res.json()) as { error?: string };
+          const err = (await res.json()) as {
+            error?: string;
+            code?: string;
+          };
+          if (res.status === 429 || err.code === "DAILY_LIMIT_REACHED") {
+            if (!resend) {
+              setMessages((prev) => prev.filter((m) => m.id !== userMsgId));
+            }
+            setPremiumModalReason("daily_limit");
+            setShowPremiumModal(true);
+            return;
+          }
           throw new Error(err.error ?? "전송 실패");
         }
 
@@ -513,8 +528,17 @@ export function ChatProvider({
     }
   }, [deleteMessage, sendMessage, isTyping]);
 
-  const openPremiumModal = useCallback(() => setShowPremiumModal(true), []);
-  const closePremiumModal = useCallback(() => setShowPremiumModal(false), []);
+  const openPremiumModal = useCallback(
+    (reason: "daily_limit" | "content" = "content") => {
+      setPremiumModalReason(reason);
+      setShowPremiumModal(true);
+    },
+    []
+  );
+  const closePremiumModal = useCallback(() => {
+    setShowPremiumModal(false);
+    setPremiumModalReason(null);
+  }, []);
 
   const contextValue = useMemo<ChatContextValue>(
     () => ({
@@ -534,6 +558,7 @@ export function ChatProvider({
       deleteMessage,
       reload: syncHistoryInBackground,
       showPremiumModal,
+      premiumModalReason,
       openPremiumModal,
       closePremiumModal,
     }),
@@ -554,6 +579,7 @@ export function ChatProvider({
       deleteMessage,
       syncHistoryInBackground,
       showPremiumModal,
+      premiumModalReason,
       openPremiumModal,
       closePremiumModal,
     ]

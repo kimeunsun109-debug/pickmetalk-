@@ -4,7 +4,8 @@ import { LogoutButton } from "@/components/auth/LogoutButton";
 import { clearClientSessionData } from "@/lib/auth/clearClientSession";
 import { FREE_DAILY_MESSAGE_LIMIT } from "@/lib/constants";
 import Link from "next/link";
-import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useCallback, useState } from "react";
 
 interface CharacterState {
   character_id: string;
@@ -18,6 +19,8 @@ interface SettingsClientProps {
   joinedDaysAgo: number;
   characterStates: CharacterState[];
   todayMsgCount: number;
+  isPremium: boolean;
+  subscriptionStatus: string;
   sessionDates: string[];
 }
 
@@ -53,11 +56,38 @@ export function SettingsClient({
   joinedDaysAgo,
   characterStates,
   todayMsgCount,
+  isPremium,
+  subscriptionStatus,
   sessionDates,
 }: SettingsClientProps) {
+  const searchParams = useSearchParams();
+  const premiumSuccess = searchParams.get("premium") === "success";
   const streak = calcStreak(sessionDates);
-  const remaining = Math.max(0, FREE_DAILY_MESSAGE_LIMIT - todayMsgCount);
+  const remaining = isPremium
+    ? null
+    : Math.max(0, FREE_DAILY_MESSAGE_LIMIT - todayMsgCount);
   const mostChatted = characterStates[0];
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+
+  const startCheckout = useCallback(async () => {
+    setCheckoutLoading(true);
+    try {
+      const res = await fetch("/api/stripe/create-checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan: "monthly" }),
+      });
+      const data = (await res.json()) as { url?: string; error?: string };
+      if (!res.ok || !data.url) {
+        throw new Error(data.error ?? "결제 페이지를 열지 못했어요.");
+      }
+      window.location.href = data.url;
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "결제를 시작하지 못했어요.");
+    } finally {
+      setCheckoutLoading(false);
+    }
+  }, []);
 
   // 계정 삭제 상태
   const [deleteStep, setDeleteStep] = useState<"idle" | "confirm" | "loading">(
@@ -80,8 +110,8 @@ export function SettingsClient({
     },
     {
       label: "오늘 메시지",
-      value: `${todayMsgCount}회`,
-      sub: `잔여 ${remaining}회`,
+      value: isPremium ? "무제한" : `${todayMsgCount}회`,
+      sub: isPremium ? "Premium ⭐" : `잔여 ${remaining}회`,
       color: "bg-blue-50",
     },
     {
@@ -117,6 +147,38 @@ export function SettingsClient({
     <main className="min-h-screen bg-ivory px-4 pb-24 pt-10">
       <h1 className="mb-1 text-xl font-bold text-gray-900">설정</h1>
       <p className="mb-6 text-sm text-gray-400">{email}</p>
+
+      {premiumSuccess && (
+        <div className="mb-4 rounded-2xl border border-pink-200 bg-pink-50 px-4 py-3 text-sm text-pink-accent">
+          Premium 가입이 완료됐어요. 이제 무제한 대화를 즐길 수 있어요 ⭐
+        </div>
+      )}
+
+      {!isPremium && (
+        <section className="mb-6 rounded-2xl border border-pink-200 bg-white p-4 shadow-sm">
+          <p className="text-sm font-semibold text-gray-900">
+            ⭐ Premium — 무제한 대화
+          </p>
+          <p className="mt-1 text-xs text-gray-500">
+            오늘 {todayMsgCount}/{FREE_DAILY_MESSAGE_LIMIT}회 사용 · 상태:{" "}
+            {subscriptionStatus}
+          </p>
+          <button
+            type="button"
+            disabled={checkoutLoading}
+            onClick={() => void startCheckout()}
+            className="mt-3 w-full rounded-xl bg-pink-accent py-2.5 text-sm font-bold text-white disabled:opacity-60"
+          >
+            {checkoutLoading ? "이동 중…" : "Premium 시작하기"}
+          </button>
+        </section>
+      )}
+
+      {isPremium && (
+        <section className="mb-6 rounded-2xl border border-pink-200 bg-pink-50 px-4 py-3 text-sm text-gray-700">
+          Premium 구독 중 ⭐ 무제한 대화
+        </section>
+      )}
 
       {/* 통계 그리드 */}
       <section className="mb-6">

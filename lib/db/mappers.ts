@@ -74,6 +74,7 @@ export function mapUserProfile(row: Record<string, unknown>): UserProfile {
     isPremium: (row.is_premium as boolean) ?? false,
     dailyMessageCount: (row.daily_message_count as number) ?? 0,
     dailyMessageResetAt: row.daily_message_reset_at as string,
+    subscriptionStatus: (row.subscription_status as string) ?? "free",
     userContext: (row.user_context as Record<string, string>) ?? {},
     speechProfile: (row.speech_profile as Record<string, unknown> | null) ?? null,
     gender: (row.gender as string | null) ?? null,
