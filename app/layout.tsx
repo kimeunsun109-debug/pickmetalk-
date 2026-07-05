@@ -1,4 +1,5 @@
 import { BrowserSessionGuard } from "@/components/auth/BrowserSessionGuard";
+import { DeviceSessionGuard } from "@/components/auth/DeviceSessionGuard";
 import { BRAND } from "@/lib/brand";
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
@@ -40,6 +41,7 @@ export default function RootLayout({
     <html lang="ko">
       <body className="antialiased">
         <BrowserSessionGuard />
+        <DeviceSessionGuard />
         <div className="app-shell">{children}</div>
       </body>
     </html>

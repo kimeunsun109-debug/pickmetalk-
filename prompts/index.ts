@@ -1,8 +1,10 @@
-import { getCharacterById } from "@/data";
+import { getCharacterById } from "@/lib/characters/full";
 import {
   buildDialogueEngineRules,
   buildRecentDialogueGuard,
   buildSessionContinuityRules,
+  buildConversationNudgeRules,
+  buildFreshStartRules,
   generateBaseSystemPrompt,
   MEMORY_PROMPT_RULES,
 } from "./base";
@@ -52,7 +54,8 @@ export function buildSystemPrompt(
   recentMessages: Message[] = [],
   speechProfile: UserSpeechProfile | null = null,
   latestUserMessage = "",
-  timeContext: TimeAwareContext | null = null
+  timeContext: TimeAwareContext | null = null,
+  freshChatStart = false
 ): string {
   const character = getCharacterById(characterId);
   const characterName = character?.name ?? "캐릭터";
@@ -80,6 +83,11 @@ export function buildSystemPrompt(
   ];
 
   const tier2: string[] = [];
+  if (freshChatStart) {
+    tier2.push(buildFreshStartRules());
+  }
+  tier2.push(buildConversationNudgeRules());
+
   const trimmedDynamic = dynamicContextBlock.trim();
   if (trimmedDynamic) {
     tier2.push(trimmedDynamic);

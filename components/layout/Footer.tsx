@@ -22,6 +22,12 @@ export function Footer({ className = "" }: { className?: string }) {
       >
         개인정보처리방침
       </Link>
+      <Link
+        href="/terms"
+        className="underline-offset-2 hover:text-gray-600 hover:underline"
+      >
+        이용약관
+      </Link>
     </footer>
   );
 }

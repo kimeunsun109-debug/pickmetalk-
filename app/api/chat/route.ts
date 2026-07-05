@@ -1,4 +1,4 @@
-import { getCharacterById } from "@/data";
+import { getCharacterById } from "@/lib/characters/full";
 import { streamDeepSeekChat } from "@/lib/ai/deepseek";
 import { getConversationForUser } from "@/lib/db/conversations";
 import { MESSAGE_LIST_COLUMNS } from "@/lib/db/messages";
@@ -103,7 +103,7 @@ export async function POST(request: Request) {
           return;
         }
 
-        const { conversationId, message } = body;
+        const { conversationId, message, resend } = body;
         if (!conversationId || !message?.trim()) {
           send({
             error: "conversationId와 message가 필요합니다.",
@@ -143,20 +143,18 @@ export async function POST(request: Request) {
         const now = new Date().toISOString();
 
         const [
-          userMessageResult,
           profileResult,
           historyResult,
           ucsResult,
           shortTermMemoryBlock,
         ] = await trace.span<
           [
-            PostgrestSingleResponse<{ id: string }>,
             PostgrestSingleResponse<Record<string, unknown>>,
             PostgrestResponse<Record<string, unknown>>,
             PostgrestSingleResponse<Record<string, unknown>>,
             string,
           ]
-        >("Parallel DB — user insert + context load", async () => {
+        >("Parallel DB — context load", async () => {
           const shortTermPromise = (async (): Promise<string> => {
             if (!ENABLE_SHORT_TERM_MEMORY) return "";
             try {
@@ -176,17 +174,6 @@ export async function POST(request: Request) {
           })();
 
           return Promise.all([
-            supabase
-              .from("messages")
-              .insert({
-                user_id: userId,
-                character_id: characterId,
-                conversation_id: conversationId,
-                role: "user",
-                content: userText,
-              })
-              .select("id")
-              .single(),
             supabase
               .from("profiles")
               .select("*")
@@ -209,24 +196,40 @@ export async function POST(request: Request) {
           ]);
         });
 
-        const { data: userMessageRow, error: userMsgError } = userMessageResult;
+        let userMessageId: string | null = null;
 
-        if (userMsgError) {
-          send({ error: userMsgError.message, done: true });
-          return;
+        if (!resend) {
+          const { data: userMessageRow, error: userMsgError } = await supabase
+            .from("messages")
+            .insert({
+              user_id: userId,
+              character_id: characterId,
+              conversation_id: conversationId,
+              role: "user",
+              content: userText,
+            })
+            .select("id")
+            .single();
+
+          if (userMsgError) {
+            send({ error: userMsgError.message, done: true });
+            return;
+          }
+
+          userMessageId = userMessageRow?.id ?? null;
         }
-
-        const userMessageId = userMessageRow?.id ?? null;
         send({ userMessageId });
 
-        void updateConversationLastMessage(
-          supabase,
-          conversationId,
-          userId,
-          userText,
-          "user",
-          now
-        );
+        if (!resend) {
+          void updateConversationLastMessage(
+            supabase,
+            conversationId,
+            userId,
+            userText,
+            "user",
+            now
+          );
+        }
 
         trace.mark(
           "Memory/History load",
@@ -249,6 +252,9 @@ export async function POST(request: Request) {
             content: userText,
             createdAt: now,
           });
+        } else if (resend) {
+          const lastUser = [...history].reverse().find((m) => m.role === "user");
+          userMessageId = lastUser?.id ?? null;
         }
         const userContents = history
           .filter((m) => m.role === "user")
@@ -307,11 +313,26 @@ export async function POST(request: Request) {
           characterId
         );
 
-        const userCtx = extractUserContext(
-          updatedMemory,
-          profile?.userContext ?? {}
-        );
+        const profileCtx = {
+          ...(profile?.userContext ?? {}),
+          nickname:
+            profile?.displayName ??
+            profile?.userContext?.nickname ??
+            profile?.userContext?.name,
+          gender: profile?.gender ?? profile?.userContext?.gender,
+          birthDate: profile?.birthDate ?? profile?.userContext?.birthDate,
+          mbti: profile?.mbti ?? profile?.userContext?.mbti,
+          idealType: profile?.idealType ?? profile?.userContext?.idealType,
+        };
+        const userCtx = extractUserContext(updatedMemory, profileCtx);
         const commonCtxBlock = buildCommonContextBlock(userCtx);
+
+        const freshChatStart = Boolean(
+          profile?.chatHistoryResetAt &&
+            Date.now() - new Date(profile.chatHistoryResetAt).getTime() <
+              7 * 24 * 60 * 60 * 1000 &&
+            userContents.length <= 4
+        );
 
         let characterCtxBlock = "";
         if (characterId === "yoonseo" && characterState) {
@@ -342,7 +363,8 @@ export async function POST(request: Request) {
             recent,
             speechProfile,
             userText,
-            timeAwareCtx
+            timeAwareCtx,
+            freshChatStart
           )
         );
         trace.mark("Prompt length", `${systemPrompt.length} chars`);

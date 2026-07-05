@@ -2,6 +2,8 @@
 export interface ChatRequestBody {
   conversationId: string;
   message: string;
+  /** 재생성 — 마지막 사용자 메시지 재전송, user insert 생략 */
+  resend?: boolean;
 }
 
 export interface CreateConversationBody {

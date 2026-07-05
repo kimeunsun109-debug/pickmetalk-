@@ -2,7 +2,7 @@
 
 import { characterChatHref, goToCharacterChat } from "@/lib/navigateChat";
 import { resolveCharacterId } from "@/lib/chatRoute";
-import type { Character, Conversation } from "@/types";
+import type { Conversation, PublicCharacter } from "@/types";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -13,17 +13,17 @@ export function CharacterSelectClient({
   characters,
   activeCharacterId,
 }: {
-  characters: Character[];
+  characters: PublicCharacter[];
   activeCharacterId: string | null;
 }) {
   const router = useRouter();
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [pickerCharacter, setPickerCharacter] = useState<Character | null>(null);
+  const [pickerCharacter, setPickerCharacter] = useState<PublicCharacter | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [pickerLoading, setPickerLoading] = useState(false);
 
-  async function selectCharacter(character: Character) {
+  async function selectCharacter(character: PublicCharacter) {
     const characterId = resolveCharacterId(character.id);
     router.prefetch(characterChatHref(characterId));
     setLoadingId(characterId);

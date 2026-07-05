@@ -94,6 +94,17 @@ export interface Character {
   defaultExpression: ExpressionState;
 }
 
+/** Client/UI용 — personality·프롬프트 데이터 없음 */
+export interface PublicCharacter {
+  id: string;
+  name: string;
+  age?: number;
+  tagline: string;
+  avatar: string;
+  defaultEmotion: EmotionState;
+  defaultExpression: ExpressionState;
+}
+
 export interface UserProfile {
   id: string;
   email: string;
@@ -102,10 +113,18 @@ export interface UserProfile {
   isPremium: boolean;
   dailyMessageCount: number;
   dailyMessageResetAt: string;
-  /** profiles.user_context JSONB — 유저 이름·나이·직업 등 명시적 메타 */
+  /** profiles.user_context JSONB — 닉네임·성별·관심사 등 */
   userContext: Record<string, string>;
   /** profiles.speech_profile JSONB — 사용자 말투 학습 */
   speechProfile: Record<string, unknown> | null;
+  gender?: string | null;
+  birthDate?: string | null;
+  mbti?: string | null;
+  idealType?: string | null;
+  privacyConsentAt?: string | null;
+  termsConsentAt?: string | null;
+  onboardingCompletedAt?: string | null;
+  chatHistoryResetAt?: string | null;
 }
 
 export interface UserCharacterState {

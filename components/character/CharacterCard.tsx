@@ -2,7 +2,7 @@
 
 import { characterChatHref } from "@/lib/navigateChat";
 import { resolveCharacterId } from "@/lib/chatRoute";
-import type { Character } from "@/types";
+import type { PublicCharacter } from "@/types";
 import { useRouter } from "next/navigation";
 import { useCallback } from "react";
 
@@ -13,7 +13,7 @@ export function CharacterCard({
   isLoading,
   isActive,
 }: {
-  character: Character;
+  character: PublicCharacter;
   onSelect: () => void;
   isLoading?: boolean;
   isActive?: boolean;
@@ -42,9 +42,18 @@ export function CharacterCard({
           {character.name[0]}
         </div>
         <div className="min-w-0 flex-1">
-          <h3 className="font-semibold">{character.name}</h3>
-          <p className="mt-0.5 truncate text-xs text-gray-500">
-            {character.tagline}
+          <h3 className="font-semibold">
+            <span className="text-pink-accent">❤️</span>
+            {character.name}
+            <span className="font-normal text-gray-600">
+              {" "}
+              - {character.tagline.split(" (")[0]}
+            </span>
+          </h3>
+          <p className="mt-0.5 line-clamp-2 text-xs text-gray-500">
+            {character.tagline.includes("(")
+              ? character.tagline.slice(character.tagline.indexOf("("))
+              : character.tagline}
           </p>
         </div>
       </div>
