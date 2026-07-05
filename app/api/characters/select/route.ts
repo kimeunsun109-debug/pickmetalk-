@@ -1,4 +1,4 @@
-import { getCharacterById } from "@/data";
+import { getCharacterById } from "@/lib/characters/full";
 import { touchCharacterSelection } from "@/lib/db/conversations";
 import { recentConversationQuery } from "@/lib/activeCharacter";
 import { mapCharacterState, mapConversation } from "@/lib/db/mappers";

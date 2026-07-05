@@ -1,7 +1,8 @@
 import { ChatErrorBoundary } from "@/components/chat/ChatErrorBoundary";
 import { ChatScreen } from "@/components/chat/ChatScreen";
 import { ChatProvider, type ChatMessage } from "@/contexts/ChatProvider";
-import { getCharacterById } from "@/data";
+import { getCharacterById } from "@/lib/characters/full";
+import { toPublicCharacter } from "@/lib/characters/public";
 import {
   createConversation,
   getConversationForCharacter,
@@ -99,7 +100,8 @@ export default async function ChatPage({
   };
 
   let conversation: Conversation;
-  let profileRow: { is_premium?: boolean } | null = null;
+  let profileRow: { is_premium?: boolean; display_name?: string | null } | null =
+    null;
   let initialMessages: ChatMessage[] = [];
 
   try {
@@ -110,7 +112,7 @@ export default async function ChatPage({
           resolveConversation(),
           supabase
             .from("profiles")
-            .select("is_premium")
+            .select("is_premium, display_name")
             .eq("id", user.id)
             .maybeSingle(),
           touchCharacterSelection(supabase, user.id, characterId).catch(
@@ -136,7 +138,7 @@ export default async function ChatPage({
       conversation = await createConversation(supabase, user.id, characterId);
       const { data: profileFallback } = await supabase
         .from("profiles")
-        .select("is_premium")
+        .select("is_premium, display_name")
         .eq("id", user.id)
         .maybeSingle();
       profileRow = profileFallback;
@@ -163,7 +165,7 @@ export default async function ChatPage({
   return (
     <ChatErrorBoundary>
       <ChatProvider
-        character={character}
+        character={toPublicCharacter(character)}
         characterId={characterId}
         conversationId={conversation.id}
         isPremiumUser={isPremiumUser}
@@ -175,7 +177,10 @@ export default async function ChatPage({
         initialEmotion={normalizeEmotion(conversation.emotion) as EmotionState}
         initialLastChatAt={conversation.lastMessageAt}
       >
-        <ChatScreen conversationTitle={conversation.title ?? "새 대화"} />
+        <ChatScreen
+          conversationTitle={conversation.title ?? "새 대화"}
+          userNickname={profileRow?.display_name ?? null}
+        />
       </ChatProvider>
     </ChatErrorBoundary>
   );

@@ -1,12 +1,12 @@
 "use client";
 
-import { getCharacterById } from "@/data";
 import { markBrowserSessionActive } from "@/lib/auth/browserSession";
+import { deviceSessionHeaders } from "@/lib/auth/deviceSession";
 import { normalizeEmotion } from "@/lib/emotions";
 import { resolveCharacterId } from "@/lib/chatRoute";
 import { perfClientTrace, usePerfRenderCount } from "@/lib/perf/client";
 import { isPerfEnabled } from "@/lib/perf/trace";
-import type { Character, EmotionState, RelationshipLevel } from "@/types";
+import type { EmotionState, PublicCharacter, RelationshipLevel } from "@/types";
 import type { ChatStreamChunk } from "@/types/api";
 import {
   createContext,
@@ -27,7 +27,7 @@ export interface ChatMessage {
 }
 
 interface ChatContextValue {
-  character: Character;
+  character: PublicCharacter;
   characterId: string;
   conversationId: string | null;
   isPremiumUser: boolean;
@@ -39,7 +39,8 @@ interface ChatContextValue {
   isTyping: boolean;
   /** 백그라운드 동기화 중 — UI 차단·전체 로딩 화면에 사용하지 않음 */
   isSyncingHistory: boolean;
-  sendMessage: (text: string) => Promise<void>;
+  sendMessage: (text: string, options?: { resend?: boolean }) => Promise<void>;
+  regenerateLastReply: () => Promise<void>;
   deleteMessage: (messageId: string) => Promise<void>;
   reload: () => Promise<void>;
   showPremiumModal: boolean;
@@ -51,7 +52,7 @@ const ChatContext = createContext<ChatContextValue | null>(null);
 
 /** 헤더 등 — messages 변경 시 re-render 방지 */
 interface ChatMetaContextValue {
-  character: Character;
+  character: PublicCharacter;
   characterId: string;
   conversationId: string | null;
   isPremiumUser: boolean;
@@ -80,7 +81,7 @@ export function useChatMeta(): ChatMetaContextValue {
 }
 
 interface ChatProviderProps {
-  character: Character;
+  character: PublicCharacter;
   characterId: string;
   conversationId: string | null;
   isPremiumUser: boolean;
@@ -122,10 +123,7 @@ export function ChatProvider({
 }: ChatProviderProps) {
   usePerfRenderCount("ChatProvider");
   const safeCharacterId = resolveCharacterId(characterId);
-  const resolvedCharacter =
-    character.id === safeCharacterId
-      ? character
-      : (getCharacterById(safeCharacterId) ?? character);
+  const resolvedCharacter = character;
 
   const hasSsrMessages = Boolean(initialMessages?.length);
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages ?? []);
@@ -311,15 +309,23 @@ export function ChatProvider({
   }, [safeConversationId, syncHistoryInBackground, resolvedCharacter.defaultEmotion]);
 
   const sendMessage = useCallback(
-    async (text: string) => {
+    async (text: string, options?: { resend?: boolean }) => {
       if (!text.trim() || isTyping) return;
 
-      const userMsgId = `user-${Date.now()}`;
+      const trimmed = text.trim();
+      const resend = options?.resend === true;
+      const userMsgId = resend
+        ? (messagesRef.current.filter((m) => m.role === "user").at(-1)?.id ??
+          `user-${Date.now()}`)
+        : `user-${Date.now()}`;
       const nowIso = new Date().toISOString();
-      setMessages((prev) => [
-        ...prev,
-        { id: userMsgId, role: "user", content: text.trim(), createdAt: nowIso },
-      ]);
+
+      if (!resend) {
+        setMessages((prev) => [
+          ...prev,
+          { id: userMsgId, role: "user", content: trimmed, createdAt: nowIso },
+        ]);
+      }
       setIsTyping(true);
 
       const aiMsgId = `stream-${Date.now()}`;
@@ -332,10 +338,14 @@ export function ChatProvider({
 
         const res = await fetch("/api/chat", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...deviceSessionHeaders(),
+          },
           body: JSON.stringify({
             conversationId: safeConversationId,
-            message: text.trim(),
+            message: trimmed,
+            resend: resend || undefined,
           }),
         });
 
@@ -470,6 +480,7 @@ export function ChatProvider({
   const deleteMessage = useCallback(async (messageId: string) => {
     const res = await fetch(`/api/messages/${messageId}`, {
       method: "DELETE",
+      headers: deviceSessionHeaders(),
     });
 
     if (!res.ok) {
@@ -479,6 +490,28 @@ export function ChatProvider({
 
     setMessages((prev) => prev.filter((message) => message.id !== messageId));
   }, []);
+
+  const regenerateLastReply = useCallback(async () => {
+    const msgs = messagesRef.current;
+    const last = msgs[msgs.length - 1];
+    if (!last || last.role !== "assistant" || isTyping) return;
+
+    let lastUser: ChatMessage | undefined;
+    for (let i = msgs.length - 2; i >= 0; i -= 1) {
+      if (msgs[i].role === "user") {
+        lastUser = msgs[i];
+        break;
+      }
+    }
+    if (!lastUser?.content.trim()) return;
+
+    try {
+      await deleteMessage(last.id);
+      await sendMessage(lastUser.content, { resend: true });
+    } catch {
+      /* sendMessage surfaces errors in UI */
+    }
+  }, [deleteMessage, sendMessage, isTyping]);
 
   const openPremiumModal = useCallback(() => setShowPremiumModal(true), []);
   const closePremiumModal = useCallback(() => setShowPremiumModal(false), []);
@@ -497,6 +530,7 @@ export function ChatProvider({
       isTyping,
       isSyncingHistory,
       sendMessage,
+      regenerateLastReply,
       deleteMessage,
       reload: syncHistoryInBackground,
       showPremiumModal,
@@ -516,6 +550,7 @@ export function ChatProvider({
       isTyping,
       isSyncingHistory,
       sendMessage,
+      regenerateLastReply,
       deleteMessage,
       syncHistoryInBackground,
       showPremiumModal,

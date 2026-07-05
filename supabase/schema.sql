@@ -114,6 +114,18 @@ create table if not exists public.gift_logs (
 alter table public.profiles
   add column if not exists user_context jsonb default '{}'::jsonb;
 
+-- Signup / session (see migrations/008_user_profile_signup.sql)
+alter table public.profiles
+  add column if not exists gender text,
+  add column if not exists birth_date date,
+  add column if not exists mbti text,
+  add column if not exists ideal_type text,
+  add column if not exists privacy_consent_at timestamptz,
+  add column if not exists terms_consent_at timestamptz,
+  add column if not exists onboarding_completed_at timestamptz,
+  add column if not exists active_device_session text,
+  add column if not exists chat_history_reset_at timestamptz;
+
 -- 윤서 전용 약속 이행 카운터
 alter table public.user_character_states
   add column if not exists promise_kept_count int default 0,

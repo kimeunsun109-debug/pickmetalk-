@@ -1,4 +1,4 @@
-import { getCharacterById } from "@/data";
+import { getCharacterById } from "@/lib/characters/full";
 import { recentConversationQuery } from "@/lib/activeCharacter";
 import { mapConversation } from "@/lib/db/mappers";
 import type { Conversation } from "@/types";
@@ -122,4 +122,49 @@ export async function touchCharacterSelection(
       last_seen_at: now,
     });
   }
+}
+
+/** 전체 대화 삭제 — 메시지·대화방 제거, 프로필·호감도는 유지, 기억 요약 초기화 */
+export async function deleteAllUserConversations(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<{ deletedCount: number }> {
+  const { data: rows, error: listError } = await supabase
+    .from("conversations")
+    .select("id")
+    .eq("user_id", userId);
+
+  if (listError) {
+    throw new Error(listError.message);
+  }
+
+  const ids = (rows ?? []).map((r) => r.id as string);
+  if (ids.length === 0) {
+    return { deletedCount: 0 };
+  }
+
+  const { error: deleteError } = await supabase
+    .from("conversations")
+    .delete()
+    .eq("user_id", userId);
+
+  if (deleteError) {
+    throw new Error(deleteError.message);
+  }
+
+  await supabase
+    .from("user_character_states")
+    .update({
+      memory_summary: null,
+      last_chat_at: null,
+    })
+    .eq("user_id", userId);
+
+  const now = new Date().toISOString();
+  await supabase
+    .from("profiles")
+    .update({ chat_history_reset_at: now })
+    .eq("id", userId);
+
+  return { deletedCount: ids.length };
 }

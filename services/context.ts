@@ -25,8 +25,15 @@ export interface YoonseoStats {
 /** profiles.user_context JSONB 구조 */
 export interface ProfileUserContext {
   name?: string;
+  nickname?: string;
   age?: string;
   job?: string;
+  gender?: string;
+  birthDate?: string;
+  interests?: string;
+  hobbies?: string;
+  mbti?: string;
+  idealType?: string;
 }
 
 // ─────────────────────────────────────────────
@@ -61,10 +68,16 @@ export function extractUserContext(
   const recentSchedule = scheduleFacts[0];
 
   return {
-    userName: profileCtx.name,
+    userName: profileCtx.nickname ?? profileCtx.name,
     userAge: profileCtx.age,
     userJob: profileCtx.job,
-    userInterests,
+    userInterests: [
+      ...new Set([
+        ...userInterests,
+        ...(profileCtx.interests ? [profileCtx.interests] : []),
+        ...(profileCtx.hobbies ? [profileCtx.hobbies] : []),
+      ]),
+    ],
     recentStressor,
     recentSchedule,
   };
@@ -77,7 +90,7 @@ export function extractUserContext(
 export function buildCommonContextBlock(ctx: UserContextData): string {
   const lines: string[] = [];
 
-  if (ctx.userName) lines.push(`- 유저 이름: ${ctx.userName}`);
+  if (ctx.userName) lines.push(`- 유저 닉네임: ${ctx.userName} (첫 인사·호칭에 활용)`);
   if (ctx.userAge) lines.push(`- 나이: ${ctx.userAge}세`);
   if (ctx.userJob) lines.push(`- 직업/직장: ${ctx.userJob}`);
   if (ctx.recentStressor)

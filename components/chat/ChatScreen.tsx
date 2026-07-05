@@ -2,6 +2,8 @@
 
 import { ChatHeader } from "@/components/chat/ChatHeader";
 import { ChatInput } from "@/components/chat/ChatInput";
+import { AssistantMessageActions } from "@/components/chat/AssistantMessageActions";
+import { ChatOnboarding } from "@/components/chat/ChatOnboarding";
 import { MessageActionSheet } from "@/components/chat/MessageActionSheet";
 import { MessageList } from "@/components/chat/MessageList";
 import { PremiumModal } from "@/components/chat/PremiumModal";
@@ -14,8 +16,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 export function ChatScreen({
   conversationTitle,
+  userNickname,
 }: {
   conversationTitle?: string;
+  userNickname?: string | null;
 } = {}) {
   usePerfRenderCount("ChatScreen");
   const {
@@ -25,6 +29,7 @@ export function ChatScreen({
     isTyping,
     lastChatAt,
     sendMessage,
+    regenerateLastReply,
     deleteMessage,
   } = useChat();
 
@@ -110,23 +115,36 @@ export function ChatScreen({
     [messages, isTyping]
   );
 
+  const showOnboarding = messages.length === 0;
+  const lastAssistant =
+    lastMsg?.role === "assistant" ? lastMsg : null;
+  const showActions =
+    lastAssistant &&
+    !isTyping &&
+    lastAssistant.content.trim().length > 0;
+
   return (
     <div className="flex min-h-[100dvh] flex-col bg-[#b2c7d9]/30">
       <ChatHeader conversationTitle={conversationTitle} />
 
       <main className="flex-1 overflow-y-auto scroll-ios pb-2">
-        {messages.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center gap-2 px-8 py-20 text-center">
-            <p className="text-sm text-gray-500">
-              {character.name}에게 첫 인사를 건네보세요
-            </p>
-          </div>
+        {showOnboarding ? (
+          <ChatOnboarding character={character} nickname={userNickname} />
         ) : (
           <MessageList
             messages={messages}
             characterName={character.name}
             isTyping={isTyping}
             onLongPress={handleMessageLongPress}
+          />
+        )}
+
+        {showActions && lastAssistant && (
+          <AssistantMessageActions
+            messageId={lastAssistant.id}
+            content={lastAssistant.content}
+            characterId={characterId}
+            onRegenerate={() => void regenerateLastReply()}
           />
         )}
 
