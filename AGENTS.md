@@ -86,6 +86,13 @@ Optional: `SUPABASE_SERVICE_ROLE_KEY`, `DEEPSEEK_BASE_URL`, `TAVILY_API_KEY`.
 `/login` → `/characters` (pick 유나·나린·윤서·은하·지유) → `/chat` (streaming DeepSeek reply;
 affection +1 per round trip).
 
+### UX batch (2026-07)
+
+- Character taglines + `data/characters-public.json` (client-safe; full prompts in `lib/characters/full.ts`)
+- Signup: nickname/gender/DOB required; migration `008_user_profile_signup.sql` — run `npx supabase db push` when linked
+- Chat: onboarding prologue, assistant action bar, delete-all conversations (`DELETE /api/conversations?all=true`)
+- Single-device session: `DeviceSessionGuard` + `profiles.active_device_session`
+
 ## Do not
 
 - Auto-publish Naver blog posts (draft only)
