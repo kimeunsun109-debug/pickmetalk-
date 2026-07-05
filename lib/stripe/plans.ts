@@ -22,6 +22,12 @@ export const PREMIUM_PLANS: PremiumPlanConfig[] = [
   },
 ];
 
+export function isPremiumPlanConfigured(plan: PremiumPlanId): boolean {
+  const envKey =
+    plan === "monthly" ? "STRIPE_PRICE_MONTHLY_ID" : "STRIPE_PRICE_YEARLY_ID";
+  return Boolean(process.env[envKey]);
+}
+
 export function resolveStripePriceId(plan: PremiumPlanId): string {
   const envKey =
     plan === "monthly" ? "STRIPE_PRICE_MONTHLY_ID" : "STRIPE_PRICE_YEARLY_ID";

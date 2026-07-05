@@ -40,7 +40,7 @@ import { ServerPerfTrace } from "@/lib/perf/trace";
 import {
   canSendChatMessage,
   ensureDailyUsageFresh,
-  incrementDailyMessageCount,
+  tryReserveDailyMessageSlot,
 } from "@/services/dailyMessageLimit";
 import { NextResponse } from "next/server";
 import type { ChatRequestBody } from "@/types/api";
@@ -83,8 +83,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
   }
 
-  let dailyCountBeforeSend: number | null = null;
-
   if (!resend) {
     const { data: profileRow } = await supabase
       .from("profiles")
@@ -92,15 +90,35 @@ export async function POST(request: Request) {
       .eq("id", userId)
       .maybeSingle();
 
-    if (profileRow) {
-      const profile = mapUserProfile(profileRow);
-      const { count, isPremium } = await ensureDailyUsageFresh(
+    if (!profileRow) {
+      return NextResponse.json(
+        { error: "프로필을 불러올 수 없어요. 다시 로그인해 주세요." },
+        { status: 403 }
+      );
+    }
+
+    const profile = mapUserProfile(profileRow);
+    const { count, isPremium } = await ensureDailyUsageFresh(
+      supabase,
+      userId,
+      profile
+    );
+    if (!isPremium) {
+      if (!canSendChatMessage(profile, count)) {
+        return NextResponse.json(
+          {
+            error: "오늘 무료 대화를 모두 사용했어요.",
+            code: "DAILY_LIMIT_REACHED",
+          },
+          { status: 429 }
+        );
+      }
+      const reserved = await tryReserveDailyMessageSlot(
         supabase,
         userId,
-        profile
+        count
       );
-      dailyCountBeforeSend = count;
-      if (!isPremium && !canSendChatMessage(profile, count)) {
+      if (!reserved) {
         return NextResponse.json(
           {
             error: "오늘 무료 대화를 모두 사용했어요.",
@@ -250,22 +268,8 @@ export async function POST(request: Request) {
 
           userMessageId = userMessageRow?.id ?? null;
         }
-        send({ userMessageId });
 
-        if (
-          !resend &&
-          profileResult.data &&
-          dailyCountBeforeSend !== null
-        ) {
-          const profileMapped = mapUserProfile(profileResult.data);
-          if (!profileMapped.isPremium) {
-            void incrementDailyMessageCount(
-              supabase,
-              userId,
-              dailyCountBeforeSend
-            );
-          }
-        }
+        send({ userMessageId });
 
         if (!resend) {
           void updateConversationLastMessage(

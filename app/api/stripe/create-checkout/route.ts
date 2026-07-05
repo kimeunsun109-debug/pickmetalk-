@@ -1,6 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
-import { resolveStripePriceId, type PremiumPlanId } from "@/lib/stripe/plans";
+import {
+  isPremiumPlanConfigured,
+  resolveStripePriceId,
+  type PremiumPlanId,
+} from "@/lib/stripe/plans";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -34,6 +38,13 @@ export async function POST(request: Request) {
 
   if (!user) {
     return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
+  }
+
+  if (!isPremiumPlanConfigured(plan)) {
+    return NextResponse.json(
+      { error: "선택한 요금제가 아직 준비되지 않았어요." },
+      { status: 503 }
+    );
   }
 
   const { data: profile } = await supabase

@@ -11,13 +11,15 @@ async function setPremiumForUser(
   extra?: {
     stripeCustomerId?: string | null;
     stripeSubscriptionId?: string | null;
+    subscriptionStatus?: string;
   }
 ) {
   const admin = createAdminClient();
   const now = new Date().toISOString();
   const patch: Record<string, unknown> = {
     is_premium: active,
-    subscription_status: active ? "active" : "canceled",
+    subscription_status:
+      extra?.subscriptionStatus ?? (active ? "active" : "canceled"),
   };
   if (extra?.stripeCustomerId) {
     patch.stripe_customer_id = extra.stripeCustomerId;
@@ -83,11 +85,20 @@ export async function POST(request: Request) {
         const sub = event.data.object as Stripe.Subscription;
         const userId = resolveUserId(sub);
         if (!userId) break;
-        const active =
-          sub.status === "active" || sub.status === "trialing";
-        await setPremiumForUser(userId, active, {
+        const keepPremium =
+          sub.status === "active" ||
+          sub.status === "trialing" ||
+          sub.status === "past_due";
+        const subscriptionStatus =
+          sub.status === "past_due"
+            ? "past_due"
+            : keepPremium
+              ? "active"
+              : "canceled";
+        await setPremiumForUser(userId, keepPremium, {
           stripeCustomerId: sub.customer as string | null,
           stripeSubscriptionId: sub.id,
+          subscriptionStatus,
         });
         break;
       }

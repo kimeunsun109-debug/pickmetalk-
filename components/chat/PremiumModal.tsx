@@ -19,6 +19,9 @@ export function PremiumModal() {
     null
   );
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [availablePlans, setAvailablePlans] = useState<
+    ("monthly" | "yearly")[]
+  >(["monthly", "yearly"]);
 
   const limitReached = premiumModalReason === "daily_limit";
 
@@ -30,6 +33,20 @@ export function PremiumModal() {
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [showPremiumModal, closePremiumModal]);
+
+  useEffect(() => {
+    if (!showPremiumModal) return;
+    void fetch("/api/stripe/plans")
+      .then((res) => res.json())
+      .then((data: { plans?: string[] }) => {
+        if (Array.isArray(data.plans) && data.plans.length > 0) {
+          setAvailablePlans(data.plans as ("monthly" | "yearly")[]);
+        }
+      })
+      .catch(() => {
+        /* keep default plans */
+      });
+  }, [showPremiumModal]);
 
   useEffect(() => {
     if (showPremiumModal) {
@@ -118,6 +135,7 @@ export function PremiumModal() {
           <p className="mt-3 text-center text-xs text-red-500">{checkoutError}</p>
         )}
 
+        {availablePlans.includes("monthly") && (
         <button
           type="button"
           disabled={loadingPlan !== null}
@@ -128,7 +146,9 @@ export function PremiumModal() {
             ? "이동 중…"
             : "월간 구독 — ₩9,900"}
         </button>
+        )}
 
+        {availablePlans.includes("yearly") && (
         <button
           type="button"
           disabled={loadingPlan !== null}
@@ -139,6 +159,7 @@ export function PremiumModal() {
             ? "이동 중…"
             : "연간 구독 — ₩79,000 (약 33% 할인)"}
         </button>
+        )}
 
         <button
           type="button"

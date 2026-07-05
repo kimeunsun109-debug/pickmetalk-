@@ -70,18 +70,46 @@ export async function ensureDailyUsageFresh(
   return { count, isPremium: profile.isPremium };
 }
 
-/** After a user message is persisted (not resend). */
-export async function incrementDailyMessageCount(
+/**
+ * Atomically reserve one free message slot before persisting the user message.
+ * Uses optimistic locking on daily_message_count to avoid lost updates under concurrency.
+ */
+export async function tryReserveDailyMessageSlot(
   supabase: SupabaseClient,
   userId: string,
-  currentCount: number
-): Promise<void> {
+  expectedCount: number
+): Promise<boolean> {
+  if (expectedCount >= FREE_DAILY_MESSAGE_LIMIT) {
+    return false;
+  }
+
   const now = new Date().toISOString();
-  await supabase
+  const { data } = await supabase
     .from("profiles")
     .update({
-      daily_message_count: currentCount + 1,
+      daily_message_count: expectedCount + 1,
       daily_message_reset_at: now,
     })
-    .eq("id", userId);
+    .eq("id", userId)
+    .eq("daily_message_count", expectedCount)
+    .select("id")
+    .maybeSingle();
+
+  if (data) return true;
+
+  const { data: row } = await supabase
+    .from("profiles")
+    .select("daily_message_count")
+    .eq("id", userId)
+    .maybeSingle();
+
+  const latest = (row?.daily_message_count as number) ?? expectedCount;
+  if (latest === expectedCount) {
+    return false;
+  }
+  if (latest >= FREE_DAILY_MESSAGE_LIMIT) {
+    return false;
+  }
+
+  return tryReserveDailyMessageSlot(supabase, userId, latest);
 }
