@@ -90,38 +90,27 @@ export async function POST(request: Request) {
       .eq("id", userId)
       .maybeSingle();
 
-    if (profileRow) {
-      const profile = mapUserProfile(profileRow);
-      const { count, isPremium } = await ensureDailyUsageFresh(
-        supabase,
-        userId,
-        profile
+    if (!profileRow) {
+      return NextResponse.json(
+        { error: "프로필을 찾을 수 없습니다." },
+        { status: 403 }
       );
-      if (!isPremium) {
-        if (!canSendChatMessage(profile, count)) {
-          return NextResponse.json(
-            {
-              error: "오늘 무료 대화를 모두 사용했어요.",
-              code: "DAILY_LIMIT_REACHED",
-            },
-            { status: 429 }
-          );
-        }
-        const reserved = await tryReserveDailyMessageSlot(
-          supabase,
-          userId,
-          count
-        );
-        if (!reserved) {
-          return NextResponse.json(
-            {
-              error: "오늘 무료 대화를 모두 사용했어요.",
-              code: "DAILY_LIMIT_REACHED",
-            },
-            { status: 429 }
-          );
-        }
-      }
+    }
+
+    const profile = mapUserProfile(profileRow);
+    const { count, isPremium } = await ensureDailyUsageFresh(
+      supabase,
+      userId,
+      profile
+    );
+    if (!isPremium && !canSendChatMessage(profile, count)) {
+      return NextResponse.json(
+        {
+          error: "오늘 무료 대화를 모두 사용했어요.",
+          code: "DAILY_LIMIT_REACHED",
+        },
+        { status: 429 }
+      );
     }
   }
 
@@ -243,6 +232,59 @@ export async function POST(request: Request) {
 
         let userMessageId: string | null = null;
 
+        const profile = profileResult.data
+          ? mapUserProfile(profileResult.data)
+          : null;
+        const history: Message[] = (historyResult.data ?? []).map((r) =>
+          mapMessage(r)
+        );
+
+        if (resend) {
+          const lastUser = [...history].reverse().find((m) => m.role === "user");
+          if (!lastUser || lastUser.content.trim() !== userText) {
+            send({
+              error: "재전송할 수 있는 메시지가 없습니다.",
+              done: true,
+            });
+            return;
+          }
+          userMessageId = lastUser.id;
+        } else {
+          if (!profile) {
+            send({ error: "프로필을 찾을 수 없습니다.", done: true });
+            return;
+          }
+
+          const { count, isPremium } = await ensureDailyUsageFresh(
+            supabase,
+            userId,
+            profile
+          );
+          if (!isPremium) {
+            if (!canSendChatMessage(profile, count)) {
+              send({
+                error: "오늘 무료 대화를 모두 사용했어요.",
+                code: "DAILY_LIMIT_REACHED",
+                done: true,
+              });
+              return;
+            }
+            const reserved = await tryReserveDailyMessageSlot(
+              supabase,
+              userId,
+              count
+            );
+            if (!reserved) {
+              send({
+                error: "오늘 무료 대화를 모두 사용했어요.",
+                code: "DAILY_LIMIT_REACHED",
+                done: true,
+              });
+              return;
+            }
+          }
+        }
+
         if (!resend) {
           const { data: userMessageRow, error: userMsgError } = await supabase
             .from("messages")
@@ -281,12 +323,6 @@ export async function POST(request: Request) {
           `${(historyResult.data ?? []).length} messages`
         );
 
-        const profile = profileResult.data
-          ? mapUserProfile(profileResult.data)
-          : null;
-        const history: Message[] = (historyResult.data ?? []).map((r) =>
-          mapMessage(r)
-        );
         if (userMessageId && !history.some((m) => m.id === userMessageId)) {
           history.push({
             id: userMessageId,
@@ -297,9 +333,6 @@ export async function POST(request: Request) {
             content: userText,
             createdAt: now,
           });
-        } else if (resend) {
-          const lastUser = [...history].reverse().find((m) => m.role === "user");
-          userMessageId = lastUser?.id ?? null;
         }
         const userContents = history
           .filter((m) => m.role === "user")
