@@ -129,4 +129,6 @@ npx tsx scripts/test_daily_patterns.mts
 npx supabase db push   # if linked
 ```
 
-**프로덕션 반영:** feature PR은 `main` 머지 후 Vercel Production 배포가 되어야 `pickmetalk.com`에 나타납니다. Draft PR은 머지되지 않습니다.
+**프로덕션 반영:** feature PR은 `main` 머지 후 Vercel Production 배포가 되어야 `pickmetalk.com`에 나타납니다.
+
+**Premium:** 무료 30회/일 → Stripe → `profiles.is_premium`. See `docs/STRIPE.md`.
