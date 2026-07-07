@@ -1,9 +1,27 @@
 # Cursor Cloud / Agent handoff
 
+## Product & MVP (2026-07)
+
+**목표:** 빠른 베타 출시 — 완벽한 기능보다 속도  
+**우선순위:** 개발 속도 → 안정성 → 확장성 → 디자인 → 차별화  
+**차별화 (베타 이후):** 다국어(i18n), 실사 기반 AI 이미지
+
+| 문서 | 용도 |
+|------|------|
+| [`docs/MVP_ROADMAP.md`](docs/MVP_ROADMAP.md) | 지금 구현할 것만 (Phase 1–3) |
+| [`docs/기획제안.md`](docs/기획제안.md) | **구현하지 말고** 아이디어만 기록 |
+
+**에이전트 규칙**
+
+- UX 개선·경쟁 기능·차별화 아이디어 → `docs/기획제안.md`에 추가만
+- `MVP_ROADMAP.md` Phase 1 없는 기능은 사용자 요청 전 구현 금지
+- 신규 UI 문자열 → `messages/ko.json` + `t('key')` (`lib/i18n/`)
+- 참고 이미지: 로컬 `픽미톡 ai` → `docs/reference/` 동기화 권장
+
 ## Repo
 
 - **App:** PickmeTalk AI girlfriend chat (`pickmetalk.com`)
-- **Stack:** Next.js 15, Supabase, DeepSeek, Vercel
+- **Stack:** Next.js 15, Supabase, DeepSeek, Vercel, Stripe (Premium)
 
 ## Start (Cloud)
 
@@ -105,6 +123,10 @@ affection +1 per round trip).
 ```bash
 npm run build
 npm run lint
+npm run verify:prod          # pickmetalk.com PR 반영 여부
+npm run verify:migrations    # Supabase 003–008 일치
 npx tsx scripts/test_daily_patterns.mts
 npx supabase db push   # if linked
 ```
+
+**프로덕션 반영:** feature PR은 `main` 머지 후 Vercel Production 배포가 되어야 `pickmetalk.com`에 나타납니다. Draft PR은 머지되지 않습니다.

@@ -17,7 +17,9 @@
     "cap:sync": "npx cap sync",
     "cap:init": "npx cap init",
     "perf:benchmark": "npx tsx scripts/perf_benchmark.mts",
-    "perf:chat-entry": "npx tsx scripts/chat_entry_benchmark.mts"
+    "perf:chat-entry": "npx tsx scripts/chat_entry_benchmark.mts",
+    "verify:prod": "npx tsx scripts/verify_production_deploy.mts",
+    "verify:migrations": "npx tsx scripts/verify_supabase_migrations.mts"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.0",
