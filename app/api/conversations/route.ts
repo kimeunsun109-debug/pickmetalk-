@@ -1,6 +1,7 @@
-import { getCharacterById } from "@/data";
+import { getCharacterById } from "@/lib/characters/full";
 import {
   createConversation,
+  deleteAllUserConversations,
   touchCharacterSelection,
 } from "@/lib/db/conversations";
 import { mapConversation } from "@/lib/db/mappers";
@@ -82,6 +83,34 @@ export async function POST(request: Request) {
     return NextResponse.json({ conversation });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "대화방 생성 실패";
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
+}
+
+/** DELETE — 전체 대화 삭제 (?all=true) */
+export async function DELETE(request: Request) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
+  }
+
+  const { searchParams } = new URL(request.url);
+  if (searchParams.get("all") !== "true") {
+    return NextResponse.json(
+      { error: "전체 삭제는 ?all=true 가 필요합니다." },
+      { status: 400 }
+    );
+  }
+
+  try {
+    const result = await deleteAllUserConversations(supabase, user.id);
+    return NextResponse.json({ ok: true, ...result });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "대화 삭제 실패";
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

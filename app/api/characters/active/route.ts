@@ -1,4 +1,4 @@
-import { getCharacterById } from "@/data";
+import { getCharacterById } from "@/lib/characters/full";
 import { activeCharacterQuery, recentConversationQuery } from "@/lib/activeCharacter";
 import { mapCharacterState, mapConversation } from "@/lib/db/mappers";
 import { createClient } from "@/lib/supabase/server";

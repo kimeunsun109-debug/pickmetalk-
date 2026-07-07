@@ -1,18 +1,29 @@
 import { markBrowserSessionActive } from "@/lib/auth/browserSession";
 import { characterChatPath, resolveCharacterId } from "@/lib/chatRoute";
+import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 
-/** 캐릭터 채팅으로 이동 — hard navigation으로 캐시·이전 상태 제거 */
+/** 캐릭터 채팅 URL (Link·router.push용) */
+export function characterChatHref(
+  characterId: string,
+  conversationId?: string
+): string {
+  return characterChatPath(resolveCharacterId(characterId), conversationId);
+}
+
+/** 클라이언트 소프트 네비게이션 — hard reload 제거 */
 export function goToCharacterChat(
+  router: AppRouterInstance,
   characterId: string,
   conversationId?: string
 ) {
   markBrowserSessionActive();
-  const safeCharacterId = resolveCharacterId(characterId);
-  const path = characterChatPath(safeCharacterId, conversationId);
-  window.location.href = `${path}${path.includes("?") ? "&" : "?"}_=${Date.now()}`;
+  const href = characterChatHref(characterId, conversationId);
+  router.prefetch(href);
+  router.push(href);
 }
 
 /** @deprecated conversationId만으로 이동 — characterId URL 사용 권장 */
-export function goToConversation(conversationId: string) {
-  window.location.href = `/chat/${conversationId}?_=${Date.now()}`;
+export function goToConversation(router: AppRouterInstance, conversationId: string) {
+  markBrowserSessionActive();
+  router.push(`/chat/${conversationId}`);
 }

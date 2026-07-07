@@ -1,4 +1,4 @@
-import { getCharacterById } from "@/data";
+import { getCharacterById } from "@/lib/characters/full";
 import { getCharacterIdentity } from "@/data/characterIdentities";
 import { formatEmotionForPrompt, getEmotionMeta, normalizeEmotion } from "@/lib/emotions";
 import { getRelationshipStage } from "@/lib/relationship";

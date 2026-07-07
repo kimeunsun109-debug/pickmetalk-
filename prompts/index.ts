@@ -1,8 +1,10 @@
-import { getCharacterById } from "@/data";
+import { getCharacterById } from "@/lib/characters/full";
 import {
   buildDialogueEngineRules,
   buildRecentDialogueGuard,
   buildSessionContinuityRules,
+  buildConversationNudgeRules,
+  buildFreshStartRules,
   generateBaseSystemPrompt,
   MEMORY_PROMPT_RULES,
 } from "./base";
@@ -22,19 +24,26 @@ import type { UserSpeechProfile } from "@/services/speechStyle";
 import type { TimeAwareContext } from "@/services/timeContext";
 import type { EmotionState, Message, RelationshipLevel } from "@/types";
 
+const MEMORY_SUMMARY_LINE_CAP = 5;
+const MEMORY_SUMMARY_LINE_THRESHOLD = 10;
+
 export interface BuildSystemPromptOptions {
   voiceAbVariant?: VoiceAbVariant | null;
+  freshChatStart?: boolean;
+}
+
+function limitMemorySummaryBlock(memorySummary: string | null): string {
+  if (!memorySummary?.trim()) return "";
+  const lines = memorySummary.trim().split("\n");
+  const body =
+    lines.length > MEMORY_SUMMARY_LINE_THRESHOLD
+      ? lines.slice(0, MEMORY_SUMMARY_LINE_CAP).join("\n")
+      : memorySummary.trim();
+  return `${MEMORY_PROMPT_RULES}\n\n[기억 요약]\n${body}`;
 }
 
 /**
- * 최종 시스템 프롬프트 — 캐릭터 + 감정 + 호감도 + 관계 레벨 + 동적 컨텍스트
- *
- * 주입 순서 (LLM이 먼저 읽는 것이 가장 중요):
- * 1. dynamicContextBlock  — 유저 메타 + 캐릭터별 스탯 (매 턴 최신화)
- * 2. memoryPriorityHints  — work/hobby 필수 회수 힌트
- * 3. baseBlock            — 공통 정체성·규칙
- * 4. characterBlock       — 캐릭터 개별 성격·규칙
- * 5. memory               — 기억 요약 원본
+ * Tier 기반 시스템 프롬프트 + 성격 A/B·센스·모멘텀 블록
  */
 export function buildSystemPrompt(
   characterId: string,
@@ -50,9 +59,18 @@ export function buildSystemPrompt(
   speechProfile: UserSpeechProfile | null = null,
   latestUserMessage = "",
   timeContext: TimeAwareContext | null = null,
-  options?: BuildSystemPromptOptions
+  freshChatStartOrOptions: boolean | BuildSystemPromptOptions = false
 ): string {
+  const options: BuildSystemPromptOptions =
+    typeof freshChatStartOrOptions === "boolean"
+      ? { freshChatStart: freshChatStartOrOptions }
+      : freshChatStartOrOptions;
+  const freshChatStart = options.freshChatStart ?? false;
+
   const character = getCharacterById(characterId);
+  const characterName = character?.name ?? "캐릭터";
+  const inAcuteEmotion = emotion === "hurt" || emotion === "pouty";
+
   const characterBlock = buildCharacterPromptById(
     characterId,
     emotion,
@@ -61,64 +79,82 @@ export function buildSystemPrompt(
   );
   const baseBlock = generateBaseSystemPrompt({
     characterId,
-    characterName: character?.name ?? "캐릭터",
+    characterName,
     emotion,
     emotionDurationTurns,
     relationshipLevel: level,
   });
+
+  const momentBlock = buildMomentContextBlock(latestUserMessage, recentMessages);
+  const voiceAbBlock = buildVoiceAbOverlay(options.voiceAbVariant);
+  const witBlock = buildWitAndRecoveryRules(characterId);
+
+  const tier1 = [
+    baseBlock,
+    characterBlock,
+    buildDialogueEngineRules(characterId, characterName),
+    buildRecentDialogueGuard(recentMessages),
+  ];
+
+  const tier2: string[] = [];
+  if (momentBlock) tier2.push(momentBlock);
+  if (voiceAbBlock) tier2.push(voiceAbBlock);
+  if (witBlock) tier2.push(witBlock);
+
+  if (freshChatStart) {
+    tier2.push(buildFreshStartRules());
+  }
+  tier2.push(buildConversationNudgeRules());
+
+  const trimmedDynamic = dynamicContextBlock.trim();
+  if (trimmedDynamic) {
+    tier2.push(trimmedDynamic);
+  }
+
+  if (inAcuteEmotion || ongoingSession) {
+    tier2.push(
+      buildSessionContinuityRules({
+        ongoingSession,
+        userMessageCount,
+        absenceTier: timeContext?.absence.tier,
+        narrativePauseReturn: timeContext?.absence.narrativePauseReturn,
+      })
+    );
+  }
+
+  const speechStyleBlock = buildSpeechStylePromptBlock(speechProfile);
+  if (speechStyleBlock) tier2.push(speechStyleBlock);
+
   const memoryPriorityHints = getContextMemoryPrompt(memorySummary ?? null, {
     userMessageCount,
     emotion,
     emotionDurationTurns,
     ongoingSession,
   });
-  const memory = memorySummary?.trim()
-    ? `${MEMORY_PROMPT_RULES}\n\n[기억 요약]\n${memorySummary.trim()}`
-    : "";
+  if (memoryPriorityHints) tier2.push(memoryPriorityHints);
 
-  const sessionContinuityRules = buildSessionContinuityRules({
-    ongoingSession,
-    userMessageCount,
-    absenceTier: timeContext?.absence.tier,
-    narrativePauseReturn: timeContext?.absence.narrativePauseReturn,
-  });
-  const recentDialogueGuard = buildRecentDialogueGuard(recentMessages);
-  const dialogueEngineRules = buildDialogueEngineRules(
-    characterId,
-    character?.name ?? "캐릭터"
-  );
-  const speechStyleBlock = buildSpeechStylePromptBlock(speechProfile);
-  const toppingBlock = buildCharacterToppingBlock(characterId);
-  const kickLineHint = buildKickLineHint({
-    characterId,
-    userMessage: latestUserMessage,
-    turnCount: userMessageCount,
-  });
+  const tier3: string[] = [];
+  if (userMessageCount < 12) {
+    tier3.push(buildMealAndContextRules());
+    const topping = buildCharacterToppingBlock(characterId);
+    if (topping) tier3.push(topping);
+  }
 
-  const topicGuides = buildCharacterTopicGuides(characterId);
-  const mealContextRules = buildMealAndContextRules();
-  const voiceAbBlock = buildVoiceAbOverlay(options?.voiceAbVariant);
-  const momentBlock = buildMomentContextBlock(latestUserMessage, recentMessages);
-  const witBlock = buildWitAndRecoveryRules(characterId);
+  if (userMessageCount <= 10) {
+    const kickLineHint = buildKickLineHint({
+      characterId,
+      userMessage: latestUserMessage,
+      turnCount: userMessageCount,
+    });
+    if (kickLineHint) tier3.push(kickLineHint);
+  }
 
-  return [
-    dynamicContextBlock,
-    momentBlock,
-    dialogueEngineRules,
-    mealContextRules,
-    voiceAbBlock,
-    characterBlock,
-    toppingBlock,
-    witBlock,
-    topicGuides,
-    baseBlock,
-    speechStyleBlock,
-    sessionContinuityRules,
-    recentDialogueGuard,
-    kickLineHint,
-    memoryPriorityHints,
-    memory,
-  ]
-    .filter(Boolean)
-    .join("\n\n");
+  if (userMessageCount >= 2) {
+    const topicGuides = buildCharacterTopicGuides(characterId);
+    if (topicGuides) tier3.push(topicGuides);
+  }
+
+  const memory = limitMemorySummaryBlock(memorySummary ?? null);
+
+  return [...tier1, ...tier2, ...tier3, memory].filter(Boolean).join("\n\n");
 }

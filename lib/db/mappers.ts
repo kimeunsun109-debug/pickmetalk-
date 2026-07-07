@@ -76,6 +76,14 @@ export function mapUserProfile(row: Record<string, unknown>): UserProfile {
     dailyMessageResetAt: row.daily_message_reset_at as string,
     userContext: (row.user_context as Record<string, string>) ?? {},
     speechProfile: (row.speech_profile as Record<string, unknown> | null) ?? null,
+    gender: (row.gender as string | null) ?? null,
+    birthDate: (row.birth_date as string | null) ?? null,
+    mbti: (row.mbti as string | null) ?? null,
+    idealType: (row.ideal_type as string | null) ?? null,
+    privacyConsentAt: (row.privacy_consent_at as string | null) ?? null,
+    termsConsentAt: (row.terms_consent_at as string | null) ?? null,
+    onboardingCompletedAt: (row.onboarding_completed_at as string | null) ?? null,
+    chatHistoryResetAt: (row.chat_history_reset_at as string | null) ?? null,
   };
 }
 
@@ -92,6 +100,8 @@ export function mapConversation(row: Record<string, unknown>): Conversation {
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
     lastMessageAt: (row.last_message_at as string | null) ?? null,
+    lastMessagePreview: (row.last_message_preview as string | null) ?? null,
+    lastMessageRole: (row.last_message_role as "user" | "assistant" | null) ?? null,
   };
 }
 

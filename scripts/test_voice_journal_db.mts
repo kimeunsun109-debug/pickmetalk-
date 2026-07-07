@@ -79,7 +79,7 @@ async function main() {
 
   if (error) {
     console.error("❌ 저널 테이블 없음/조회 실패:", error.message);
-    console.error("   npx supabase db push (007_chat_voice_journal.sql)");
+    console.error("   npx supabase db push (010_chat_voice_journal.sql)");
     process.exit(1);
   }
 

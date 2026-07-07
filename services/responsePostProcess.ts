@@ -10,16 +10,12 @@ export function stripParentheticalNarration(text: string): string {
   return stripped.replace(/[ \t]{2,}/g, " ").trim();
 }
 
-/** 응답당 '...' / '…' 최대 1회 */
+/** 응답당 말줄임표 제거 — 정말 필요할 때만 프롬프트에서 유도 */
 export function limitEllipsis(text: string): string {
-  let count = 0;
-  return text.replace(ELLIPSIS_PATTERN, (match) => {
-    count += 1;
-    if (count === 1) {
-      return match.includes(".") ? "..." : "…";
-    }
-    return "";
-  });
+  return text
+    .replace(ELLIPSIS_PATTERN, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }
 
 /** 후속 유형 추론 — done 이벤트 메타용 */
@@ -35,11 +31,12 @@ export function postProcessAssistantReply(text: string): {
   text: string;
   follow_up: ChatFollowUp;
 } {
+  const trimmedInput = text.trim();
   const normalized = limitEllipsis(
-    stripParentheticalNarration(text.trim())
+    stripParentheticalNarration(trimmedInput)
   );
   return {
-    text: normalized || "…",
-    follow_up: detectFollowUp(normalized),
+    text: normalized || trimmedInput || "잠깐만, 다시 말해줄게.",
+    follow_up: detectFollowUp(normalized || trimmedInput),
   };
 }

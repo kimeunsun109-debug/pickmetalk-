@@ -21,7 +21,8 @@ export async function fetchLastMessagePreviews(
     .eq("user_id", userId)
     .in("conversation_id", conversationIds)
     .in("role", ["user", "assistant"])
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(Math.min(conversationIds.length * 8, 400));
 
   if (error || !data) return map;
 

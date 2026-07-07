@@ -78,11 +78,21 @@ Optional: `SUPABASE_SERVICE_ROLE_KEY`, `DEEPSEEK_BASE_URL`, `TAVILY_API_KEY`.
 - **Network egress in Cursor Cloud**: outbound to `api.deepseek.com`, `*.supabase.co`, and
   Docker registries may be blocked by default. `npx supabase start` and live API calls need
   allowlist entries. Lint, build, and the dev server work offline.
+- **Supabase** `ap-northeast-2` (Seoul) — Vercel Functions는 `vercel.json` `icn1` 사용.
+  미설정 시 Supabase RTT 300–600ms 가능. `docs/VERCEL_DEPLOY.md`, `scripts/check_regions.mts`.
 
 ### Hello-world flow (when creds + egress are available)
 
 `/login` → `/characters` (pick 유나·나린·윤서·은하·지유) → `/chat` (streaming DeepSeek reply;
 affection +1 per round trip).
+
+### UX batch (2026-07)
+
+- Character taglines + `data/characters-public.json` (client-safe; full prompts in `lib/characters/full.ts`)
+- Signup: nickname/gender/DOB required; migration `008_user_profile_signup.sql` — run `npx supabase db push` when linked
+- **Migration sync:** `npx tsx scripts/verify_supabase_migrations.mts` — local `007_`/`008_` files must match remote `schema_migrations`. Remote pooler: `aws-1-ap-northeast-2.pooler.supabase.com`. CLI `db push` needs legacy `sbp_0102...` token + DB password; Cloud may use Management API instead.
+- Chat: onboarding prologue, assistant action bar, delete-all conversations (`DELETE /api/conversations?all=true`)
+- Single-device session: `DeviceSessionGuard` + `profiles.active_device_session`
 
 ## Do not
 

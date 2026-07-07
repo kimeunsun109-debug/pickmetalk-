@@ -1,6 +1,5 @@
 import { ConversationListClient } from "@/components/conversations/ConversationListClient";
 import { characters } from "@/data";
-import { fetchLastMessagePreviews } from "@/lib/db/conversationPreviews";
 import { mapConversation } from "@/lib/db/mappers";
 import { truncatePreview } from "@/lib/formatMessageTime";
 import { createClient } from "@/lib/supabase/server";
@@ -38,23 +37,21 @@ export default async function ConversationsPage({
   const { data: rows } = await query;
   const conversations = (rows ?? []).map((r) => mapConversation(r));
 
-  const previewMap = await fetchLastMessagePreviews(
-    supabase,
-    user.id,
-    conversations.map((c) => c.id)
-  );
-
   const conversationsWithPreview = conversations.map((conv) => {
-    const preview = previewMap.get(conv.id);
     const characterName =
       characters.find((c) => c.id === conv.characterId)?.name ?? conv.characterId;
+    const previewText = conv.lastMessagePreview;
     const prefix =
-      preview?.role === "user" ? "나: " : preview ? `${characterName}: ` : "";
+      conv.lastMessageRole === "user"
+        ? "나: "
+        : previewText
+          ? `${characterName}: `
+          : "";
 
     return {
       ...conv,
-      lastMessagePreview: preview
-        ? `${prefix}${truncatePreview(preview.content)}`
+      lastMessagePreview: previewText
+        ? `${prefix}${truncatePreview(previewText)}`
         : null,
     };
   });

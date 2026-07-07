@@ -1,11 +1,11 @@
 import { getConversationForUser } from "@/lib/db/conversations";
+import { MESSAGE_LIST_COLUMNS } from "@/lib/db/messages";
 import { mapMessage } from "@/lib/db/mappers";
+import { CHAT_MESSAGE_LIST_LIMIT } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
-const MESSAGE_LIMIT = 200;
-
-/** GET — 대화방별 최근 메시지 (스크롤 복원용, 최대 200개) */
+/** GET — 대화방별 최근 메시지 (스크롤 복원용) */
 export async function GET(request: Request) {
   const supabase = await createClient();
   const {
@@ -34,12 +34,12 @@ export async function GET(request: Request) {
 
   const { data, error } = await supabase
     .from("messages")
-    .select("*")
+    .select(MESSAGE_LIST_COLUMNS)
     .eq("user_id", user.id)
     .eq("conversation_id", conversationId)
     .in("role", ["user", "assistant"])
     .order("created_at", { ascending: false })
-    .limit(MESSAGE_LIMIT);
+    .limit(CHAT_MESSAGE_LIST_LIMIT);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

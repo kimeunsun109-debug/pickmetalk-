@@ -1,9 +1,10 @@
 "use client";
 
-import { goToCharacterChat } from "@/lib/navigateChat";
+import { characterChatHref, goToCharacterChat } from "@/lib/navigateChat";
 import { resolveCharacterId } from "@/lib/chatRoute";
-import type { Character, Conversation } from "@/types";
+import type { Conversation, PublicCharacter } from "@/types";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { CharacterCard } from "./CharacterCard";
 
@@ -12,31 +13,29 @@ export function CharacterSelectClient({
   characters,
   activeCharacterId,
 }: {
-  characters: Character[];
+  characters: PublicCharacter[];
   activeCharacterId: string | null;
 }) {
+  const router = useRouter();
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [pickerCharacter, setPickerCharacter] = useState<Character | null>(null);
+  const [pickerCharacter, setPickerCharacter] = useState<PublicCharacter | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [pickerLoading, setPickerLoading] = useState(false);
 
-  async function selectCharacter(character: Character) {
+  async function selectCharacter(character: PublicCharacter) {
     const characterId = resolveCharacterId(character.id);
+    router.prefetch(characterChatHref(characterId));
     setLoadingId(characterId);
     setError(null);
     setPickerLoading(true);
 
     try {
-      const selectRes = await fetch("/api/characters/select", {
+      void fetch("/api/characters/select", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ characterId }),
       });
-      if (!selectRes.ok) {
-        const err = await selectRes.json();
-        throw new Error(err.error ?? "캐릭터 선택에 실패했습니다.");
-      }
 
       const res = await fetch(`/api/conversations?characterId=${characterId}`, {
         cache: "no-store",
@@ -48,16 +47,15 @@ export function CharacterSelectClient({
 
       const convs: Conversation[] = data.conversations ?? [];
 
-      if (convs.length === 0) {
-        goToCharacterChat(characterId);
+      if (convs.length <= 1) {
+        goToCharacterChat(router, characterId, convs[0]?.id);
         return;
       }
 
       setConversations(convs);
       setPickerCharacter({ ...character, id: characterId });
     } catch {
-      // API 실패해도 채팅 화면은 열기
-      goToCharacterChat(characterId);
+      goToCharacterChat(router, characterId);
     } finally {
       setLoadingId(null);
       setPickerLoading(false);
@@ -78,7 +76,7 @@ export function CharacterSelectClient({
         throw new Error(data.error ?? "새 대화를 만들지 못했습니다.");
       }
       setPickerCharacter(null);
-      goToCharacterChat(characterId, data.conversation.id);
+      goToCharacterChat(router, characterId, data.conversation.id);
     } catch (e) {
       setError(
         e instanceof Error ? e.message : "오류가 발생했습니다. 다시 시도해주세요."
@@ -90,7 +88,7 @@ export function CharacterSelectClient({
 
   function continueConversation(characterId: string, conversationId: string) {
     setPickerCharacter(null);
-    goToCharacterChat(characterId, conversationId);
+    goToCharacterChat(router, characterId, conversationId);
   }
 
   return (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useChat } from "@/contexts/ChatProvider";
+import { useChatMeta } from "@/contexts/ChatProvider";
 import { goToCharacterChat } from "@/lib/navigateChat";
 import {
   affectionProgressBlocks,
@@ -8,15 +8,19 @@ import {
 } from "@/lib/relationship";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { memo, useEffect, useRef, useState } from "react";
 
 interface ChatHeaderProps {
   conversationTitle?: string;
 }
 
-export function ChatHeader({ conversationTitle }: ChatHeaderProps) {
+export const ChatHeader = memo(function ChatHeader({
+  conversationTitle,
+}: ChatHeaderProps) {
+  const router = useRouter();
   const { character, characterId, emotion, affection, relationshipLevel } =
-    useChat();
+    useChatMeta();
 
   const stage = getRelationshipStage(affection);
   const { filled, total, percent } = affectionProgressBlocks(affection);
@@ -60,7 +64,7 @@ export function ChatHeader({ conversationTitle }: ChatHeaderProps) {
       if (!res.ok) {
         throw new Error(data.error ?? "새 대화를 만들 수 없습니다.");
       }
-      goToCharacterChat(characterId, data.conversation.id);
+      goToCharacterChat(router, characterId, data.conversation.id);
     } catch (e) {
       setCreateError(
         e instanceof Error
@@ -188,4 +192,4 @@ export function ChatHeader({ conversationTitle }: ChatHeaderProps) {
       </div>
     </header>
   );
-}
+});

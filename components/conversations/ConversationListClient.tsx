@@ -1,6 +1,6 @@
 "use client";
 
-import { characterChatPath } from "@/lib/chatRoute";
+import { characterChatHref } from "@/lib/navigateChat";
 import type { Conversation } from "@/types";
 import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
@@ -42,6 +42,8 @@ export function ConversationListClient({
 }: Props) {
   const [items, setItems] = useState(conversations);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deletingAll, setDeletingAll] = useState(false);
+  const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const suppressNextClickRef = useRef(false);
@@ -64,6 +66,27 @@ export function ConversationListClient({
     if (!res.ok) {
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       throw new Error(data.error ?? "대화를 삭제하지 못했습니다.");
+    }
+  }
+
+  async function handleDeleteAll() {
+    setDeletingAll(true);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/conversations?all=true", {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(data.error ?? "대화를 삭제하지 못했습니다.");
+      }
+      setItems([]);
+      setShowDeleteAllConfirm(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "대화를 삭제하지 못했습니다.");
+    } finally {
+      setDeletingAll(false);
     }
   }
 
@@ -140,18 +163,13 @@ export function ConversationListClient({
               key={conv.id}
               className={index > 0 ? "border-t border-gray-50" : undefined}
             >
-              <div
-                role="link"
-                tabIndex={0}
-                onClick={() => {
+              <Link
+                href={characterChatHref(conv.characterId, conv.id)}
+                onClick={(event) => {
                   if (suppressNextClickRef.current) {
+                    event.preventDefault();
                     suppressNextClickRef.current = false;
-                    return;
                   }
-                  window.location.href = characterChatPath(
-                    conv.characterId,
-                    conv.id
-                  );
                 }}
                 onContextMenu={(event) => {
                   event.preventDefault();
@@ -161,14 +179,6 @@ export function ConversationListClient({
                 onPointerUp={clearLongPressTimer}
                 onPointerLeave={clearLongPressTimer}
                 onPointerCancel={clearLongPressTimer}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    window.location.href = characterChatPath(
-                      conv.characterId,
-                      conv.id
-                    );
-                  }
-                }}
                 className={`flex cursor-pointer items-center gap-3 px-4 py-3.5 transition-colors active:bg-gray-50 ${
                   deletingId === conv.id ? "opacity-50" : ""
                 }`}
@@ -190,7 +200,7 @@ export function ConversationListClient({
                     {preview}
                   </p>
                 </div>
-              </div>
+              </Link>
             </li>
           );
         })}
@@ -199,6 +209,51 @@ export function ConversationListClient({
       <p className="mt-3 text-center text-[10px] text-gray-400">
         대화를 길게 누르면 삭제할 수 있어요
       </p>
+
+      <button
+        type="button"
+        disabled={deletingAll}
+        onClick={() => setShowDeleteAllConfirm(true)}
+        className="mt-4 w-full rounded-xl border border-red-200 py-3 text-sm text-red-500 disabled:opacity-50"
+      >
+        전체 대화 삭제
+      </button>
+
+      {showDeleteAllConfirm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          role="dialog"
+          aria-modal
+          aria-label="전체 대화 삭제 확인"
+        >
+          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl">
+            <p className="text-base font-semibold text-gray-900">
+              대화를 모두 삭제할까요?
+            </p>
+            <p className="mt-2 text-sm text-gray-600">
+              대화 내용을 삭제하면 다시 복구할 수 없습니다. 프로필·기본 설정은
+              유지되며, 새 대화를 시작하게 됩니다.
+            </p>
+            <div className="mt-5 flex gap-2">
+              <button
+                type="button"
+                className="flex-1 rounded-full border py-2.5 text-sm text-gray-600"
+                onClick={() => setShowDeleteAllConfirm(false)}
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                disabled={deletingAll}
+                className="flex-1 rounded-full bg-red-500 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+                onClick={() => void handleDeleteAll()}
+              >
+                {deletingAll ? "삭제 중..." : "삭제"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -21,13 +21,21 @@ Cloud Agent는 **main** 브랜치를 clone 합니다.
 
 ## 3. DB 마이그레이션
 
-새 테이블 `user_daily_patterns` 포함:
+마이그레이션 파일: `supabase/migrations/` (003–008). 유저 프로필 확장은 **`008_user_profile_signup.sql`** (`public.profiles` 테이블).
 
 ```bash
-# Supabase CLI 연결 후
-npx supabase db push
-# 또는 SQL Editor에서 supabase/migrations/006_user_daily_patterns.sql 실행
+# 로컬 CLI (Dashboard Access Token sbp_0102... 형식 + DB 비밀번호 필요)
+npx supabase login --token "$SUPABASE_ACCESS_TOKEN"
+npx supabase link --project-ref <ref> -p "$SUPABASE_DB_PASSWORD"
+npx supabase db push --yes
+
+# Cloud VM: IPv6/Pooler 제한 시 Management API로 배포 (이미 007·008 적용됨)
+npx tsx scripts/verify_supabase_migrations.mts
 ```
+
+**원격 히스토리 정렬:** API로 적용된 타임스탬프 버전(`20260705...`)은 `007`/`008`로 `schema_migrations`에서 rename 완료. 로컬 파일명과 원격 version이 일치해야 `db push`가 스킵/동기화됩니다.
+
+Pooler 호스트(이 프로젝트): `aws-1-ap-northeast-2.pooler.supabase.com:6543` (Dashboard → Connect 참고).
 
 ## 4. 블로그 자동화 (`blog/`)
 

@@ -1,7 +1,8 @@
-import { getCharacterById } from "@/data";
+import { getCharacterById } from "@/lib/characters/full";
 import { streamDeepSeekChat } from "@/lib/ai/deepseek";
 import { getConversationForUser } from "@/lib/db/conversations";
-import { getDailyPatternsForUser } from "@/lib/db/dailyPatterns";
+import { MESSAGE_LIST_COLUMNS } from "@/lib/db/messages";
+import { updateConversationLastMessage } from "@/lib/db/updateConversationPreview";
 import { mapCharacterState, mapMessage, mapUserProfile } from "@/lib/db/mappers";
 import { createClient } from "@/lib/supabase/server";
 import { buildSystemPrompt } from "@/prompts";
@@ -23,7 +24,6 @@ import {
   CHAT_CONTEXT_TURNS,
   CHAT_STREAM_FIRST_CHUNK_MS,
 } from "@/lib/constants";
-import { getSearchContextForMessage } from "@/services/search";
 import { getStreamFallback } from "@/services/chatFallback";
 import { postProcessAssistantReply } from "@/services/responsePostProcess";
 import {
@@ -36,10 +36,13 @@ import {
   buildTimeAwareContext,
   buildTimeContextPromptBlock,
 } from "@/services/timeContext";
-import { buildDailyPatternPromptBlock } from "@/prompts/patternNudges";
+import { ServerPerfTrace } from "@/lib/perf/trace";
 import type { ChatRequestBody } from "@/types/api";
 import type { Message, UserCharacterState } from "@/types";
-import { NextResponse } from "next/server";
+import type {
+  PostgrestResponse,
+  PostgrestSingleResponse,
+} from "@supabase/supabase-js";
 
 const CONTEXT_LIMIT = CHAT_CONTEXT_TURNS;
 const HISTORY_FETCH_LIMIT = 40;
@@ -48,70 +51,13 @@ const HISTORY_FETCH_LIMIT = 40;
  * POST /api/chat — DeepSeek 스트리밍 + 대화방별 메시지·호감도 저장
  * Body: { conversationId, message }
  *
- * TTFB 최적화: 사용자 메시지 저장 직후 SSE Response를 반환하고,
- * 프롬프트 준비·LLM 호출은 stream.start() 안에서 처리한다.
+ * TTFB: pre-stream await 없이 즉시 SSE Response 반환.
+ * body 파싱·auth·DB·프롬프트·LLM은 stream.start() 안에서 처리한다.
  */
 export async function POST(request: Request) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
-  }
-
-  let body: ChatRequestBody;
-  try {
-    body = (await request.json()) as ChatRequestBody;
-  } catch {
-    return NextResponse.json({ error: "잘못된 요청" }, { status: 400 });
-  }
-
-  const { conversationId, message } = body;
-  if (!conversationId || !message?.trim()) {
-    return NextResponse.json(
-      { error: "conversationId와 message가 필요합니다." },
-      { status: 400 }
-    );
-  }
-
-  const conversation = await getConversationForUser(
-    supabase,
-    user.id,
-    conversationId
-  );
-  if (!conversation) {
-    return NextResponse.json({ error: "대화방을 찾을 수 없습니다." }, { status: 404 });
-  }
-
-  const characterId = conversation.characterId;
-  const character = getCharacterById(characterId);
-  if (!character) {
-    return NextResponse.json({ error: "캐릭터 없음" }, { status: 404 });
-  }
-
-  const userText = message.trim();
-  const now = new Date().toISOString();
-
-  const { data: userMessageRow, error: userMsgError } = await supabase
-    .from("messages")
-    .insert({
-      user_id: user.id,
-      character_id: characterId,
-      conversation_id: conversationId,
-      role: "user",
-      content: userText,
-    })
-    .select("id")
-    .single();
-
-  if (userMsgError) {
-    return NextResponse.json({ error: userMsgError.message }, { status: 500 });
-  }
-
-  const userMessageId = userMessageRow?.id ?? null;
+  const trace = new ServerPerfTrace("AI Response");
   const encoder = new TextEncoder();
+  trace.mark("Pre-stream setup", "SSE Response 반환 직전");
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -124,32 +70,171 @@ export async function POST(request: Request) {
       let gotModelChunk = false;
       let fallbackUsed = false;
       let streamTimeout: ReturnType<typeof setTimeout> | undefined;
+      let chunkBuffer = "";
+      let flushTimer: ReturnType<typeof setTimeout> | null = null;
+
+      const flushChunkBuffer = () => {
+        if (chunkBuffer && !fallbackUsed) {
+          send({ content: chunkBuffer });
+          chunkBuffer = "";
+        }
+        if (flushTimer) {
+          clearTimeout(flushTimer);
+          flushTimer = null;
+        }
+      };
+
+      const enqueueChunk = (chunk: string) => {
+        if (fallbackUsed) return;
+        chunkBuffer += chunk;
+        if (!flushTimer) {
+          flushTimer = setTimeout(flushChunkBuffer, 50);
+        }
+      };
 
       try {
+        send({ streaming: true });
+
+        let body: ChatRequestBody;
+        try {
+          body = (await request.json()) as ChatRequestBody;
+        } catch {
+          send({ error: "잘못된 요청", done: true });
+          return;
+        }
+
+        const { conversationId, message, resend } = body;
+        if (!conversationId || !message?.trim()) {
+          send({
+            error: "conversationId와 message가 필요합니다.",
+            done: true,
+          });
+          return;
+        }
+
+        const userText = message.trim();
+
+        const supabase = await createClient();
+        const { data: claimsData } = await supabase.auth.getClaims();
+        const userId = claimsData?.claims?.sub as string | undefined;
+        trace.mark("Auth getClaims");
+
+        if (!userId) {
+          send({ error: "로그인이 필요합니다.", done: true });
+          return;
+        }
+        const conversation = await trace.span("Load Conversation", () =>
+          getConversationForUser(supabase, userId, conversationId)
+        );
+
+        if (!conversation) {
+          send({ error: "대화방을 찾을 수 없습니다.", done: true });
+          return;
+        }
+
+        const characterId = conversation.characterId;
+        const character = getCharacterById(characterId);
+        trace.mark("Load Character", `${characterId}`);
+        if (!character) {
+          send({ error: "캐릭터 없음", done: true });
+          return;
+        }
+
+        const now = new Date().toISOString();
+
         const [
           profileResult,
           historyResult,
           ucsResult,
-          searchBlock,
-          inferredPatterns,
-        ] = await Promise.all([
-          supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
-          supabase
+          shortTermMemoryBlock,
+        ] = await trace.span<
+          [
+            PostgrestSingleResponse<Record<string, unknown>>,
+            PostgrestResponse<Record<string, unknown>>,
+            PostgrestSingleResponse<Record<string, unknown>>,
+            string,
+          ]
+        >("Parallel DB — context load", async () => {
+          const shortTermPromise = (async (): Promise<string> => {
+            if (!ENABLE_SHORT_TERM_MEMORY) return "";
+            try {
+              const {
+                buildShortTermMemoryContextBlock,
+                getActiveShortTermMemories,
+              } = await import("@/lib/db/shortTermMemories");
+              const activeShortTermMemories = await getActiveShortTermMemories(
+                supabase,
+                userId,
+                now
+              );
+              return buildShortTermMemoryContextBlock(activeShortTermMemories);
+            } catch {
+              return "";
+            }
+          })();
+
+          return Promise.all([
+            supabase
+              .from("profiles")
+              .select("*")
+              .eq("id", userId)
+              .maybeSingle(),
+            supabase
+              .from("messages")
+              .select(MESSAGE_LIST_COLUMNS)
+              .eq("conversation_id", conversationId)
+              .in("role", ["user", "assistant"])
+              .order("created_at", { ascending: true })
+              .limit(HISTORY_FETCH_LIMIT),
+            supabase
+              .from("user_character_states")
+              .select("*")
+              .eq("user_id", userId)
+              .eq("character_id", characterId)
+              .maybeSingle(),
+            shortTermPromise,
+          ]);
+        });
+
+        let userMessageId: string | null = null;
+
+        if (!resend) {
+          const { data: userMessageRow, error: userMsgError } = await supabase
             .from("messages")
-            .select("*")
-            .eq("conversation_id", conversationId)
-            .in("role", ["user", "assistant"])
-            .order("created_at", { ascending: true })
-            .limit(HISTORY_FETCH_LIMIT),
-          supabase
-            .from("user_character_states")
-            .select("*")
-            .eq("user_id", user.id)
-            .eq("character_id", characterId)
-            .maybeSingle(),
-          getSearchContextForMessage(userText).catch(() => ""),
-          getDailyPatternsForUser(supabase, user.id, 40).catch(() => []),
-        ]);
+            .insert({
+              user_id: userId,
+              character_id: characterId,
+              conversation_id: conversationId,
+              role: "user",
+              content: userText,
+            })
+            .select("id")
+            .single();
+
+          if (userMsgError) {
+            send({ error: userMsgError.message, done: true });
+            return;
+          }
+
+          userMessageId = userMessageRow?.id ?? null;
+        }
+        send({ userMessageId });
+
+        if (!resend) {
+          void updateConversationLastMessage(
+            supabase,
+            conversationId,
+            userId,
+            userText,
+            "user",
+            now
+          );
+        }
+
+        trace.mark(
+          "Memory/History load",
+          `${(historyResult.data ?? []).length} messages`
+        );
 
         const profile = profileResult.data
           ? mapUserProfile(profileResult.data)
@@ -157,6 +242,20 @@ export async function POST(request: Request) {
         const history: Message[] = (historyResult.data ?? []).map((r) =>
           mapMessage(r)
         );
+        if (userMessageId && !history.some((m) => m.id === userMessageId)) {
+          history.push({
+            id: userMessageId,
+            userId,
+            characterId,
+            conversationId,
+            role: "user",
+            content: userText,
+            createdAt: now,
+          });
+        } else if (resend) {
+          const lastUser = [...history].reverse().find((m) => m.role === "user");
+          userMessageId = lastUser?.id ?? null;
+        }
         const userContents = history
           .filter((m) => m.role === "user")
           .map((m) => m.content);
@@ -168,7 +267,7 @@ export async function POST(request: Request) {
 
         const updatedMemory = updateMemorySummary(
           conversation.summary,
-          userContents
+          userText
         );
         const { recent, summary } = pickMessagesForContext(
           history,
@@ -214,31 +313,26 @@ export async function POST(request: Request) {
           characterId
         );
 
-        const userCtx = extractUserContext(
-          updatedMemory,
-          profile?.userContext ?? {}
-        );
+        const profileCtx = {
+          ...(profile?.userContext ?? {}),
+          nickname:
+            profile?.displayName ??
+            profile?.userContext?.nickname ??
+            profile?.userContext?.name,
+          gender: profile?.gender ?? profile?.userContext?.gender,
+          birthDate: profile?.birthDate ?? profile?.userContext?.birthDate,
+          mbti: profile?.mbti ?? profile?.userContext?.mbti,
+          idealType: profile?.idealType ?? profile?.userContext?.idealType,
+        };
+        const userCtx = extractUserContext(updatedMemory, profileCtx);
         const commonCtxBlock = buildCommonContextBlock(userCtx);
 
-        let shortTermMemoryBlock = "";
-        if (ENABLE_SHORT_TERM_MEMORY && !ongoingSession) {
-          try {
-            const {
-              buildShortTermMemoryContextBlock,
-              getActiveShortTermMemories,
-            } = await import("@/lib/db/shortTermMemories");
-            const activeShortTermMemories = await getActiveShortTermMemories(
-              supabase,
-              user.id,
-              now
-            );
-            shortTermMemoryBlock = buildShortTermMemoryContextBlock(
-              activeShortTermMemories
-            );
-          } catch {
-            /* 단기기억 비활성 */
-          }
-        }
+        const freshChatStart = Boolean(
+          profile?.chatHistoryResetAt &&
+            Date.now() - new Date(profile.chatHistoryResetAt).getTime() <
+              7 * 24 * 60 * 60 * 1000 &&
+            userContents.length <= 4
+        );
 
         let characterCtxBlock = "";
         if (characterId === "yoonseo" && characterState) {
@@ -246,14 +340,8 @@ export async function POST(request: Request) {
           characterCtxBlock = buildYoonseoStatsBlock(yoonseoStats);
         }
 
-        const dailyPatternPromptBlock = buildDailyPatternPromptBlock(
-          inferredPatterns.filter((pattern) => pattern.evidenceCount >= 2)
-        );
-
         const dynamicContextBlock = [
           timeContextBlock,
-          searchBlock,
-          dailyPatternPromptBlock,
           shortTermMemoryBlock,
           commonCtxBlock,
           characterCtxBlock,
@@ -261,21 +349,25 @@ export async function POST(request: Request) {
           .filter(Boolean)
           .join("\n\n");
 
-        const systemPrompt = buildSystemPrompt(
-          characterId,
-          newEmotion,
-          newLevelPreview,
-          newAffectionPreview,
-          summary,
-          emotionDurationTurns,
-          userContents.length,
-          dynamicContextBlock,
-          ongoingSession,
-          recent,
-          speechProfile,
-          userText,
-          timeAwareCtx
+        const systemPrompt = trace.sync("Prompt Build", () =>
+          buildSystemPrompt(
+            characterId,
+            newEmotion,
+            newLevelPreview,
+            newAffectionPreview,
+            summary,
+            emotionDurationTurns,
+            userContents.length,
+            dynamicContextBlock,
+            ongoingSession,
+            recent,
+            speechProfile,
+            userText,
+            timeAwareCtx,
+            freshChatStart
+          )
         );
+        trace.mark("Prompt length", `${systemPrompt.length} chars`);
 
         const aiMessages = [
           { role: "system" as const, content: systemPrompt },
@@ -286,78 +378,112 @@ export async function POST(request: Request) {
         ];
 
         let fullReply = "";
+        const llmStart = process.hrtime.bigint();
 
         streamTimeout = setTimeout(() => {
-          if (!gotModelChunk) {
+          if (!gotModelChunk && fullReply.length === 0) {
             fallbackUsed = true;
             send({ content: getStreamFallback(characterId, userText) });
           }
         }, CHAT_STREAM_FIRST_CHUNK_MS);
 
         for await (const chunk of streamDeepSeekChat(aiMessages)) {
+          if (!gotModelChunk) {
+            const llmTtfb = Math.round(
+              Number(process.hrtime.bigint() - llmStart) / 1_000_000
+            );
+            trace.mark("DeepSeek API — first chunk", `${llmTtfb}ms`);
+          }
           gotModelChunk = true;
           if (streamTimeout) clearTimeout(streamTimeout);
           fullReply += chunk;
           if (!fallbackUsed) {
-            send({ content: chunk });
+            enqueueChunk(chunk);
           }
         }
 
         if (streamTimeout) clearTimeout(streamTimeout);
+        flushChunkBuffer();
 
         if (!gotModelChunk && !fallbackUsed) {
           fallbackUsed = true;
           send({ content: getStreamFallback(characterId, userText) });
         }
 
-        const { text: trimmed, follow_up } = postProcessAssistantReply(
-          fullReply || getStreamFallback(characterId, userText)
+        const { text: trimmed, follow_up } = trace.sync("Response Parse", () =>
+          postProcessAssistantReply(
+            fullReply || getStreamFallback(characterId, userText)
+          )
         );
 
-        if (fallbackUsed || trimmed !== fullReply.trim()) {
-          send({ content: trimmed, replace: true });
+        if (fallbackUsed) {
+          send({ content: trimmed, replace: true, clearFallback: true });
+        } else {
+          const streamed = fullReply.trim();
+          if (trimmed.length > streamed.length && trimmed.startsWith(streamed)) {
+            send({ content: trimmed.slice(streamed.length) });
+          } else if (trimmed !== streamed) {
+            send({ content: trimmed, replace: true });
+          }
         }
 
         const newAffection = newAffectionPreview;
         const newLevel = newLevelPreview;
 
-        const { data: assistantRow } = await supabase
-          .from("messages")
-          .insert({
-            user_id: user.id,
-            character_id: characterId,
-            conversation_id: conversationId,
-            role: "assistant",
-            content: trimmed,
-            emotion: newEmotion,
-          })
-          .select("id, created_at")
-          .single();
+        const { data: assistantRow } = await trace.span<{
+          data: { id: string; created_at: string } | null;
+        }>(
+          "DB Save — assistant + conversation",
+          async () => {
+            const { data: row } = await supabase
+              .from("messages")
+              .insert({
+                user_id: userId,
+                character_id: characterId,
+                conversation_id: conversationId,
+                role: "assistant",
+                content: trimmed,
+                emotion: newEmotion,
+              })
+              .select("id, created_at")
+              .single();
 
-        await Promise.all([
-          supabase
-            .from("conversations")
-            .update({
-              affection: newAffection,
-              relationship_level: newLevel,
-              emotion: newEmotion,
-              summary: updatedMemory,
-              last_message_at: now,
-              updated_at: now,
-            })
-            .eq("id", conversationId),
-          supabase
-            .from("user_character_states")
-            .update({
-              last_chat_at: now,
-              last_seen_at: now,
-            })
-            .eq("user_id", user.id)
-            .eq("character_id", characterId),
-        ]);
+            await Promise.all([
+              supabase
+                .from("conversations")
+                .update({
+                  affection: newAffection,
+                  relationship_level: newLevel,
+                  emotion: newEmotion,
+                  summary: updatedMemory,
+                  last_message_at: now,
+                  updated_at: now,
+                })
+                .eq("id", conversationId),
+              supabase
+                .from("user_character_states")
+                .update({
+                  last_chat_at: now,
+                  last_seen_at: now,
+                })
+                .eq("user_id", userId)
+                .eq("character_id", characterId),
+              updateConversationLastMessage(
+                supabase,
+                conversationId,
+                userId,
+                trimmed,
+                "assistant",
+                now
+              ),
+            ]);
+            return { data: row };
+          }
+        );
 
         send({
           done: true,
+          userMessageId: userMessageId ?? undefined,
           affection: newAffection,
           relationshipLevel: newLevel,
           emotion: newEmotion,
@@ -369,7 +495,7 @@ export async function POST(request: Request) {
 
         void runDeferredChatSideEffects({
           supabase,
-          userId: user.id,
+          userId,
           characterId,
           conversationId,
           userText,
@@ -382,6 +508,8 @@ export async function POST(request: Request) {
           assistantReply: trimmed,
           followUp: follow_up,
         });
+
+        trace.end("stream complete");
       } catch (err) {
         if (streamTimeout) clearTimeout(streamTimeout);
         const msg =
@@ -396,8 +524,9 @@ export async function POST(request: Request) {
   return new Response(stream, {
     headers: {
       "Content-Type": "text/event-stream; charset=utf-8",
-      "Cache-Control": "no-cache, no-transform",
+      "Cache-Control": "no-cache",
       Connection: "keep-alive",
+      "X-Content-Type-Options": "nosniff",
     },
   });
 }

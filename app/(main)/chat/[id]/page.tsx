@@ -1,7 +1,8 @@
 import { ChatErrorBoundary } from "@/components/chat/ChatErrorBoundary";
 import { ChatScreen } from "@/components/chat/ChatScreen";
-import { ChatProvider } from "@/contexts/ChatProvider";
-import { getCharacterById } from "@/data";
+import { ChatProvider, type ChatMessage } from "@/contexts/ChatProvider";
+import { getCharacterById } from "@/lib/characters/full";
+import { toPublicCharacter } from "@/lib/characters/public";
 import {
   createConversation,
   getConversationForCharacter,
@@ -9,13 +10,17 @@ import {
   getOrCreateRecentConversation,
   touchCharacterSelection,
 } from "@/lib/db/conversations";
+import { fetchConversationMessages } from "@/lib/db/messages";
 import {
   characterChatPath,
   isCharacterId,
   isConversationUuid,
   resolveCharacterId,
 } from "@/lib/chatRoute";
+import { normalizeEmotion } from "@/lib/emotions";
+import { ServerPerfTrace } from "@/lib/perf/trace";
 import { createClient } from "@/lib/supabase/server";
+import type { Conversation, EmotionState, RelationshipLevel } from "@/types";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -34,6 +39,7 @@ export default async function ChatPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ conversationId?: string }>;
 }) {
+  const trace = new ServerPerfTrace("Enter Chat — SSR");
   const { id } = await params;
   const { conversationId: queryConversationId } = await searchParams;
 
@@ -41,6 +47,7 @@ export default async function ChatPage({
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  trace.mark("Auth getUser");
 
   if (!user) redirect("/login");
 
@@ -64,6 +71,7 @@ export default async function ChatPage({
 
   const characterId = isCharacterId(id) ? id : resolveCharacterId(id);
   const character = getCharacterById(characterId);
+  trace.mark("Load Character", characterId);
   if (!character) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center gap-4 p-6">
@@ -78,15 +86,7 @@ export default async function ChatPage({
     );
   }
 
-  try {
-    await touchCharacterSelection(supabase, user.id, characterId);
-  } catch {
-    /* 선택 기록 실패해도 채팅은 진행 */
-  }
-
-  let conversation;
-
-  try {
+  const resolveConversation = async () => {
     if (queryConversationId) {
       const matched = await getConversationForCharacter(
         supabase,
@@ -94,25 +94,54 @@ export default async function ChatPage({
         characterId,
         queryConversationId
       );
-      if (matched) {
-        conversation = matched;
-      } else {
-        conversation = await getOrCreateRecentConversation(
-          supabase,
-          user.id,
-          characterId
-        );
-      }
-    } else {
-      conversation = await getOrCreateRecentConversation(
-        supabase,
-        user.id,
-        characterId
-      );
+      if (matched) return matched;
     }
+    return getOrCreateRecentConversation(supabase, user.id, characterId);
+  };
+
+  let conversation: Conversation;
+  let profileRow: { is_premium?: boolean; display_name?: string | null } | null =
+    null;
+  let initialMessages: ChatMessage[] = [];
+
+  try {
+    const [convResult, profileResult] = await trace.span(
+      "Resolve conversation + profile",
+      () =>
+        Promise.all([
+          resolveConversation(),
+          supabase
+            .from("profiles")
+            .select("is_premium, display_name")
+            .eq("id", user.id)
+            .maybeSingle(),
+          touchCharacterSelection(supabase, user.id, characterId).catch(
+            () => undefined
+          ),
+        ])
+    );
+
+    conversation = convResult;
+    profileRow = profileResult.data;
+
+    const history = await trace.span("Load Messages (SSR)", () =>
+      fetchConversationMessages(supabase, user.id, conversation.id)
+    );
+    initialMessages = history.map((m) => ({
+      id: m.id,
+      role: m.role as "user" | "assistant",
+      content: m.content,
+      createdAt: m.createdAt,
+    }));
   } catch {
     try {
       conversation = await createConversation(supabase, user.id, characterId);
+      const { data: profileFallback } = await supabase
+        .from("profiles")
+        .select("is_premium, display_name")
+        .eq("id", user.id)
+        .maybeSingle();
+      profileRow = profileFallback;
     } catch {
       return (
         <main className="flex min-h-screen flex-col items-center justify-center gap-4 p-6">
@@ -130,24 +159,28 @@ export default async function ChatPage({
     }
   }
 
-  const { data: profileRow } = await supabase
-    .from("profiles")
-    .select("is_premium")
-    .eq("id", user.id)
-    .maybeSingle();
-
   const isPremiumUser = profileRow?.is_premium ?? false;
+  trace.end(`${initialMessages.length} messages hydrated`);
 
   return (
     <ChatErrorBoundary>
       <ChatProvider
-        key={`${characterId}-${conversation.id}`}
-        character={character}
+        character={toPublicCharacter(character)}
         characterId={characterId}
         conversationId={conversation.id}
         isPremiumUser={isPremiumUser}
+        initialMessages={initialMessages}
+        initialAffection={conversation.affection}
+        initialRelationshipLevel={
+          conversation.relationshipLevel as RelationshipLevel
+        }
+        initialEmotion={normalizeEmotion(conversation.emotion) as EmotionState}
+        initialLastChatAt={conversation.lastMessageAt}
       >
-        <ChatScreen conversationTitle={conversation.title ?? "새 대화"} />
+        <ChatScreen
+          conversationTitle={conversation.title ?? "새 대화"}
+          userNickname={profileRow?.display_name ?? null}
+        />
       </ChatProvider>
     </ChatErrorBoundary>
   );
