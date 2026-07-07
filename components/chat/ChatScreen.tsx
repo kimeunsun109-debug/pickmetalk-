@@ -1,6 +1,7 @@
 "use client";
 
 import { ChatHeader } from "@/components/chat/ChatHeader";
+import { FreeUsageBanner } from "@/components/chat/FreeUsageBanner";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { AssistantMessageActions } from "@/components/chat/AssistantMessageActions";
 import { ChatOnboarding } from "@/components/chat/ChatOnboarding";
@@ -31,6 +32,8 @@ export function ChatScreen({
     sendMessage,
     regenerateLastReply,
     deleteMessage,
+    usageBannerMessage,
+    dismissUsageBanner,
   } = useChat();
 
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -125,7 +128,15 @@ export function ChatScreen({
 
   return (
     <div className="flex min-h-[100dvh] flex-col bg-[#b2c7d9]/30">
-      <ChatHeader conversationTitle={conversationTitle} />
+      <div className="relative">
+        {usageBannerMessage && (
+          <FreeUsageBanner
+            message={usageBannerMessage}
+            onDismiss={dismissUsageBanner}
+          />
+        )}
+        <ChatHeader conversationTitle={conversationTitle} />
+      </div>
 
       <main className="flex-1 overflow-y-auto scroll-ios pb-2">
         {showOnboarding ? (

@@ -37,6 +37,12 @@ import {
   buildTimeContextPromptBlock,
 } from "@/services/timeContext";
 import { ServerPerfTrace } from "@/lib/perf/trace";
+import {
+  canSendChatMessage,
+  ensureDailyUsageFresh,
+  tryReserveDailyMessageSlot,
+} from "@/services/dailyMessageLimit";
+import { NextResponse } from "next/server";
 import type { ChatRequestBody } from "@/types/api";
 import type { Message, UserCharacterState } from "@/types";
 import type {
@@ -55,6 +61,70 @@ const HISTORY_FETCH_LIMIT = 40;
  * body 파싱·auth·DB·프롬프트·LLM은 stream.start() 안에서 처리한다.
  */
 export async function POST(request: Request) {
+  let body: ChatRequestBody;
+  try {
+    body = (await request.json()) as ChatRequestBody;
+  } catch {
+    return NextResponse.json({ error: "잘못된 요청" }, { status: 400 });
+  }
+
+  const { conversationId, message, resend } = body;
+  if (!conversationId || !message?.trim()) {
+    return NextResponse.json(
+      { error: "conversationId와 message가 필요합니다." },
+      { status: 400 }
+    );
+  }
+
+  const supabase = await createClient();
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const userId = claimsData?.claims?.sub as string | undefined;
+  if (!userId) {
+    return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
+  }
+
+  if (!resend) {
+    const { data: profileRow } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (profileRow) {
+      const profile = mapUserProfile(profileRow);
+      const { count, isPremium } = await ensureDailyUsageFresh(
+        supabase,
+        userId,
+        profile
+      );
+      if (!isPremium) {
+        if (!canSendChatMessage(profile, count)) {
+          return NextResponse.json(
+            {
+              error: "오늘 무료 대화를 모두 사용했어요.",
+              code: "DAILY_LIMIT_REACHED",
+            },
+            { status: 429 }
+          );
+        }
+        const reserved = await tryReserveDailyMessageSlot(
+          supabase,
+          userId,
+          count
+        );
+        if (!reserved) {
+          return NextResponse.json(
+            {
+              error: "오늘 무료 대화를 모두 사용했어요.",
+              code: "DAILY_LIMIT_REACHED",
+            },
+            { status: 429 }
+          );
+        }
+      }
+    }
+  }
+
   const trace = new ServerPerfTrace("AI Response");
   const encoder = new TextEncoder();
   trace.mark("Pre-stream setup", "SSE Response 반환 직전");
@@ -95,34 +165,9 @@ export async function POST(request: Request) {
       try {
         send({ streaming: true });
 
-        let body: ChatRequestBody;
-        try {
-          body = (await request.json()) as ChatRequestBody;
-        } catch {
-          send({ error: "잘못된 요청", done: true });
-          return;
-        }
-
-        const { conversationId, message, resend } = body;
-        if (!conversationId || !message?.trim()) {
-          send({
-            error: "conversationId와 message가 필요합니다.",
-            done: true,
-          });
-          return;
-        }
-
         const userText = message.trim();
-
-        const supabase = await createClient();
-        const { data: claimsData } = await supabase.auth.getClaims();
-        const userId = claimsData?.claims?.sub as string | undefined;
         trace.mark("Auth getClaims");
 
-        if (!userId) {
-          send({ error: "로그인이 필요합니다.", done: true });
-          return;
-        }
         const conversation = await trace.span("Load Conversation", () =>
           getConversationForUser(supabase, userId, conversationId)
         );

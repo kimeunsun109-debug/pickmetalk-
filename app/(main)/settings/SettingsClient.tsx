@@ -3,6 +3,7 @@
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import { clearClientSessionData } from "@/lib/auth/clearClientSession";
 import { FREE_DAILY_MESSAGE_LIMIT } from "@/lib/constants";
+import { t } from "@/lib/i18n";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -18,6 +19,7 @@ interface SettingsClientProps {
   joinedDaysAgo: number;
   characterStates: CharacterState[];
   todayMsgCount: number;
+  isPremium: boolean;
   sessionDates: string[];
 }
 
@@ -53,10 +55,13 @@ export function SettingsClient({
   joinedDaysAgo,
   characterStates,
   todayMsgCount,
+  isPremium,
   sessionDates,
 }: SettingsClientProps) {
   const streak = calcStreak(sessionDates);
-  const remaining = Math.max(0, FREE_DAILY_MESSAGE_LIMIT - todayMsgCount);
+  const remaining = isPremium
+    ? null
+    : Math.max(0, FREE_DAILY_MESSAGE_LIMIT - todayMsgCount);
   const mostChatted = characterStates[0];
 
   // 계정 삭제 상태
@@ -80,8 +85,10 @@ export function SettingsClient({
     },
     {
       label: "오늘 메시지",
-      value: `${todayMsgCount}회`,
-      sub: `잔여 ${remaining}회`,
+      value: isPremium ? "무제한" : `${todayMsgCount}회`,
+      sub: isPremium
+        ? "Premium ⭐"
+        : t("usage.remaining", "ko", { count: remaining ?? 0 }),
       color: "bg-blue-50",
     },
     {
@@ -117,6 +124,20 @@ export function SettingsClient({
     <main className="min-h-screen bg-ivory px-4 pb-24 pt-10">
       <h1 className="mb-1 text-xl font-bold text-gray-900">설정</h1>
       <p className="mb-6 text-sm text-gray-400">{email}</p>
+
+      {!isPremium && (
+        <section className="mb-6 rounded-2xl border border-pink-200 bg-white p-4 shadow-sm">
+          <p className="text-sm font-semibold text-gray-900">
+            ⭐ Premium — {t("premium.primaryBenefit")}
+          </p>
+          <p className="mt-1 text-xs text-gray-500">
+            오늘 {todayMsgCount}/{FREE_DAILY_MESSAGE_LIMIT}회 사용
+          </p>
+          <p className="mt-2 text-xs text-gray-400">
+            {t("premium.paymentPreparing")}
+          </p>
+        </section>
+      )}
 
       {/* 통계 그리드 */}
       <section className="mb-6">
