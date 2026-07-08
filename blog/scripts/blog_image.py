@@ -43,12 +43,12 @@ def _download(url: str, path: Path, timeout: int = 120) -> bool:
 
 
 def _via_pollinations(prompt: str, path: Path, w: int = 1200, h: int = 675) -> bool:
-    """무료 AI 이미지 생성 (사진·일러스트 스타일)."""
+    """무료 AI 이미지 생성 — 블로거가 직접 찍은 듯한 자연스러운 사진."""
     seed = random.randint(1, 999999)
     q = urllib.parse.quote(prompt)
     url = (
         f"https://image.pollinations.ai/prompt/{q}"
-        f"?width={w}&height={h}&seed={seed}&nologo=true&enhance=true"
+        f"?width={w}&height={h}&seed={seed}&nologo=true"
     )
     print(f"[이미지] AI 생성 중 (pollinations)...")
     return _download(url, path, timeout=180)
@@ -141,15 +141,29 @@ def _via_pil_illustration(prompt: str, path: Path) -> bool:
     return True
 
 
-def create_blog_image(prompt: str, path: Path, *, style: str = "photo") -> bool:
+def create_blog_image(
+    prompt: str,
+    path: Path,
+    *,
+    style: str = "photo",
+    shot: str = "lifestyle",
+) -> bool:
     """
     prompt: 영문 권장 (주제 묘사)
     style: photo | illustration | flat
+    shot: hero | use | detail | compare | lifestyle | closing
     """
-    full_prompt = (
-        f"{prompt}, {style} style, high quality, blog header image, "
-        "no text, no watermark, no letters, clean composition"
-    )
+    try:
+        from blog_post_quality import enhance_image_prompt
+
+        full_prompt = enhance_image_prompt(prompt, shot)
+    except ImportError:
+        full_prompt = (
+            f"{prompt}, casual smartphone lifestyle photo, natural light, "
+            "realistic shadows, muted colors, no HDR, no text, no watermark"
+        )
+    if style == "illustration":
+        full_prompt = f"{prompt}, soft flat illustration, warm pastel tones, no text, no watermark"
     providers = []
     if IMAGE_PROVIDER == "pexels":
         providers = [_via_pexels, _via_pollinations]

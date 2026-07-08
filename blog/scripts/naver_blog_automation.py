@@ -168,12 +168,8 @@ def pick_comment(title: str, body_snippet: str, pool: list[dict]) -> str:
 
 
 def get_cdp_page(browser) -> Page:
-    for ctx in browser.contexts:
-        if ctx.pages:
-            page = ctx.pages[0]
-            break
-    else:
-        page = browser.contexts[0].new_page()
+    ctx = browser.contexts[0] if browser.contexts else browser.new_context()
+    page = ctx.new_page()
 
     def _dismiss_dialog(dialog):
         try:
@@ -190,10 +186,10 @@ def get_cdp_page(browser) -> Page:
 
 def is_logged_in(page: Page) -> bool:
     try:
-        page.goto(MY_BLOG, wait_until="domcontentloaded", timeout=20000)
-        page.wait_for_timeout(2000)
+        page.goto(MY_BLOG, wait_until="commit", timeout=25000)
+        page.wait_for_timeout(2500)
         return "nidlogin" not in page.url
-    except PWTimeout:
+    except BaseException:
         return False
 
 

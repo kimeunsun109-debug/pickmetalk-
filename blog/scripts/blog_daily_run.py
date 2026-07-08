@@ -127,13 +127,9 @@ def main() -> int:
         # 4) 이웃신청 10명
         run_step([py, str(auto), "--mode", "apply", "--limit", "10"], fh)
 
-        # (선택) 임시저장 시도 — 실패해도 posts/ 파일은 준비됨
+        # 네이버 에디터 임시저장은 하지 않음 — posts/·images/ 폴더 저장만 (수동 붙여넣기)
         if html:
-            img_arg = ",".join(imgs)
-            cmd = [py, str(auto), "--mode", "draft", "--html", str(html)]
-            if img_arg:
-                cmd += ["--images", img_arg]
-            run_step(cmd, fh)
+            log(f"폴더 저장 완료: {html.name}" + (f" + 이미지 {len(imgs)}장" if imgs else ""), fh)
 
         log("=== 일일 업무 완료 ===", fh)
     print(f"\n보고서: {report}")

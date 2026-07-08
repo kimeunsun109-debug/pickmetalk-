@@ -15,12 +15,13 @@ scripts\run_blog_daily.bat
 powershell -ExecutionPolicy Bypass -File scripts\install_blog_daily_task.ps1
 ```
 
-## 일일 업무 순서
-1. **오늘 글 생성** — `blog_generate_post.py` → `posts/`, `images/`
+## 일일 업무 순서 (매일 07:00 자동)
+1. **오늘 글 생성** — `blog_generate_post.py` → `posts/`, `images/` (폴더에 임시저장)
 2. **답글** — 내 글 댓글 이웃에게 답글 + 이웃 최신글 방문 (`reply-commenters`)
-3. **IT 이웃** — 댓글 + 하트 (`visit-it-all`)
+3. **IT 이웃** — 댓글 + 공감(하트) (`visit-it-all`)
 4. **이웃신청** — 10명 (`apply --limit 10`)
-5. **임시저장** — 네이버 에디터 (실패 시 posts/ 수동 붙여넣기)
+
+※ 네이버 에디터 임시저장은 **자동 실행 안 함** — `posts/` HTML + `images/` 를 수동 붙여넣기
 
 ## 로그
 - `logs/daily_run_YYYY-MM-DD.txt` — 일일 보고
@@ -32,5 +33,6 @@ powershell -ExecutionPolicy Bypass -File scripts\install_blog_daily_task.ps1
 - 최초 1회 네이버 로그인 필요 (이후 세션 유지)
 
 ## 주의
-- 글 **발행은 하지 않음** — 임시저장만
+- 글 **발행은 하지 않음**
+- 네이버 에디터 **자동 임시저장 안 함** — `posts/`·`images/` 폴더만 준비
 - 오늘 글은 1회만 생성 (같은 날 재실행 시 스킵)
