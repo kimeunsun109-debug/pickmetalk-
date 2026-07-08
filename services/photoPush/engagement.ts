@@ -1,4 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { getHourInTz } from "@/lib/photoPush/timezone";
+import {
+  DEFAULT_PHOTO_PUSH_TIMEZONE,
+  PHOTO_PUSH_LOW_ENGAGEMENT_COOLDOWN_DAYS,
+} from "./constants";
 
 export interface EngagementSnapshot {
   score: number;
@@ -41,8 +46,9 @@ export async function getOrCreateEngagement(
 export async function refreshEngagementScore(
   supabase: SupabaseClient,
   userId: string,
-  characterId: string
-): Promise<number> {
+  characterId: string,
+  timeZone = DEFAULT_PHOTO_PUSH_TIMEZONE
+): Promise<{ score: number; cooldownUntil: string | null }> {
   const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
   const { data: deliveries } = await supabase
@@ -69,12 +75,23 @@ export async function refreshEngagementScore(
 
   const clickHours = rows
     .filter((r) => r.push_clicked_at || r.photo_viewed_at)
-    .map((r) => new Date((r.push_clicked_at ?? r.photo_viewed_at) as string).getHours());
+    .map((r) =>
+      getHourInTz(
+        new Date((r.push_clicked_at ?? r.photo_viewed_at) as string),
+        timeZone
+      )
+    );
 
   const optimalHours =
     clickHours.length >= 2
       ? [...new Set(clickHours)].slice(0, 4)
       : [];
+
+  const cooldownUntil = shouldApplyLowEngagementCooldown(score)
+    ? new Date(
+        Date.now() + PHOTO_PUSH_LOW_ENGAGEMENT_COOLDOWN_DAYS * 24 * 60 * 60 * 1000
+      ).toISOString()
+    : null;
 
   await supabase
     .from("photo_push_engagement")
@@ -87,13 +104,14 @@ export async function refreshEngagementScore(
         clicks_last_7d: clicks,
         replies_last_7d: replies,
         optimal_hours: optimalHours,
+        cooldown_until: cooldownUntil,
         last_computed_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       },
       { onConflict: "user_id,character_id" }
     );
 
-  return score;
+  return { score, cooldownUntil };
 }
 
 export function shouldApplyLowEngagementCooldown(score: number): boolean {

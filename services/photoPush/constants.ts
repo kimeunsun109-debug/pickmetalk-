@@ -11,6 +11,9 @@ export const PHOTO_PUSH_ENGAGEMENT_LOW = 35;
 /** Cooldown after low engagement (days) */
 export const PHOTO_PUSH_LOW_ENGAGEMENT_COOLDOWN_DAYS = 3;
 
+/** Max hours after a photo send to count a chat reply as photo engagement */
+export const PHOTO_PUSH_REPLY_WINDOW_HOURS = 48;
+
 /** Duplicate avoidance window */
 export const PHOTO_PUSH_DEDUP_LOOKBACK = 14;
 

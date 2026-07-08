@@ -10,6 +10,16 @@ import { PHOTO_PUSH_DEDUP_LOOKBACK } from "./constants";
 import { scheduleFollowupsForDelivery } from "./followup";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+async function cancelScheduledSlot(
+  supabase: SupabaseClient,
+  scheduledId: string
+): Promise<void> {
+  await supabase
+    .from("photo_push_scheduled")
+    .update({ status: "canceled" })
+    .eq("id", scheduledId);
+}
+
 export async function selectPhotoPushContent(
   supabase: SupabaseClient,
   params: {
@@ -65,13 +75,43 @@ export async function deliverPhotoPush(
     isSpecialDay?: boolean;
   }
 ): Promise<{ deliveryId: string; messageId: string } | null> {
+  const { data: existingDelivery } = await supabase
+    .from("photo_push_deliveries")
+    .select("id, message_id")
+    .eq("scheduled_id", params.scheduledId)
+    .maybeSingle();
+
+  if (existingDelivery?.message_id) {
+    await supabase
+      .from("photo_push_scheduled")
+      .update({ status: "delivered" })
+      .eq("id", params.scheduledId);
+    return {
+      deliveryId: existingDelivery.id as string,
+      messageId: existingDelivery.message_id as string,
+    };
+  }
+
+  const { data: claimed } = await supabase
+    .from("photo_push_scheduled")
+    .update({ status: "delivered" })
+    .eq("id", params.scheduledId)
+    .eq("status", "pending")
+    .select("id")
+    .maybeSingle();
+
+  if (!claimed) return null;
+
   const content = await selectPhotoPushContent(supabase, {
     userId: params.userId,
     characterId: params.characterId,
     scenarioId: params.scenarioId,
     displayName: params.displayName,
   });
-  if (!content) return null;
+  if (!content) {
+    await cancelScheduledSlot(supabase, params.scheduledId);
+    return null;
+  }
 
   const now = new Date().toISOString();
 
@@ -92,7 +132,10 @@ export async function deliverPhotoPush(
     .select("id")
     .single();
 
-  if (dErr || !delivery) return null;
+  if (dErr || !delivery) {
+    await cancelScheduledSlot(supabase, params.scheduledId);
+    return null;
+  }
 
   const { data: msg, error: mErr } = await supabase
     .from("messages")
@@ -110,7 +153,10 @@ export async function deliverPhotoPush(
     .select("id")
     .single();
 
-  if (mErr || !msg) return null;
+  if (mErr || !msg) {
+    await cancelScheduledSlot(supabase, params.scheduledId);
+    return null;
+  }
 
   await supabase
     .from("photo_push_deliveries")
@@ -126,11 +172,6 @@ export async function deliverPhotoPush(
     now,
     { emotion: content.scenario.emotion }
   ).catch(() => undefined);
-
-  await supabase
-    .from("photo_push_scheduled")
-    .update({ status: "delivered" })
-    .eq("id", params.scheduledId);
 
   await supabase
     .from("user_character_states")

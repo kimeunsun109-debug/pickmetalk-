@@ -72,8 +72,17 @@ export async function runPhotoPushCron(
     if (!profileRow) continue;
     const profile = mapUserProfile(profileRow);
 
-    const score = await refreshEngagementScore(supabase, userId, characterId);
+    const { score, cooldownUntil } = await refreshEngagementScore(
+      supabase,
+      userId,
+      characterId,
+      timezone
+    );
     await getOrCreateEngagement(supabase, userId, characterId);
+
+    if (cooldownUntil && new Date(cooldownUntil) > new Date()) {
+      continue;
+    }
 
     const specialBonus = resolveSpecialBonus(
       isBirthdayToday(profile.birthDate, timezone),

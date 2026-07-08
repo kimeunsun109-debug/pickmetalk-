@@ -160,3 +160,7 @@ create policy "photo_push_engagement_own" on public.photo_push_engagement
 
 create policy "photo_push_deliveries_own" on public.photo_push_deliveries
   for select using (auth.uid() = user_id);
+
+create policy "photo_push_deliveries_own_update" on public.photo_push_deliveries
+  for update using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);

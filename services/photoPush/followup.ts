@@ -1,5 +1,6 @@
 import type { PhotoFollowupTemplate } from "@/lib/photoPush/scenarios";
 import { updateConversationLastMessage } from "@/lib/db/updateConversationPreview";
+import { PHOTO_PUSH_REPLY_WINDOW_HOURS } from "./constants";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export async function scheduleFollowupsForDelivery(
@@ -110,6 +111,10 @@ export async function markPhotoDeliveryReplied(
     .maybeSingle();
 
   if (!lastPhoto) return;
+
+  const sentAt = new Date(lastPhoto.sent_at as string).getTime();
+  const replyWindowMs = PHOTO_PUSH_REPLY_WINDOW_HOURS * 60 * 60 * 1000;
+  if (Date.now() - sentAt > replyWindowMs) return;
 
   const now = new Date();
   const latency = Math.round(
