@@ -1,3 +1,4 @@
+import { ageFromBirthDate } from "@/lib/userAge";
 import type { Message, UserCharacterState } from "@/types";
 import { parseStoredSummary } from "./memory";
 
@@ -67,9 +68,16 @@ export function extractUserContext(
   const recentStressor = workFacts[0];
   const recentSchedule = scheduleFacts[0];
 
+  const derivedAge = profileCtx.age
+    ? profileCtx.age
+    : (() => {
+        const a = ageFromBirthDate(profileCtx.birthDate);
+        return a != null ? String(a) : undefined;
+      })();
+
   return {
     userName: profileCtx.nickname ?? profileCtx.name,
-    userAge: profileCtx.age,
+    userAge: derivedAge,
     userJob: profileCtx.job,
     userInterests: [
       ...new Set([

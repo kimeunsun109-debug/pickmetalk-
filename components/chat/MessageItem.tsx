@@ -1,5 +1,6 @@
 "use client";
 
+import { PhotoMessageBubble } from "@/components/chat/PhotoMessageBubble";
 import type { ChatMessage } from "@/contexts/ChatProvider";
 import { useLongPress } from "@/hooks/useLongPress";
 import { formatBubbleTime } from "@/lib/formatMessageTime";
@@ -69,6 +70,7 @@ function splitAssistantBubbles(content: string, max = 4): string[] {
 export interface MessageItemProps {
   message: ChatMessage;
   characterName: string;
+  characterId?: string;
   isStreaming?: boolean;
   showAvatar?: boolean;
   showAvatarSpacer?: boolean;
@@ -82,6 +84,7 @@ export interface MessageItemProps {
 export const MessageItem = memo(function MessageItem({
   message,
   characterName,
+  characterId,
   isStreaming = false,
   showAvatar = true,
   showAvatarSpacer = false,
@@ -91,8 +94,9 @@ export const MessageItem = memo(function MessageItem({
   onLongPress,
   canDelete = false,
 }: MessageItemProps) {
-  const { role, content } = message;
+  const { role, content, mediaType, mediaUrl, photoDeliveryId } = message;
   const isUser = role === "user";
+  const isPhoto = !isUser && mediaType === "photo" && mediaUrl;
 
   const longPress = useLongPress(
     () => onLongPress?.(message.id),
@@ -128,7 +132,25 @@ export const MessageItem = memo(function MessageItem({
       <div
         className={`max-w-[78%] ${isUser ? "items-end" : "items-start"} flex flex-col gap-1`}
       >
-        {hasContent ? (
+        {isPhoto ? (
+          <div
+            className={`rounded-2xl rounded-tl-sm bg-bubble-ai px-3 py-2 shadow-sm ${
+              canDelete ? "select-none" : ""
+            }`}
+          >
+            <PhotoMessageBubble
+              mediaUrl={mediaUrl!}
+              caption={content}
+              photoDeliveryId={photoDeliveryId}
+              characterId={characterId}
+            />
+            {showTimestamp && message.createdAt && (
+              <span className="mt-1 block text-[10px] text-gray-400">
+                {formatBubbleTime(message.createdAt)}
+              </span>
+            )}
+          </div>
+        ) : hasContent ? (
           bubbleSegments.map((segment, segIdx) => {
             const isLastSegment = segIdx === bubbleSegments.length - 1;
             const groupedPrev = isGroupedWithPrev || segIdx > 0;

@@ -5,7 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 /** messages 조회 시 필요 컬럼만 */
 export const MESSAGE_LIST_COLUMNS =
-  "id, user_id, character_id, conversation_id, role, content, emotion, created_at";
+  "id, user_id, character_id, conversation_id, role, content, emotion, media_type, media_url, photo_delivery_id, created_at";
 
 /** 채팅 화면 초기 로드용 최근 메시지 */
 export async function fetchConversationMessages(

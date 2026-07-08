@@ -45,6 +45,8 @@ import {
 import { NextResponse } from "next/server";
 import type { ChatRequestBody } from "@/types/api";
 import type { Message, UserCharacterState } from "@/types";
+import { ageFromBirthDate } from "@/lib/userAge";
+import { markPhotoDeliveryReplied } from "@/services/photoPush/followup";
 import type {
   PostgrestResponse,
   PostgrestSingleResponse,
@@ -262,6 +264,8 @@ export async function POST(request: Request) {
           }
 
           userMessageId = userMessageRow?.id ?? null;
+
+          void markPhotoDeliveryReplied(supabase, conversationId, userId);
         }
         send({ userMessageId });
 
@@ -358,12 +362,18 @@ export async function POST(request: Request) {
           characterId
         );
 
+        const derivedAge = ageFromBirthDate(
+          profile?.birthDate ?? profile?.userContext?.birthDate
+        );
         const profileCtx = {
           ...(profile?.userContext ?? {}),
           nickname:
             profile?.displayName ??
             profile?.userContext?.nickname ??
             profile?.userContext?.name,
+          age:
+            profile?.userContext?.age ??
+            (derivedAge != null ? String(derivedAge) : undefined),
           gender: profile?.gender ?? profile?.userContext?.gender,
           birthDate: profile?.birthDate ?? profile?.userContext?.birthDate,
           mbti: profile?.mbti ?? profile?.userContext?.mbti,

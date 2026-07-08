@@ -28,6 +28,9 @@ export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   createdAt?: string;
+  mediaType?: "photo" | null;
+  mediaUrl?: string | null;
+  photoDeliveryId?: string | null;
 }
 
 interface ChatContextValue {
@@ -241,12 +244,18 @@ export function ChatProvider({
         role: string;
         content: string;
         createdAt?: string;
+        mediaType?: "photo" | null;
+        mediaUrl?: string | null;
+        photoDeliveryId?: string | null;
       }>
     ).map((m) => ({
       id: m.id,
       role: m.role as "user" | "assistant",
       content: m.content,
       createdAt: m.createdAt,
+      mediaType: m.mediaType,
+      mediaUrl: m.mediaUrl,
+      photoDeliveryId: m.photoDeliveryId,
     }));
   }, []);
 
