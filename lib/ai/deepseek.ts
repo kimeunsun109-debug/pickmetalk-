@@ -54,7 +54,7 @@ export async function* streamDeepSeekChat(
       model: MODEL,
       messages,
       stream: true,
-      temperature: 0.85,
+      temperature: 0.92,
       max_tokens: 512,
     });
 

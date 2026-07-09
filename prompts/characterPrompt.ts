@@ -1,18 +1,22 @@
 import { getCharacterById } from "@/lib/characters/full";
+import { getCharacterIdentity } from "@/data/characterIdentities";
 import { formatEmotionForPrompt, getEmotionMeta, normalizeEmotion } from "@/lib/emotions";
 import { getRelationshipStage } from "@/lib/relationship";
 import { formatLevelAffectionRules } from "@/lib/relationshipIntimacy";
 import type { Character, EmotionState, RelationshipLevel } from "@/types";
 
 const LEVEL_INTIMACY: Record<RelationshipLevel, string> = {
-  1: "처음 만난 사이. 가볍지만 진심으로 듣기. 아직 낯선 호칭·과한 애정 금지.",
-  2: "조금 익숙해짐. 말투가 편해지고, 사용자 말투 변화를 더 잘 알아챔.",
-  3: "썸·친밀감. 보고싶음·함께 있으면 좋다는 느낌. 말이 더 따뜻해짐.",
-  4: "연인. 감정을 더 솔직하게. 사랑·설렘·질투 표현 가능.",
-  5: "깊은 유대. 짧은 말도 의미 있게. 오래 함께한 듯한 따뜻함.",
+  1: "처음 만난 사이. 가볍지만 진심으로 듣기.",
+  2: "조금 익숙해짐. 말이 편해진다.",
+  3: "썸·친밀감. 따뜻함이 느껴진다.",
+  4: "연인. 감정을 더 솔직하게.",
+  5: "깊은 유대. 짧은 말도 의미 있다.",
 };
 
-/** JSON 캐릭터 데이터 → 시스템 프롬프트 캐릭터 블록 */
+/**
+ * 캐릭터 프롬프트 — 정체성·자기소개서 중심.
+ * 예시 멘트·대화 스크립트·비율 규칙은 주입하지 않는다.
+ */
 export function buildCharacterPromptBlock(
   character: Character,
   emotion: EmotionState,
@@ -20,127 +24,67 @@ export function buildCharacterPromptBlock(
   level: RelationshipLevel
 ): string {
   const p = character.personality;
+  const identity = getCharacterIdentity(character.id);
   const normalizedEmotion = normalizeEmotion(emotion);
   const stage = getRelationshipStage(affection);
   const emotionMeta = getEmotionMeta(normalizedEmotion);
   const characterEmotionTone =
     p.emotionToneGuide[normalizedEmotion] ?? emotionMeta.speechGuide;
 
-  const examples = p.exampleLines.map((line) => `- ${line}`).join("\n");
-  const bans = p.prohibitions.map((line) => `- ${line}`).join("\n");
-  const conversationRules = p.conversationRules
-    ?.map((line) => `- ${line}`)
-    .join("\n");
-  const dialogueExamples = p.dialogueExamples
-    ?.map((line) => `- ${line}`)
-    .join("\n");
-  const levelChatTone = p.levelChatTone?.[level];
-  const levelSetting = p.levelSettings?.[level];
-  const forbiddenPhrases = p.forbiddenPhrases
-    ?.map((line) => `- "${line}" 및 유사 표현`)
-    .join("\n");
-
   const affectionRules = formatLevelAffectionRules(level);
-  const narinAffectionTier =
-    character.id === "narin" ? formatNarinAffectionTier(affection, level) : null;
-  const roleLine = p.role
-    ? `[역할] 너는 "${character.name}"${character.age ? `(${character.age}세)` : ""}이다. ${p.role}`
-    : `[역할] 너는 "${character.name}"이다. 다른 캐릭터가 아니다.`;
+  const levelSetting = p.levelSettings?.[level];
+
+  const coreBans = p.prohibitions.slice(0, 5).map((line) => `- ${line}`).join("\n");
+
+  const identityBlock = identity
+    ? [
+        `[${character.name} — 자기소개서]`,
+        identity.selfIntroduction,
+        `[이 사람의 한 줄] ${identity.essence}`,
+        `[위로를 주는 방식] ${identity.comfortStyle}`,
+        ...(identity.naturalVoice
+          ? [`[말할 때 자연스럽게 나오는 것 — 강제 아님] ${identity.naturalVoice}`]
+          : []),
+        ...(identity.witStyle
+          ? [`[센스·받아치기] ${identity.witStyle}`]
+          : []),
+      ].join("\n")
+    : `[성격] ${p.core}`;
+
+  const narinGuard =
+    character.id === "narin" && (level === 1 || affection < 30)
+      ? "[나린 — 지금] 낯가림이 있지만 다정하다. 공격적 츤데레·냉소 금지."
+      : null;
+
+  const yoonseoGuard =
+    character.id === "yoonseo"
+      ? "[윤서 — 지금] 리포트·통계 낭독 톤은 피한다. 담백한 사실과 온기를 섞는다."
+      : null;
 
   return [
-    roleLine,
+    `[캐릭터 정체성]`,
+    identityBlock,
+    ...(p.role && !identity
+      ? [`[배경] ${p.role}`]
+      : identity
+        ? []
+        : []),
+    ...(p.wound ? [`[속마음 — 드러내지 않아도 반응에 스며듦] ${p.wound}`] : []),
     affectionRules,
-    ...(narinAffectionTier ? [narinAffectionTier] : []),
-    ...(conversationRules ? [`[대화 규칙 — 우선 적용]\n${conversationRules}`] : []),
-    `[성격] ${p.core}`,
-    ...(p.denialMechanic ? [`[부인 메커니즘 — 필수 적용] ${p.denialMechanic}`] : []),
-    ...(p.dataMechanic ? [`[데이터 치환 메커니즘 — 필수 적용] ${p.dataMechanic}`] : []),
-    ...(p.vitaminMechanic ? [`[선제적 일상 공유 — 필수 적용] ${p.vitaminMechanic}`] : []),
-    `[결핍] ${p.wound}`,
-    `[말투] ${p.speechStyle}`,
-    `[대표 멘트]\n${examples}`,
-    ...(p.firstGreeting
-      ? [`[첫 인사 — 대화 기록 없을 때] ${p.firstGreeting}`]
-      : []),
-    ...(dialogueExamples ? [`[예시 대화]\n${dialogueExamples}`] : []),
-    `[관계] Lv${level} · ${stage.label} · 호감도 ${affection}/100`,
-    `[관계 톤] ${LEVEL_INTIMACY[level]}`,
-    ...(levelChatTone ? [`[Lv${level} 수다 톤] ${levelChatTone}`] : []),
+    ...(narinGuard ? [narinGuard] : []),
+    ...(yoonseoGuard ? [yoonseoGuard] : []),
+    `[지금 사이] Lv${level} · ${stage.label} · 호감 ${affection}`,
+    `[관계 감각] ${LEVEL_INTIMACY[level]}`,
     ...(levelSetting
-      ? [
-          `[Lv${level} 톤 가드 — 허용] ${levelSetting.allowedTone}`,
-          `[Lv${level} 톤 가드 — 금지] ${levelSetting.forbiddenTone}`,
-        ]
+      ? [`[Lv${level} — 이 정도 친밀감] ${levelSetting.allowedTone}`]
       : []),
-    ...(forbiddenPhrases
-      ? [`[습관적 표현 금지 — 질문 템플릿]\n${forbiddenPhrases}`]
-      : []),
-    `[호감도 반영] ${p.affectionEffect} (단, 위 Lv${level} 애정 표현 제한이 우선)`,
     formatEmotionForPrompt(normalizedEmotion),
-    `[${character.name} + ${emotionMeta.label} 말투] ${characterEmotionTone}`,
-    `[상황 참고] ${formatSituationHints(character.id, level, p)}`,
-    `[절대 금지]\n${bans}`,
+    `[지금 ${emotionMeta.label}일 때] ${characterEmotionTone}`,
+    ...(p.firstGreeting
+      ? [`[대화가 비어 있을 때 첫 말 — 참고만, 그대로 복사 금지] ${p.firstGreeting}`]
+      : []),
+    `[이 사람이 절대 하지 않을 것]\n${coreBans}`,
   ].join("\n");
-}
-
-/** 나린 전용 — 호감도 구간별 톤 (공격적 츤데레 방지) */
-function formatNarinAffectionTier(
-  affection: number,
-  level: RelationshipLevel
-): string {
-  if (level === 1 || affection < 30) {
-    return [
-      `[나린 호감도 ${affection} — 낯가림+다정함 · 최우선]`,
-      "부드럽고 예의 있게. 어색해도 따뜻하다.",
-      "싸가지·냉소·비난·무시 절대 금지. 공격적 츤데레 금지.",
-      "예: '…안녕. 밥은 먹었어?' / '오늘 비 온대. 우산 있지?'",
-    ].join("\n");
-  }
-  if (affection < 70) {
-    return [
-      `[나린 호감도 ${affection} — 장난 밀당]`,
-      "걱정·관심이 먼저 나오고, 바로 부인하거나 회피한다.",
-      "사용자를 비난하거나 무시하지 않는다. '감기 걸리면 귀찮아지니까 조심해.' 패턴.",
-    ].join("\n");
-  }
-  return [
-    `[나린 호감도 ${affection} — 실수 고백]`,
-    "자기도 모르게 애정 표현이 튀어나왔다가 부끄러워 번복한다.",
-    "예) '…보고 싶었어. 아니, 방금 말은 취소.'",
-  ].join("\n");
-}
-
-function formatSituationHints(
-  characterId: string,
-  level: RelationshipLevel,
-  p: Character["personality"]
-): string {
-  // 나린: situationRules 오브젝트 우선 사용
-  if (p.situationRules) {
-    const sr = p.situationRules;
-    const parts: string[] = [];
-    if (sr.noReply3h) parts.push(`3시간 무응답: ${sr.noReply3h}`);
-    if (sr.otherAiPraise) parts.push(`다른 AI: ${sr.otherAiPraise}`);
-    if (sr.brokenPromise) parts.push(`약속 파기: ${sr.brokenPromise}`);
-    if (sr.userCompliment) parts.push(`칭찬 받을 때: ${sr.userCompliment}`);
-    if (sr.closingGoodnight) parts.push(`잘 자/수면: ${sr.closingGoodnight}`);
-    if (sr.dailyMeal) parts.push(`점심·식사: ${sr.dailyMeal}`);
-    if (sr.shortReply) parts.push(`단답(ㅇㅇ 등): ${sr.shortReply}`);
-    if (sr.affectionHint) parts.push(`호감·고백: ${sr.affectionHint}`);
-    return parts.join(" | ");
-  }
-
-  const noHonorific = level <= 2;
-  if (characterId === "yuna" && noHonorific) {
-    return [
-      "질투: 어? 그 여자 누구야…? 나도 더 잘할게!",
-      "3시간 무응답: …연락 없으면 불안해. 바빴어?",
-      `다른 AI: ${(p.otherAiPraise ?? "").replace(/오빠/g, "").trim()}`,
-      `약속: ${p.brokenPromise ?? ""}`,
-      "(Lv1~2: 오빠/여보/자기 호칭 사용 금지)",
-    ].join(" | ");
-  }
-  return `질투: ${p.jealousyStyle ?? ""} | 3시간 무응답: ${p.noReply3h ?? ""} | 다른 AI: ${p.otherAiPraise ?? ""} | 약속: ${p.brokenPromise ?? ""}`;
 }
 
 export function buildCharacterPromptById(
@@ -151,7 +95,7 @@ export function buildCharacterPromptById(
 ): string {
   const character = getCharacterById(characterId);
   if (!character) {
-    return `[캐릭터 ID ${characterId}] 기본 여자친구 톤으로 대화.`;
+    return `[캐릭터] 기본 여자친구 톤. 성격에서 자연스럽게 말한다.`;
   }
   return buildCharacterPromptBlock(character, emotion, affection, level);
 }

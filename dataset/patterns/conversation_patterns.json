@@ -1,0 +1,44 @@
+[
+  {
+    "scenarioId": "morning_commute",
+    "slot": "morning",
+    "characterId": "narin",
+    "turnCount": 10,
+    "topTags": [
+      "공감",
+      "리액션",
+      "생활밀착",
+      "관심",
+      "마무리"
+    ],
+    "date": "2026-07-03"
+  },
+  {
+    "scenarioId": "lunch_nostalgia",
+    "slot": "lunch",
+    "characterId": "yoonseo",
+    "turnCount": 10,
+    "topTags": [
+      "공감",
+      "리액션",
+      "행동유도",
+      "감정",
+      "회상"
+    ],
+    "date": "2026-07-03"
+  },
+  {
+    "scenarioId": "evening_rain_walk",
+    "slot": "evening",
+    "characterId": "eunha",
+    "turnCount": 10,
+    "topTags": [
+      "공감",
+      "생활밀착",
+      "리액션",
+      "관심",
+      "질문"
+    ],
+    "date": "2026-07-03"
+  }
+]

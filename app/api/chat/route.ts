@@ -505,6 +505,8 @@ export async function POST(request: Request) {
           userContents,
           conversationTitle: conversation.title,
           isFirstUserMessage,
+          assistantReply: trimmed,
+          followUp: follow_up,
         });
 
         trace.end("stream complete");

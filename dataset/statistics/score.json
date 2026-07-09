@@ -1,0 +1,33 @@
+{
+  "byDate": {
+    "2026-07-03": {
+      "totalSentences": 148,
+      "avgScore": 3.68,
+      "fiveStar": 14,
+      "byCharacter": {
+        "narin": 53,
+        "yoonseo": 40,
+        "eunha": 55
+      },
+      "byTag": {
+        "리액션": 33,
+        "생활밀착": 24,
+        "공감": 55,
+        "마무리": 4,
+        "관심": 9,
+        "명대사": 3,
+        "행동유도": 7,
+        "감정": 5,
+        "질문": 3,
+        "회상": 2,
+        "드립": 3
+      }
+    }
+  },
+  "allTime": {
+    "totalSentences": 148,
+    "avgScore": 3.68,
+    "fiveStar": 14
+  },
+  "updatedAt": "2026-07-03T04:03:03.955Z"
+}

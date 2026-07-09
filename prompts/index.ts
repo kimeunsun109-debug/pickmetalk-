@@ -15,6 +15,9 @@ import {
   buildMealAndContextRules,
 } from "./topicGuides";
 import { buildKickLineHint } from "./kickLines";
+import { buildVoiceAbOverlay, type VoiceAbVariant } from "./voiceAbVariants";
+import { buildWitAndRecoveryRules } from "./witAndRecovery";
+import { buildMomentContextBlock } from "@/services/chatMomentContext";
 import { getContextMemoryPrompt } from "@/services/memory";
 import { buildSpeechStylePromptBlock } from "@/services/speechStyle";
 import type { UserSpeechProfile } from "@/services/speechStyle";
@@ -23,6 +26,11 @@ import type { EmotionState, Message, RelationshipLevel } from "@/types";
 
 const MEMORY_SUMMARY_LINE_CAP = 5;
 const MEMORY_SUMMARY_LINE_THRESHOLD = 10;
+
+export interface BuildSystemPromptOptions {
+  voiceAbVariant?: VoiceAbVariant | null;
+  freshChatStart?: boolean;
+}
 
 function limitMemorySummaryBlock(memorySummary: string | null): string {
   if (!memorySummary?.trim()) return "";
@@ -35,11 +43,7 @@ function limitMemorySummaryBlock(memorySummary: string | null): string {
 }
 
 /**
- * Tier 기반 시스템 프롬프트 — 필수 블록 우선, 조건부·선택 블록으로 토큰 절감
- *
- * Tier 1: base + character + dialogue guard (필수)
- * Tier 2: 감정·세션·동적 컨텍스트·기억 힌트 (조건부)
- * Tier 3: 토핑·토픽·킥라인 (초반·맥락 필요 시)
+ * Tier 기반 시스템 프롬프트 + 성격 A/B·센스·모멘텀 블록
  */
 export function buildSystemPrompt(
   characterId: string,
@@ -55,8 +59,14 @@ export function buildSystemPrompt(
   speechProfile: UserSpeechProfile | null = null,
   latestUserMessage = "",
   timeContext: TimeAwareContext | null = null,
-  freshChatStart = false
+  freshChatStartOrOptions: boolean | BuildSystemPromptOptions = false
 ): string {
+  const options: BuildSystemPromptOptions =
+    typeof freshChatStartOrOptions === "boolean"
+      ? { freshChatStart: freshChatStartOrOptions }
+      : freshChatStartOrOptions;
+  const freshChatStart = options.freshChatStart ?? false;
+
   const character = getCharacterById(characterId);
   const characterName = character?.name ?? "캐릭터";
   const inAcuteEmotion = emotion === "hurt" || emotion === "pouty";
@@ -75,6 +85,10 @@ export function buildSystemPrompt(
     relationshipLevel: level,
   });
 
+  const momentBlock = buildMomentContextBlock(latestUserMessage, recentMessages);
+  const voiceAbBlock = buildVoiceAbOverlay(options.voiceAbVariant);
+  const witBlock = buildWitAndRecoveryRules(characterId);
+
   const tier1 = [
     baseBlock,
     characterBlock,
@@ -83,6 +97,10 @@ export function buildSystemPrompt(
   ];
 
   const tier2: string[] = [];
+  if (momentBlock) tier2.push(momentBlock);
+  if (voiceAbBlock) tier2.push(voiceAbBlock);
+  if (witBlock) tier2.push(witBlock);
+
   if (freshChatStart) {
     tier2.push(buildFreshStartRules());
   }

@@ -1,0 +1,31 @@
+[
+  {
+    "id": "4284d4af-0cbf-43b5-b947-bd1fec180a64",
+    "date": "2026-07-03",
+    "slot": "evening",
+    "sessionId": "ffd3117f-c7cf-4512-ad4f-e1f25424126c",
+    "turn": 4,
+    "characterId": "eunha",
+    "role": "assistant",
+    "text": "나 걱정돼서 자꾸 생각나네.",
+    "primaryTag": "관심",
+    "tags": [
+      "관심",
+      "감정",
+      "공감"
+    ],
+    "situation": "비 오는 퇴근길",
+    "userEmotion": "지침",
+    "aiEmotion": "걱정",
+    "dialoguePurpose": "애정 표현",
+    "isQuestion": false,
+    "hasEmpathy": true,
+    "hasLifeClose": false,
+    "isKickLine": true,
+    "isReaction": false,
+    "score": 5,
+    "scoreLabel": "★★★★★",
+    "category": "compliments",
+    "savedAt": "2026-07-03T04:03:03.953Z"
+  }
+]

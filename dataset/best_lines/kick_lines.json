@@ -1,0 +1,61 @@
+[
+  {
+    "id": "bd1abba4-cc67-41e2-a3f5-0b5081f57e68",
+    "date": "2026-07-03",
+    "slot": "morning",
+    "sessionId": "9699627e-9243-4683-823c-370ed2d670ee",
+    "turn": 8,
+    "characterId": "narin",
+    "role": "assistant",
+    "text": "너니까 잘할 거야.",
+    "primaryTag": "명대사",
+    "tags": [
+      "명대사",
+      "공감",
+      "격려"
+    ],
+    "situation": "출근길 지하철",
+    "userEmotion": "자신감 상실",
+    "aiEmotion": "신뢰",
+    "dialoguePurpose": "격려",
+    "isQuestion": false,
+    "hasEmpathy": true,
+    "hasLifeClose": false,
+    "isKickLine": true,
+    "isReaction": false,
+    "score": 5,
+    "scoreLabel": "★★★★★",
+    "category": "kick_lines",
+    "savedAt": "2026-07-03T04:03:03.953Z"
+  },
+  {
+    "id": "347769a3-1515-46cf-86ec-c2a0aaddbb01",
+    "date": "2026-07-03",
+    "slot": "evening",
+    "sessionId": "ffd3117f-c7cf-4512-ad4f-e1f25424126c",
+    "turn": 10,
+    "characterId": "eunha",
+    "role": "assistant",
+    "text": "따뜻한 국물 앞에선 다 용서되지.",
+    "primaryTag": "명대사",
+    "tags": [
+      "명대사",
+      "공감",
+      "생활밀착",
+      "감정"
+    ],
+    "situation": "비 오는 퇴근길",
+    "userEmotion": "지침",
+    "aiEmotion": "다정",
+    "dialoguePurpose": "위로",
+    "isQuestion": false,
+    "hasEmpathy": true,
+    "hasLifeClose": true,
+    "isKickLine": true,
+    "isReaction": false,
+    "score": 5,
+    "scoreLabel": "★★★★★",
+    "category": "kick_lines",
+    "savedAt": "2026-07-03T04:03:03.953Z"
+  }
+]
