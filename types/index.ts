@@ -113,6 +113,7 @@ export interface UserProfile {
   isPremium: boolean;
   dailyMessageCount: number;
   dailyMessageResetAt: string;
+  subscriptionStatus: string;
   /** profiles.user_context JSONB — 닉네임·성별·관심사 등 */
   userContext: Record<string, string>;
   /** profiles.speech_profile JSONB — 사용자 말투 학습 */

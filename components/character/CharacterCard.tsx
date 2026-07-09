@@ -1,5 +1,6 @@
 "use client";
 
+import { CharacterAvatar } from "./CharacterAvatar";
 import { characterChatHref } from "@/lib/navigateChat";
 import { resolveCharacterId } from "@/lib/chatRoute";
 import type { PublicCharacter } from "@/types";
@@ -38,9 +39,11 @@ export function CharacterCard({
       }`}
     >
       <div className="flex items-center gap-3">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-pink-soft text-lg font-bold text-pink-accent">
-          {character.name[0]}
-        </div>
+        <CharacterAvatar
+          characterId={characterId}
+          name={character.name}
+          size={56}
+        />
         <div className="min-w-0 flex-1">
           <h3 className="font-semibold">
             <span className="text-pink-accent">❤️</span>

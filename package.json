@@ -17,7 +17,9 @@
     "cap:sync": "npx cap sync",
     "cap:init": "npx cap init",
     "perf:benchmark": "npx tsx scripts/perf_benchmark.mts",
-    "perf:chat-entry": "npx tsx scripts/chat_entry_benchmark.mts"
+    "perf:chat-entry": "npx tsx scripts/chat_entry_benchmark.mts",
+    "verify:prod": "npx tsx scripts/verify_production_deploy.mts",
+    "verify:migrations": "npx tsx scripts/verify_supabase_migrations.mts"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.0",
@@ -31,6 +33,7 @@
     "openai": "^6.42.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "stripe": "^22.3.0",
     "tailwind-merge": "^3.0.2",
     "zod": "^3.24.2"
   },

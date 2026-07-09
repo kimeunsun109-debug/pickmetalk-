@@ -1,14 +1,8 @@
-/**
- * 설정 — 사용자 테스트 통계 대시보드
- *
- * 베타 v1 표시 항목:
- *   - 가입일 / 이용 일수
- *   - 현재 캐릭터 + 호감도
- *   - 오늘 메시지 사용량
- *   - 다음 접속 예상 인사말 (재방문 티어 예고)
- */
+import { mapUserProfile } from "@/lib/db/mappers";
 import { createClient } from "@/lib/supabase/server";
+import { ensureDailyUsageFresh, normalizeDailyUsage } from "@/services/dailyMessageLimit";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 import { SettingsClient } from "./SettingsClient";
 
 export default async function SettingsPage() {
@@ -19,10 +13,7 @@ export default async function SettingsPage() {
 
   if (!user) redirect("/login");
 
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-
-  const [{ data: profile }, { data: ucsRows }, { count: todayMsgCount }, { data: sessionRows }] =
+  const [{ data: profile }, { data: ucsRows }, { data: sessionRows }] =
     await Promise.all([
       supabase.from("profiles").select("*").eq("id", user.id).single(),
       supabase
@@ -30,12 +21,6 @@ export default async function SettingsPage() {
         .select("character_id, affection, relationship_level, last_chat_at")
         .eq("user_id", user.id)
         .order("last_chat_at", { ascending: false }),
-      supabase
-        .from("messages")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", user.id)
-        .eq("role", "user")
-        .gte("created_at", todayStart.toISOString()),
       supabase
         .from("session_logs")
         .select("created_at")
@@ -52,13 +37,41 @@ export default async function SettingsPage() {
       )
     : 0;
 
+  let todayMsgCount = 0;
+  let isPremium = false;
+  let subscriptionStatus = "free";
+
+  if (profile) {
+    const mapped = mapUserProfile(profile);
+    subscriptionStatus = mapped.subscriptionStatus;
+    const { count, needsReset } = normalizeDailyUsage(mapped);
+    if (needsReset) {
+      const fresh = await ensureDailyUsageFresh(supabase, user.id, mapped);
+      todayMsgCount = fresh.count;
+      isPremium = fresh.isPremium;
+    } else {
+      todayMsgCount = count;
+      isPremium = mapped.isPremium;
+    }
+  }
+
   return (
-    <SettingsClient
-      email={user.email ?? ""}
-      joinedDaysAgo={joinedDaysAgo}
-      characterStates={ucsRows ?? []}
-      todayMsgCount={todayMsgCount ?? 0}
-      sessionDates={(sessionRows ?? []).map((r) => r.created_at)}
-    />
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-ivory px-4 pb-24 pt-10">
+          <p className="text-sm text-gray-400">설정 불러오는 중…</p>
+        </main>
+      }
+    >
+      <SettingsClient
+        email={user.email ?? ""}
+        joinedDaysAgo={joinedDaysAgo}
+        characterStates={ucsRows ?? []}
+        todayMsgCount={todayMsgCount}
+        isPremium={isPremium}
+        subscriptionStatus={subscriptionStatus}
+        sessionDates={(sessionRows ?? []).map((r) => r.created_at)}
+      />
+    </Suspense>
   );
 }

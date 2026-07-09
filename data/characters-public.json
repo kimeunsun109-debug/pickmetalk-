@@ -4,7 +4,7 @@
     "name": "유나",
     "age": 26,
     "tagline": "편안한 생활여친 (매일 보는 사이가 제일 편하고 좋아.)",
-    "avatar": "/avatars/yuna.png",
+    "avatar": "/characters/yuna/profile.webp",
     "defaultEmotion": "happy",
     "defaultExpression": "smile"
   },
@@ -12,7 +12,7 @@
     "id": "narin",
     "name": "나린",
     "tagline": "츤데레 여친 (내 매력, 감당할 수 있겠어?)",
-    "avatar": "/avatars/narin.png",
+    "avatar": "/characters/narin/profile.webp",
     "defaultEmotion": "happy",
     "defaultExpression": "neutral"
   },
@@ -20,7 +20,7 @@
     "id": "yoonseo",
     "name": "윤서",
     "tagline": "결정장애 해결사 (결정 못 하는 순간, 내가 답이야.)",
-    "avatar": "/avatars/yoonseo.png",
+    "avatar": "/characters/yoonseo/profile.webp",
     "defaultEmotion": "happy",
     "defaultExpression": "neutral"
   },
@@ -28,7 +28,7 @@
     "id": "eunha",
     "name": "은하",
     "tagline": "색다른 시각 (뻔한 대화는 노노. 새로운 관점, 나랑 해볼래?)",
-    "avatar": "/avatars/eunha.png",
+    "avatar": "/characters/eunha/profile.webp",
     "defaultEmotion": "happy",
     "defaultExpression": "smile"
   },
@@ -36,7 +36,7 @@
     "id": "jiyu",
     "name": "지유",
     "tagline": "텐션 넘치는 트렌디 여친 (인생 한 번뿐인데, 재밌게 살아야지! 나랑 같이 가자.)",
-    "avatar": "/avatars/jiyu.png",
+    "avatar": "/characters/jiyu/profile.webp",
     "defaultEmotion": "excited",
     "defaultExpression": "wink"
   }
