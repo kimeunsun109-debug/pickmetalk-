@@ -105,6 +105,10 @@ affection +1 per round trip).
 ```bash
 npm run build
 npm run lint
+npm run verify:prod          # pickmetalk.com PR 반영 여부
+npm run verify:migrations    # Supabase 003–008 일치
 npx tsx scripts/test_daily_patterns.mts
 npx supabase db push   # if linked
 ```
+
+**프로덕션 반영:** feature PR은 `main` 머지 후 Vercel Production 배포가 되어야 `pickmetalk.com`에 나타납니다. Draft PR은 머지되지 않습니다.
