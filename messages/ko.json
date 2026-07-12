@@ -1,0 +1,19 @@
+{
+  "common": {
+    "appName": "픽미톡",
+    "loading": "불러오는 중…",
+    "retry": "다시 시도",
+    "cancel": "취소",
+    "confirm": "확인",
+    "save": "저장"
+  },
+  "nav": {
+    "characters": "캐릭터",
+    "chat": "채팅",
+    "settings": "설정"
+  },
+  "limits": {
+    "dailyReached": "오늘 무료 메시지를 모두 사용했어요.",
+    "premiumSoon": "프리미엄은 준비 중이에요."
+  }
+}
