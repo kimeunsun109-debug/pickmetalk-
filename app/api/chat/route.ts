@@ -467,7 +467,8 @@ export async function POST(request: Request) {
 
         const { text: trimmed, follow_up } = trace.sync("Response Parse", () =>
           postProcessAssistantReply(
-            fullReply || getStreamFallback(characterId, userText)
+            fullReply || getStreamFallback(characterId, userText),
+            { characterId }
           )
         );
 

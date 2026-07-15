@@ -53,23 +53,34 @@ app/api/photo-push/[deliveryId]/track/route.ts
 
 ## 사진 에셋 (~1000장/캐릭터)
 
-**현재:** `character_photo_assets` 테이블 + emotion PNG placeholder  
-**다음 단계:**
+**Storage bridge:** see [`PHOTO_STORAGE_BRIDGE.md`](./PHOTO_STORAGE_BRIDGE.md)
 
-1. `scripts/import_character_photos.mts` — Storage 업로드 + 메타 일괄 등록
-2. `hash_fingerprint`로 유사 사진 제외
-3. 생성 파이프라인: 휴대폰 셀카 스타일, 시나리오 태그 매핑
+1. Ops uploads ready images to Supabase Storage / CDN
+2. Ops upserts `character_photo_assets` (`is_active`, `category`, `hash_fingerprint`, …)
+3. Product `selectCatalogPhoto()` prefers catalog; else emotion PNG placeholder
 
-## Web Push (미연동)
+Migration: `011_photo_storage_bridge.sql`
 
-`push_subscriptions` 테이블 준비됨.  
-`ENABLE_PWA=true` + VAPID 키 추가 시 `lib/push/` 모듈 연결.
+## Web Push
+
+- Tables: `push_subscriptions`
+- APIs: `GET /api/push/vapid-public-key`, `POST/DELETE /api/push/web-subscription`
+- Settings → “사진 알림 켜기”
+- Env: `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `NEXT_PUBLIC_VAPID_PUBLIC_KEY`
+
+Without keys, deliver still works in-app; OS notification is mocked/skipped.
+
+## Album / Viewer
+
+- Chat: tap photo → full-screen viewer
+- `/album` + `GET /api/album` — grouped memory photos
 
 ## i18n
 
 캡션·후속 멘트: `data/photoPush/scenarios.ko.json`  
-`{name}` 플레이스홀더 → `personalizeCaption()`
+`{name}` 플레이스홀더 → `personalizeCaption()` + natural conversation polish
 
 ## 마이그레이션
 
-`supabase/migrations/010_photo_push_system.sql`
+- `supabase/migrations/010_photo_push_system.sql`
+- `supabase/migrations/011_photo_storage_bridge.sql`

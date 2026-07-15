@@ -31,7 +31,8 @@ export type AnalyticsEvent =
   | "photo_push_sent"
   | "photo_push_opened"
   | "photo_push_viewed"
-  | "photo_push_replied";
+  | "photo_push_replied"
+  | "photo_viewer_open";
 
 export interface AnalyticsPayload {
   event: AnalyticsEvent;

@@ -108,6 +108,13 @@ export async function runPhotoPushCron(
       .eq("id", slot.user_id)
       .maybeSingle();
 
+    const { data: stateRow } = await supabase
+      .from("user_character_states")
+      .select("relationship_level")
+      .eq("user_id", slot.user_id)
+      .eq("character_id", slot.character_id)
+      .maybeSingle();
+
     const result = await deliverPhotoPush(supabase, {
       userId: slot.user_id as string,
       characterId: slot.character_id as string,
@@ -116,6 +123,8 @@ export async function runPhotoPushCron(
       scenarioId: slot.scenario_id as string,
       displayName: (profileRow?.display_name as string | null) ?? null,
       isSpecialDay: slot.is_special_day as boolean,
+      relationshipLevel:
+        (stateRow?.relationship_level as number | undefined) ?? 1,
     });
 
     if (result) delivered += 1;

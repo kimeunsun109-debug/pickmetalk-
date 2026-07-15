@@ -1,6 +1,7 @@
 "use client";
 
 import { LogoutButton } from "@/components/auth/LogoutButton";
+import { WebPushEnableButton } from "@/components/settings/WebPushEnableButton";
 import { clearClientSessionData } from "@/lib/auth/clearClientSession";
 import { FREE_DAILY_MESSAGE_LIMIT } from "@/lib/constants";
 import { t } from "@/lib/i18n";
@@ -188,6 +189,23 @@ export function SettingsClient({
           </div>
         </section>
       )}
+
+      {/* 알림·앨범 */}
+      <section className="mb-6">
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-400">
+          사진 &amp; 알림
+        </h2>
+        <div className="flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-sm">
+          <WebPushEnableButton />
+          <Link
+            href="/album"
+            className="flex items-center justify-between rounded-xl border border-gray-100 px-3 py-2.5 text-sm text-gray-700 active:bg-gray-50"
+          >
+            추억 앨범 보기
+            <span className="text-gray-400">→</span>
+          </Link>
+        </div>
+      </section>
 
       {/* 베타 안내 */}
       <section className="mb-6 rounded-2xl bg-yellow-50 px-4 py-4 text-sm text-yellow-800">

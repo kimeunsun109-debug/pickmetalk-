@@ -27,6 +27,8 @@ export interface SelectedPhotoPush {
   assetUrl: string;
   assetId: string | null;
   caption: string;
+  /** Ops catalog category slug when resolved from Storage */
+  category?: string;
 }
 
 export function pickCaption(
