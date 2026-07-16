@@ -40,6 +40,7 @@ import { ServerPerfTrace } from "@/lib/perf/trace";
 import {
   canSendChatMessage,
   ensureDailyUsageFresh,
+  releaseDailyMessageSlot,
   tryReserveDailyMessageSlot,
 } from "@/services/dailyMessageLimit";
 import { NextResponse } from "next/server";
@@ -85,6 +86,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
   }
 
+  let dailySlotReserved = false;
+
   if (!resend) {
     const { data: profileRow } = await supabase
       .from("profiles")
@@ -92,38 +95,44 @@ export async function POST(request: Request) {
       .eq("id", userId)
       .maybeSingle();
 
-    if (profileRow) {
-      const profile = mapUserProfile(profileRow);
-      const { count, isPremium } = await ensureDailyUsageFresh(
+    if (!profileRow) {
+      return NextResponse.json(
+        { error: "프로필을 찾을 수 없습니다." },
+        { status: 403 }
+      );
+    }
+
+    const profile = mapUserProfile(profileRow);
+    const { count, isPremium } = await ensureDailyUsageFresh(
+      supabase,
+      userId,
+      profile
+    );
+    if (!isPremium) {
+      if (!canSendChatMessage(profile, count)) {
+        return NextResponse.json(
+          {
+            error: "오늘 무료 대화를 모두 사용했어요.",
+            code: "DAILY_LIMIT_REACHED",
+          },
+          { status: 429 }
+        );
+      }
+      const reserved = await tryReserveDailyMessageSlot(
         supabase,
         userId,
-        profile
+        count
       );
-      if (!isPremium) {
-        if (!canSendChatMessage(profile, count)) {
-          return NextResponse.json(
-            {
-              error: "오늘 무료 대화를 모두 사용했어요.",
-              code: "DAILY_LIMIT_REACHED",
-            },
-            { status: 429 }
-          );
-        }
-        const reserved = await tryReserveDailyMessageSlot(
-          supabase,
-          userId,
-          count
+      if (!reserved) {
+        return NextResponse.json(
+          {
+            error: "오늘 무료 대화를 모두 사용했어요.",
+            code: "DAILY_LIMIT_REACHED",
+          },
+          { status: 429 }
         );
-        if (!reserved) {
-          return NextResponse.json(
-            {
-              error: "오늘 무료 대화를 모두 사용했어요.",
-              code: "DAILY_LIMIT_REACHED",
-            },
-            { status: 429 }
-          );
-        }
       }
+      dailySlotReserved = true;
     }
   }
 
@@ -164,6 +173,16 @@ export async function POST(request: Request) {
         }
       };
 
+      let userMessageId: string | null = null;
+      let userMessagePersisted = false;
+
+      const releaseReservedSlot = async () => {
+        if (dailySlotReserved && !userMessagePersisted) {
+          await releaseDailyMessageSlot(supabase, userId);
+          dailySlotReserved = false;
+        }
+      };
+
       try {
         send({ streaming: true });
 
@@ -175,6 +194,7 @@ export async function POST(request: Request) {
         );
 
         if (!conversation) {
+          await releaseReservedSlot();
           send({ error: "대화방을 찾을 수 없습니다.", done: true });
           return;
         }
@@ -183,6 +203,7 @@ export async function POST(request: Request) {
         const character = getCharacterById(characterId);
         trace.mark("Load Character", `${characterId}`);
         if (!character) {
+          await releaseReservedSlot();
           send({ error: "캐릭터 없음", done: true });
           return;
         }
@@ -243,8 +264,6 @@ export async function POST(request: Request) {
           ]);
         });
 
-        let userMessageId: string | null = null;
-
         if (!resend) {
           const { data: userMessageRow, error: userMsgError } = await supabase
             .from("messages")
@@ -259,11 +278,13 @@ export async function POST(request: Request) {
             .single();
 
           if (userMsgError) {
+            await releaseReservedSlot();
             send({ error: userMsgError.message, done: true });
             return;
           }
 
           userMessageId = userMessageRow?.id ?? null;
+          userMessagePersisted = Boolean(userMessageId);
 
           void markPhotoDeliveryReplied(supabase, conversationId, userId);
         }
@@ -467,8 +488,7 @@ export async function POST(request: Request) {
 
         const { text: trimmed, follow_up } = trace.sync("Response Parse", () =>
           postProcessAssistantReply(
-            fullReply || getStreamFallback(characterId, userText),
-            { characterId }
+            fullReply || getStreamFallback(characterId, userText)
           )
         );
 
@@ -566,6 +586,7 @@ export async function POST(request: Request) {
         trace.end("stream complete");
       } catch (err) {
         if (streamTimeout) clearTimeout(streamTimeout);
+        await releaseReservedSlot();
         const msg =
           err instanceof Error ? err.message : "채팅 처리 중 오류";
         send({ error: msg, done: true });

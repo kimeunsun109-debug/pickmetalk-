@@ -104,13 +104,16 @@ export async function runPhotoPushCron(
   for (const slot of dueSlots ?? []) {
     const { data: profileRow } = await supabase
       .from("profiles")
-      .select("display_name")
+      .select("*")
       .eq("id", slot.user_id)
       .maybeSingle();
 
+    if (!profileRow) continue;
+    const profile = mapUserProfile(profileRow);
+
     const { data: stateRow } = await supabase
       .from("user_character_states")
-      .select("relationship_level")
+      .select("relationship_level, affection")
       .eq("user_id", slot.user_id)
       .eq("character_id", slot.character_id)
       .maybeSingle();
@@ -121,10 +124,12 @@ export async function runPhotoPushCron(
       conversationId: slot.conversation_id as string,
       scheduledId: slot.id as string,
       scenarioId: slot.scenario_id as string,
-      displayName: (profileRow?.display_name as string | null) ?? null,
+      displayName: profile.displayName,
       isSpecialDay: slot.is_special_day as boolean,
       relationshipLevel:
         (stateRow?.relationship_level as number | undefined) ?? 1,
+      isPremium: profile.isPremium,
+      affection: (stateRow?.affection as number | undefined) ?? 0,
     });
 
     if (result) delivered += 1;

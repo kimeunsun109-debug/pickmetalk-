@@ -1,4 +1,3 @@
-import { polishCharacterMessage } from "@/lib/conversation/naturalConversation";
 import type { ChatFollowUp } from "@/types/api";
 
 const ELLIPSIS_PATTERN = /(?:\.{3,}|…+)/g;
@@ -28,20 +27,12 @@ export function detectFollowUp(text: string): ChatFollowUp {
   return "comment";
 }
 
-export function postProcessAssistantReply(
-  text: string,
-  opts?: { characterId?: string; userName?: string }
-): {
+export function postProcessAssistantReply(text: string): {
   text: string;
   follow_up: ChatFollowUp;
 } {
   const trimmedInput = text.trim();
-  let normalized = limitEllipsis(stripParentheticalNarration(trimmedInput));
-  // Natural conversation polish (ban AI phrases, length, emoji)
-  normalized = polishCharacterMessage(normalized, {
-    characterSlug: opts?.characterId,
-    userName: opts?.userName,
-  });
+  const normalized = limitEllipsis(stripParentheticalNarration(trimmedInput));
   return {
     text: normalized || trimmedInput || "잠깐만, 다시 말해줄게.",
     follow_up: detectFollowUp(normalized || trimmedInput),

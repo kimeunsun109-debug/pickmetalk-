@@ -36,7 +36,8 @@ export function isScheduledSkipDay(
     PHOTO_PUSH_SKIP_DAYS_PER_MONTH_MIN +
     (seed % (PHOTO_PUSH_SKIP_DAYS_PER_MONTH_MAX - PHOTO_PUSH_SKIP_DAYS_PER_MONTH_MIN + 1));
   const dayNum = Number(planDay.slice(8, 10));
-  const daysInMonth = 28;
+  const [year, month] = planDay.slice(0, 7).split("-").map(Number);
+  const daysInMonth = new Date(year, month, 0).getDate();
   const skipDays = new Set<number>();
   for (let i = 0; i < skipCount; i += 1) {
     skipDays.add(1 + ((seed + i * 7) % daysInMonth));

@@ -177,6 +177,8 @@ export function ChatProvider({
     null
   );
   const [freeRemaining, setFreeRemaining] = useState<number | null>(null);
+  const freeRemainingRef = useRef<number | null>(null);
+  freeRemainingRef.current = freeRemaining;
   const usageDayRef = useRef<string>("");
   const isPremiumRef = useRef(isPremiumUser);
   isPremiumRef.current = isPremiumUser;
@@ -187,10 +189,12 @@ export function ChatProvider({
     (data: { remaining?: number | null; usageDay?: string; isPremium?: boolean }) => {
       if (data.isPremium) {
         setFreeRemaining(null);
+        freeRemainingRef.current = null;
         return;
       }
       if (data.remaining == null) return;
       setFreeRemaining(data.remaining);
+      freeRemainingRef.current = data.remaining;
       if (data.usageDay) usageDayRef.current = data.usageDay;
       const msg = usageBannerMessageForRemaining(data.remaining);
       if (
@@ -381,15 +385,18 @@ export function ChatProvider({
       const trimmed = text.trim();
       const resend = options?.resend === true;
 
-      if (
-        !resend &&
-        !isPremiumRef.current &&
-        freeRemaining !== null &&
-        freeRemaining <= 0
-      ) {
-        setPremiumModalReason("daily_limit");
-        setShowPremiumModal(true);
-        return;
+      if (!resend && !isPremiumRef.current) {
+        if (freeRemainingRef.current === null) {
+          await refreshUsage();
+        }
+        if (
+          freeRemainingRef.current !== null &&
+          freeRemainingRef.current <= 0
+        ) {
+          setPremiumModalReason("daily_limit");
+          setShowPremiumModal(true);
+          return;
+        }
       }
 
       const userMsgId = resend
@@ -437,6 +444,7 @@ export function ChatProvider({
               setMessages((prev) => prev.filter((m) => m.id !== userMsgId));
             }
             setFreeRemaining(0);
+            freeRemainingRef.current = 0;
             setPremiumModalReason("daily_limit");
             setShowPremiumModal(true);
             return;
@@ -546,6 +554,9 @@ export function ChatProvider({
           }
         }
       } catch (e) {
+        if (!resend && !isPremiumRef.current) {
+          void refreshUsage();
+        }
         const errText =
           e instanceof Error
             ? `오류: ${e.message}`
@@ -567,7 +578,7 @@ export function ChatProvider({
         streamingIdRef.current = null;
       }
     },
-    [safeConversationId, isTyping, freeRemaining, refreshUsage]
+    [safeConversationId, isTyping, refreshUsage]
   );
 
   const deleteMessage = useCallback(async (messageId: string) => {
