@@ -86,7 +86,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
   }
 
-  let dailySlotReserved = false;
+  let reservedDailyCount: number | null = null;
 
   if (!resend) {
     const { data: profileRow } = await supabase
@@ -118,12 +118,12 @@ export async function POST(request: Request) {
           { status: 429 }
         );
       }
-      const reserved = await tryReserveDailyMessageSlot(
+      reservedDailyCount = await tryReserveDailyMessageSlot(
         supabase,
         userId,
         count
       );
-      if (!reserved) {
+      if (reservedDailyCount == null) {
         return NextResponse.json(
           {
             error: "오늘 무료 대화를 모두 사용했어요.",
@@ -132,7 +132,6 @@ export async function POST(request: Request) {
           { status: 429 }
         );
       }
-      dailySlotReserved = true;
     }
   }
 
@@ -177,9 +176,13 @@ export async function POST(request: Request) {
       let userMessagePersisted = false;
 
       const releaseReservedSlot = async () => {
-        if (dailySlotReserved && !userMessagePersisted) {
-          await releaseDailyMessageSlot(supabase, userId);
-          dailySlotReserved = false;
+        if (reservedDailyCount != null && !userMessagePersisted) {
+          await releaseDailyMessageSlot(
+            supabase,
+            userId,
+            reservedDailyCount
+          );
+          reservedDailyCount = null;
         }
       };
 

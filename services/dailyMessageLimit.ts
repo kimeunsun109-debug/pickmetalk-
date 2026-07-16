@@ -73,16 +73,17 @@ export async function tryReserveDailyMessageSlot(
   supabase: SupabaseClient,
   userId: string,
   expectedCount: number
-): Promise<boolean> {
+): Promise<number | null> {
   if (expectedCount >= FREE_DAILY_MESSAGE_LIMIT) {
-    return false;
+    return null;
   }
 
+  const reservedCount = expectedCount + 1;
   const now = new Date().toISOString();
   const { data } = await supabase
     .from("profiles")
     .update({
-      daily_message_count: expectedCount + 1,
+      daily_message_count: reservedCount,
       daily_message_reset_at: now,
     })
     .eq("id", userId)
@@ -90,7 +91,7 @@ export async function tryReserveDailyMessageSlot(
     .select("id")
     .maybeSingle();
 
-  if (data) return true;
+  if (data) return reservedCount;
 
   const { data: row } = await supabase
     .from("profiles")
@@ -99,29 +100,23 @@ export async function tryReserveDailyMessageSlot(
     .maybeSingle();
 
   const latest = (row?.daily_message_count as number) ?? expectedCount;
-  if (latest === expectedCount) return false;
-  if (latest >= FREE_DAILY_MESSAGE_LIMIT) return false;
+  if (latest === expectedCount) return null;
+  if (latest >= FREE_DAILY_MESSAGE_LIMIT) return null;
 
   return tryReserveDailyMessageSlot(supabase, userId, latest);
 }
 
-/** Roll back a reserved slot when the chat exchange fails before persisting the user message. */
+/** Roll back only this request's reservation (optimistic lock on reservedCount). */
 export async function releaseDailyMessageSlot(
   supabase: SupabaseClient,
-  userId: string
+  userId: string,
+  reservedCount: number
 ): Promise<void> {
-  const { data: row } = await supabase
-    .from("profiles")
-    .select("daily_message_count")
-    .eq("id", userId)
-    .maybeSingle();
-
-  const current = (row?.daily_message_count as number) ?? 0;
-  if (current <= 0) return;
+  if (reservedCount <= 0) return;
 
   await supabase
     .from("profiles")
-    .update({ daily_message_count: current - 1 })
+    .update({ daily_message_count: reservedCount - 1 })
     .eq("id", userId)
-    .eq("daily_message_count", current);
+    .eq("daily_message_count", reservedCount);
 }

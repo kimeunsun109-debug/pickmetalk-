@@ -113,7 +113,9 @@ export async function deliverPhotoPush(
 ): Promise<{ deliveryId: string; messageId: string } | null> {
   const { data: existingDelivery } = await supabase
     .from("photo_push_deliveries")
-    .select("id, message_id")
+    .select(
+      "id, message_id, caption, media_url, scenario_id, sent_at"
+    )
     .eq("scheduled_id", params.scheduledId)
     .maybeSingle();
 
@@ -129,10 +131,60 @@ export async function deliverPhotoPush(
   }
 
   if (existingDelivery) {
-    await supabase
-      .from("photo_push_deliveries")
-      .delete()
-      .eq("id", existingDelivery.id);
+    const { data: linkedMsg } = await supabase
+      .from("messages")
+      .select("id")
+      .eq("photo_delivery_id", existingDelivery.id)
+      .maybeSingle();
+
+    if (linkedMsg) {
+      await supabase
+        .from("photo_push_deliveries")
+        .update({ message_id: linkedMsg.id })
+        .eq("id", existingDelivery.id);
+      await supabase
+        .from("photo_push_scheduled")
+        .update({ status: "delivered" })
+        .eq("id", params.scheduledId);
+      return {
+        deliveryId: existingDelivery.id as string,
+        messageId: linkedMsg.id as string,
+      };
+    }
+
+    const scenario = getPhotoScenario(
+      (existingDelivery.scenario_id as string) ?? params.scenarioId
+    );
+    const { data: recoveredMsg, error: recoverErr } = await supabase
+      .from("messages")
+      .insert({
+        user_id: params.userId,
+        character_id: params.characterId,
+        conversation_id: params.conversationId,
+        role: "assistant",
+        content: existingDelivery.caption as string,
+        emotion: scenario?.emotion,
+        media_type: "photo",
+        media_url: existingDelivery.media_url as string,
+        photo_delivery_id: existingDelivery.id,
+      })
+      .select("id")
+      .single();
+
+    if (!recoverErr && recoveredMsg) {
+      await supabase
+        .from("photo_push_deliveries")
+        .update({ message_id: recoveredMsg.id })
+        .eq("id", existingDelivery.id);
+      await supabase
+        .from("photo_push_scheduled")
+        .update({ status: "delivered" })
+        .eq("id", params.scheduledId);
+      return {
+        deliveryId: existingDelivery.id as string,
+        messageId: recoveredMsg.id as string,
+      };
+    }
   }
 
   const content = await selectPhotoPushContent(supabase, {
