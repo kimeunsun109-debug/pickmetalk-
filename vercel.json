@@ -10,7 +10,7 @@
   "crons": [
     {
       "path": "/api/cron/photo-push",
-      "schedule": "*/15 * * * *"
+      "schedule": "0 9 * * *"
     }
   ]
 }

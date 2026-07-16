@@ -1,6 +1,6 @@
 /**
  * Storage bridge — product reads ready photos from Supabase Storage / CDN.
- * Ops (ai_girlfriend_app) owns generation; product never runs Midjourney.
+ * Ops (`pickmetalk-ops`) owns generation; product never runs Midjourney.
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";

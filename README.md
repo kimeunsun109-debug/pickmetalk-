@@ -17,7 +17,7 @@
 ### 1. 의존성 설치
 
 ```bash
-cd c:\Users\user\ai_girlfriend_app
+cd C:\Users\user\pickmetalk
 npm install
 ```
 
@@ -112,7 +112,7 @@ npm start
 
 ## Cursor Cloud에서 이어서 작업
 
-1. [Cloud Agents 대시보드](https://cursor.com/dashboard/cloud-agents)에서 GitHub 저장소 `kimeunsun109-debug/app_girl-friend` 연결
+1. [Cloud Agents 대시보드](https://cursor.com/dashboard/cloud-agents)에서 GitHub 저장소 `kimeunsun109-debug/pickmetalk` 연결
 2. **Secrets**에 `.env.example` 항목 등록 (`DEEPSEEK_API_KEY`, Supabase URL/anon key 등)
 3. 저장소의 `.cursor/environment.json`이 `npm install` + `openpyxl` 설치를 자동 실행
 4. 상세 가이드는 루트 `AGENTS.md` 참고

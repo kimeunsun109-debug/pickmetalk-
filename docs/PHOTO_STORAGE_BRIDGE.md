@@ -1,7 +1,7 @@
 # Photo Storage Bridge
 
-Ops (`ai_girlfriend_app`) **generates** photos.  
-Product (`app_girl-friend`) **only reads & delivers** them.
+Ops (`pickmetalk-ops`, formerly `ai_girlfriend_app`) **generates** photos.  
+Product (`pickmetalk`, formerly `app_girl-friend`) **only reads & delivers** them.
 
 ```
 [Windows Ops]

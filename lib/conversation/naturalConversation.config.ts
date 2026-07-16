@@ -1,5 +1,5 @@
 /**
- * Natural Conversation rules — ported from ops (ai_girlfriend_app).
+ * Natural Conversation rules — ported from ops (`pickmetalk-ops`).
  * Chat-facing only: ban AI-ish phrases, limit length/emoji, intent reactions.
  * Character slug note: product uses `yoonseo`; ops used `yunseo`.
  */

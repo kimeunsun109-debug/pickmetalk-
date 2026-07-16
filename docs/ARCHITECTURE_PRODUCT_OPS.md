@@ -2,10 +2,15 @@
 
 ## Roles (do not merge repos)
 
-| Repo | Role |
-|------|------|
-| **`app_girl-friend`** | Product — chat, auth, relationship, photo **delivery**, Vercel |
-| **`ai_girlfriend_app`** | Ops — Midjourney production, Photo Library, QC, Windows automation |
+| Repo / folder | Role |
+|---------------|------|
+| **`pickmetalk`** (was `app_girl-friend`) | Product — chat, auth, relationship, photo **delivery**, Vercel |
+| **`pickmetalk-ops`** (was `ai_girlfriend_app`) | Ops — Midjourney production, Photo Library, QC, Windows automation |
+
+Local Windows paths (recommended):
+
+- Product: `C:\Users\user\pickmetalk`
+- Ops: `C:\Users\user\pickmetalk-ops`
 
 ```
 Ops produces content → Storage/CDN → Product consumes & pushes to users
@@ -35,10 +40,15 @@ Express API, Prisma schema, batch dashboards.
 
 Never drop existing product schema.
 
+## Cron (Vercel)
+
+- Hobby plan: **once per day** — `0 9 * * *` (09:00 UTC ≈ 18:00 KST) in `vercel.json`
+- Pro plan: can restore `*/15 * * * *` for tighter photo-push timing
+
 ## Recommended next steps
 
-1. Grant Cursor/GitHub App write access to `app_girl-friend` and land this branch as PR
-2. Apply migrations `010` + `011` on Supabase
+1. Rename GitHub repos + local folders per `docs/RENAME_PICKMETALK.md`
+2. Apply migrations `010` + `011` on Supabase (if not already)
 3. Ops: publish first catalog batch to Storage + `character_photo_assets`
 4. Set `VAPID_*` + `CRON_SECRET` on Vercel
 5. Later: deeper Adaptive Personality DNA (optional) — product already has emotion/memory

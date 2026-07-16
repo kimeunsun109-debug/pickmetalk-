@@ -2,7 +2,7 @@
 
 ## 1. GitHub
 
-이 저장소: `https://github.com/kimeunsun109-debug/app_girl-friend.git`
+이 저장소: `https://github.com/kimeunsun109-debug/pickmetalk.git`
 
 Cloud Agent는 **main** 브랜치를 clone 합니다.
 

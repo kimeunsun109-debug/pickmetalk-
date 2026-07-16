@@ -48,7 +48,7 @@ app/api/photo-push/[deliveryId]/track/route.ts
 
 ## Cron (Vercel)
 
-- `vercel.json` → `*/15 * * * *`
+- `vercel.json` → `0 9 * * *` (Hobby: once/day, 09:00 UTC ≈ 18:00 KST). Pro can use `*/15 * * * *`.
 - Env: `CRON_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`
 
 ## 사진 에셋 (~1000장/캐릭터)

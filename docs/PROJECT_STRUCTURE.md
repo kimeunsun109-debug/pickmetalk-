@@ -1,7 +1,7 @@
 # 프로젝트 구조
 
 ```
-ai_girlfriend_app/
+pickmetalk/
 ├── app/                          # Next.js App Router
 │   ├── layout.tsx, page.tsx      # 루트·랜딩
 │   ├── globals.css
