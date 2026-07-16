@@ -36,4 +36,6 @@ export interface CatalogSelectParams {
   category?: string | null;
   excludeFingerprints?: Set<string>;
   minLevel?: number;
+  isPremium?: boolean;
+  maxAffection?: number;
 }

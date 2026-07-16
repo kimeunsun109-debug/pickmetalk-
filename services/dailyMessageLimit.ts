@@ -104,3 +104,24 @@ export async function tryReserveDailyMessageSlot(
 
   return tryReserveDailyMessageSlot(supabase, userId, latest);
 }
+
+/** Roll back a reserved slot when the chat exchange fails before persisting the user message. */
+export async function releaseDailyMessageSlot(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<void> {
+  const { data: row } = await supabase
+    .from("profiles")
+    .select("daily_message_count")
+    .eq("id", userId)
+    .maybeSingle();
+
+  const current = (row?.daily_message_count as number) ?? 0;
+  if (current <= 0) return;
+
+  await supabase
+    .from("profiles")
+    .update({ daily_message_count: current - 1 })
+    .eq("id", userId)
+    .eq("daily_message_count", current);
+}

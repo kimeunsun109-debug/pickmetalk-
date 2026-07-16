@@ -25,6 +25,8 @@ export async function selectPhotoPushContent(
     scenarioId: string;
     displayName: string | null;
     relationshipLevel?: number;
+    isPremium?: boolean;
+    affection?: number;
   }
 ): Promise<SelectedPhotoPush | null> {
   const scenario = getPhotoScenario(params.scenarioId);
@@ -79,6 +81,8 @@ export async function selectPhotoPushContent(
     emotion: scenario.emotion,
     excludeFingerprints,
     minLevel: params.relationshipLevel ?? 1,
+    isPremium: params.isPremium ?? false,
+    maxAffection: params.affection,
   });
 
   const assetUrl = catalog?.mediaUrl ?? defaultAssetUrl(params.characterId, scenario.emotion);
@@ -103,14 +107,42 @@ export async function deliverPhotoPush(
     displayName: string | null;
     isSpecialDay?: boolean;
     relationshipLevel?: number;
+    isPremium?: boolean;
+    affection?: number;
   }
 ): Promise<{ deliveryId: string; messageId: string } | null> {
+  const { data: existingDelivery } = await supabase
+    .from("photo_push_deliveries")
+    .select("id, message_id")
+    .eq("scheduled_id", params.scheduledId)
+    .maybeSingle();
+
+  if (existingDelivery?.message_id) {
+    await supabase
+      .from("photo_push_scheduled")
+      .update({ status: "delivered" })
+      .eq("id", params.scheduledId);
+    return {
+      deliveryId: existingDelivery.id as string,
+      messageId: existingDelivery.message_id as string,
+    };
+  }
+
+  if (existingDelivery) {
+    await supabase
+      .from("photo_push_deliveries")
+      .delete()
+      .eq("id", existingDelivery.id);
+  }
+
   const content = await selectPhotoPushContent(supabase, {
     userId: params.userId,
     characterId: params.characterId,
     scenarioId: params.scenarioId,
     displayName: params.displayName,
     relationshipLevel: params.relationshipLevel,
+    isPremium: params.isPremium,
+    affection: params.affection,
   });
   if (!content) return null;
 
@@ -154,7 +186,10 @@ export async function deliverPhotoPush(
     .select("id")
     .single();
 
-  if (mErr || !msg) return null;
+  if (mErr || !msg) {
+    await supabase.from("photo_push_deliveries").delete().eq("id", delivery.id);
+    return null;
+  }
 
   await supabase
     .from("photo_push_deliveries")

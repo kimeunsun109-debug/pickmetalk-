@@ -111,6 +111,22 @@ export async function markPhotoDeliveryReplied(
 
   if (!lastPhoto) return;
 
+  const { data: latestAssistant } = await supabase
+    .from("messages")
+    .select("photo_delivery_id, media_type")
+    .eq("conversation_id", conversationId)
+    .eq("role", "assistant")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (
+    latestAssistant?.media_type !== "photo" ||
+    latestAssistant.photo_delivery_id !== lastPhoto.id
+  ) {
+    return;
+  }
+
   const now = new Date();
   const latency = Math.round(
     (now.getTime() - new Date(lastPhoto.sent_at as string).getTime()) / 1000

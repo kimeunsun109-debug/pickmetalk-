@@ -1,5 +1,4 @@
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { selectCatalogPhoto } from "@/lib/photoCatalog/selectPhoto";
 import { NextResponse } from "next/server";
 
@@ -29,15 +28,7 @@ export async function GET(request: Request) {
   const category = searchParams.get("category");
   const emotion = searchParams.get("emotion");
 
-  // Use admin for catalog reads if available (RLS may hide assets); else user client
-  let client = supabase;
-  try {
-    client = createAdminClient();
-  } catch {
-    client = supabase;
-  }
-
-  const hit = await selectCatalogPhoto(client, {
+  const hit = await selectCatalogPhoto(supabase, {
     characterId,
     scenarioId,
     category: category ?? undefined,

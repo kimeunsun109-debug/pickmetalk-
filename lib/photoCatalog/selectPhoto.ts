@@ -84,6 +84,8 @@ export async function selectCatalogPhoto(
     params.category ?? scenarioToCategory(params.scenarioId);
   const exclude = params.excludeFingerprints ?? new Set<string>();
   const minLevel = params.minLevel ?? 1;
+  const isPremium = params.isPremium ?? false;
+  const maxAffection = params.maxAffection;
 
   const tryQuery = async (filters: {
     scenarioExact?: boolean;
@@ -98,6 +100,13 @@ export async function selectCatalogPhoto(
       )
       .eq("character_id", params.characterId)
       .lte("min_level", minLevel);
+
+    if (!isPremium) {
+      q = q.eq("is_premium", false);
+    }
+    if (maxAffection != null) {
+      q = q.lte("min_affection", maxAffection);
+    }
 
     if (filters.requireActive !== false) {
       q = q.eq("is_active", true);
