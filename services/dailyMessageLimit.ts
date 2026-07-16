@@ -1,0 +1,122 @@
+import { FREE_DAILY_MESSAGE_LIMIT } from "@/lib/constants";
+import type { UserProfile } from "@/types";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+const USAGE_TIMEZONE = "Asia/Seoul";
+
+export function getUsageDayKey(date = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: USAGE_TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
+export function normalizeDailyUsage(profile: UserProfile): {
+  count: number;
+  needsReset: boolean;
+  usageDay: string;
+} {
+  const usageDay = getUsageDayKey();
+  const resetDay = getUsageDayKey(new Date(profile.dailyMessageResetAt));
+  if (resetDay !== usageDay) {
+    return { count: 0, needsReset: true, usageDay };
+  }
+  return {
+    count: profile.dailyMessageCount,
+    needsReset: false,
+    usageDay,
+  };
+}
+
+export function canSendChatMessage(
+  profile: UserProfile,
+  countAfterReset: number
+): boolean {
+  if (profile.isPremium) return true;
+  return countAfterReset < FREE_DAILY_MESSAGE_LIMIT;
+}
+
+export function remainingFreeMessages(
+  profile: UserProfile,
+  countAfterReset: number
+): number {
+  if (profile.isPremium) return Infinity;
+  return Math.max(0, FREE_DAILY_MESSAGE_LIMIT - countAfterReset);
+}
+
+export async function ensureDailyUsageFresh(
+  supabase: SupabaseClient,
+  userId: string,
+  profile: UserProfile
+): Promise<{ count: number; isPremium: boolean }> {
+  const { count, needsReset } = normalizeDailyUsage(profile);
+
+  if (needsReset) {
+    const now = new Date().toISOString();
+    await supabase
+      .from("profiles")
+      .update({
+        daily_message_count: 0,
+        daily_message_reset_at: now,
+      })
+      .eq("id", userId);
+    return { count: 0, isPremium: profile.isPremium };
+  }
+
+  return { count, isPremium: profile.isPremium };
+}
+
+/** Reserve one slot before persisting user message (resend skips this). */
+export async function tryReserveDailyMessageSlot(
+  supabase: SupabaseClient,
+  userId: string,
+  expectedCount: number
+): Promise<number | null> {
+  if (expectedCount >= FREE_DAILY_MESSAGE_LIMIT) {
+    return null;
+  }
+
+  const reservedCount = expectedCount + 1;
+  const now = new Date().toISOString();
+  const { data } = await supabase
+    .from("profiles")
+    .update({
+      daily_message_count: reservedCount,
+      daily_message_reset_at: now,
+    })
+    .eq("id", userId)
+    .eq("daily_message_count", expectedCount)
+    .select("id")
+    .maybeSingle();
+
+  if (data) return reservedCount;
+
+  const { data: row } = await supabase
+    .from("profiles")
+    .select("daily_message_count")
+    .eq("id", userId)
+    .maybeSingle();
+
+  const latest = (row?.daily_message_count as number) ?? expectedCount;
+  if (latest === expectedCount) return null;
+  if (latest >= FREE_DAILY_MESSAGE_LIMIT) return null;
+
+  return tryReserveDailyMessageSlot(supabase, userId, latest);
+}
+
+/** Roll back only this request's reservation (optimistic lock on reservedCount). */
+export async function releaseDailyMessageSlot(
+  supabase: SupabaseClient,
+  userId: string,
+  reservedCount: number
+): Promise<void> {
+  if (reservedCount <= 0) return;
+
+  await supabase
+    .from("profiles")
+    .update({ daily_message_count: reservedCount - 1 })
+    .eq("id", userId)
+    .eq("daily_message_count", reservedCount);
+}

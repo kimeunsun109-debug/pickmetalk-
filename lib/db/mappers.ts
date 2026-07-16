@@ -116,6 +116,9 @@ export function mapMessage(row: Record<string, unknown>): Message {
     emotion: row.emotion
       ? normalizeEmotion(row.emotion as string)
       : undefined,
+    mediaType: (row.media_type as Message["mediaType"]) ?? undefined,
+    mediaUrl: (row.media_url as string | null) ?? undefined,
+    photoDeliveryId: (row.photo_delivery_id as string | null) ?? undefined,
     createdAt: row.created_at as string,
   };
 }

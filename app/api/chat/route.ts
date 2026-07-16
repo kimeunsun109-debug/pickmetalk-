@@ -37,8 +37,17 @@ import {
   buildTimeContextPromptBlock,
 } from "@/services/timeContext";
 import { ServerPerfTrace } from "@/lib/perf/trace";
+import {
+  canSendChatMessage,
+  ensureDailyUsageFresh,
+  releaseDailyMessageSlot,
+  tryReserveDailyMessageSlot,
+} from "@/services/dailyMessageLimit";
+import { NextResponse } from "next/server";
 import type { ChatRequestBody } from "@/types/api";
 import type { Message, UserCharacterState } from "@/types";
+import { ageFromBirthDate } from "@/lib/userAge";
+import { markPhotoDeliveryReplied } from "@/services/photoPush/followup";
 import type {
   PostgrestResponse,
   PostgrestSingleResponse,
@@ -55,6 +64,77 @@ const HISTORY_FETCH_LIMIT = 40;
  * body 파싱·auth·DB·프롬프트·LLM은 stream.start() 안에서 처리한다.
  */
 export async function POST(request: Request) {
+  let body: ChatRequestBody;
+  try {
+    body = (await request.json()) as ChatRequestBody;
+  } catch {
+    return NextResponse.json({ error: "잘못된 요청" }, { status: 400 });
+  }
+
+  const { conversationId, message, resend } = body;
+  if (!conversationId || !message?.trim()) {
+    return NextResponse.json(
+      { error: "conversationId와 message가 필요합니다." },
+      { status: 400 }
+    );
+  }
+
+  const supabase = await createClient();
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const userId = claimsData?.claims?.sub as string | undefined;
+  if (!userId) {
+    return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
+  }
+
+  let reservedDailyCount: number | null = null;
+
+  if (!resend) {
+    const { data: profileRow } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (!profileRow) {
+      return NextResponse.json(
+        { error: "프로필을 찾을 수 없습니다." },
+        { status: 403 }
+      );
+    }
+
+    const profile = mapUserProfile(profileRow);
+    const { count, isPremium } = await ensureDailyUsageFresh(
+      supabase,
+      userId,
+      profile
+    );
+    if (!isPremium) {
+      if (!canSendChatMessage(profile, count)) {
+        return NextResponse.json(
+          {
+            error: "오늘 무료 대화를 모두 사용했어요.",
+            code: "DAILY_LIMIT_REACHED",
+          },
+          { status: 429 }
+        );
+      }
+      reservedDailyCount = await tryReserveDailyMessageSlot(
+        supabase,
+        userId,
+        count
+      );
+      if (reservedDailyCount == null) {
+        return NextResponse.json(
+          {
+            error: "오늘 무료 대화를 모두 사용했어요.",
+            code: "DAILY_LIMIT_REACHED",
+          },
+          { status: 429 }
+        );
+      }
+    }
+  }
+
   const trace = new ServerPerfTrace("AI Response");
   const encoder = new TextEncoder();
   trace.mark("Pre-stream setup", "SSE Response 반환 직전");
@@ -92,42 +172,32 @@ export async function POST(request: Request) {
         }
       };
 
+      let userMessageId: string | null = null;
+      let userMessagePersisted = false;
+
+      const releaseReservedSlot = async () => {
+        if (reservedDailyCount != null && !userMessagePersisted) {
+          await releaseDailyMessageSlot(
+            supabase,
+            userId,
+            reservedDailyCount
+          );
+          reservedDailyCount = null;
+        }
+      };
+
       try {
         send({ streaming: true });
 
-        let body: ChatRequestBody;
-        try {
-          body = (await request.json()) as ChatRequestBody;
-        } catch {
-          send({ error: "잘못된 요청", done: true });
-          return;
-        }
-
-        const { conversationId, message, resend } = body;
-        if (!conversationId || !message?.trim()) {
-          send({
-            error: "conversationId와 message가 필요합니다.",
-            done: true,
-          });
-          return;
-        }
-
         const userText = message.trim();
-
-        const supabase = await createClient();
-        const { data: claimsData } = await supabase.auth.getClaims();
-        const userId = claimsData?.claims?.sub as string | undefined;
         trace.mark("Auth getClaims");
 
-        if (!userId) {
-          send({ error: "로그인이 필요합니다.", done: true });
-          return;
-        }
         const conversation = await trace.span("Load Conversation", () =>
           getConversationForUser(supabase, userId, conversationId)
         );
 
         if (!conversation) {
+          await releaseReservedSlot();
           send({ error: "대화방을 찾을 수 없습니다.", done: true });
           return;
         }
@@ -136,6 +206,7 @@ export async function POST(request: Request) {
         const character = getCharacterById(characterId);
         trace.mark("Load Character", `${characterId}`);
         if (!character) {
+          await releaseReservedSlot();
           send({ error: "캐릭터 없음", done: true });
           return;
         }
@@ -196,8 +267,6 @@ export async function POST(request: Request) {
           ]);
         });
 
-        let userMessageId: string | null = null;
-
         if (!resend) {
           const { data: userMessageRow, error: userMsgError } = await supabase
             .from("messages")
@@ -212,11 +281,15 @@ export async function POST(request: Request) {
             .single();
 
           if (userMsgError) {
+            await releaseReservedSlot();
             send({ error: userMsgError.message, done: true });
             return;
           }
 
           userMessageId = userMessageRow?.id ?? null;
+          userMessagePersisted = Boolean(userMessageId);
+
+          void markPhotoDeliveryReplied(supabase, conversationId, userId);
         }
         send({ userMessageId });
 
@@ -313,12 +386,18 @@ export async function POST(request: Request) {
           characterId
         );
 
+        const derivedAge = ageFromBirthDate(
+          profile?.birthDate ?? profile?.userContext?.birthDate
+        );
         const profileCtx = {
           ...(profile?.userContext ?? {}),
           nickname:
             profile?.displayName ??
             profile?.userContext?.nickname ??
             profile?.userContext?.name,
+          age:
+            profile?.userContext?.age ??
+            (derivedAge != null ? String(derivedAge) : undefined),
           gender: profile?.gender ?? profile?.userContext?.gender,
           birthDate: profile?.birthDate ?? profile?.userContext?.birthDate,
           mbti: profile?.mbti ?? profile?.userContext?.mbti,
@@ -510,6 +589,7 @@ export async function POST(request: Request) {
         trace.end("stream complete");
       } catch (err) {
         if (streamTimeout) clearTimeout(streamTimeout);
+        await releaseReservedSlot();
         const msg =
           err instanceof Error ? err.message : "채팅 처리 중 오류";
         send({ error: msg, done: true });

@@ -27,7 +27,12 @@ export type AnalyticsEvent =
   | "return_visit_tier2"
   | "return_visit_tier3"
   | "absence_banner_shown"
-  | "absence_banner_dismissed";
+  | "absence_banner_dismissed"
+  | "photo_push_sent"
+  | "photo_push_opened"
+  | "photo_push_viewed"
+  | "photo_push_replied"
+  | "photo_viewer_open";
 
 export interface AnalyticsPayload {
   event: AnalyticsEvent;

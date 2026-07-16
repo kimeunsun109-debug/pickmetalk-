@@ -32,9 +32,7 @@ export function postProcessAssistantReply(text: string): {
   follow_up: ChatFollowUp;
 } {
   const trimmedInput = text.trim();
-  const normalized = limitEllipsis(
-    stripParentheticalNarration(trimmedInput)
-  );
+  const normalized = limitEllipsis(stripParentheticalNarration(trimmedInput));
   return {
     text: normalized || trimmedInput || "잠깐만, 다시 말해줄게.",
     follow_up: detectFollowUp(normalized || trimmedInput),

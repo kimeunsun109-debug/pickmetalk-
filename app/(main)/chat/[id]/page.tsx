@@ -37,11 +37,11 @@ export default async function ChatPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ conversationId?: string }>;
+  searchParams: Promise<{ conversationId?: string; photoPush?: string }>;
 }) {
   const trace = new ServerPerfTrace("Enter Chat — SSR");
   const { id } = await params;
-  const { conversationId: queryConversationId } = await searchParams;
+  const { conversationId: queryConversationId, photoPush } = await searchParams;
 
   const supabase = await createClient();
   const {
@@ -132,6 +132,9 @@ export default async function ChatPage({
       role: m.role as "user" | "assistant",
       content: m.content,
       createdAt: m.createdAt,
+      mediaType: m.mediaType,
+      mediaUrl: m.mediaUrl,
+      photoDeliveryId: m.photoDeliveryId,
     }));
   } catch {
     try {
@@ -180,6 +183,7 @@ export default async function ChatPage({
         <ChatScreen
           conversationTitle={conversation.title ?? "새 대화"}
           userNickname={profileRow?.display_name ?? null}
+          photoPushDeliveryId={photoPush ?? null}
         />
       </ChatProvider>
     </ChatErrorBoundary>

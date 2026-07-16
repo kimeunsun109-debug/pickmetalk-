@@ -1,0 +1,25 @@
+{
+  "common": {
+    "appName": "픽미톡",
+    "close": "닫기",
+    "later": "다음에 할게요"
+  },
+  "usage": {
+    "bannerTen": "무료 대화가 10회 남았습니다.",
+    "bannerFive": "무료 대화가 5회 남았습니다. Premium으로 무제한 대화를 이용해보세요.",
+    "limitReached": "오늘 무료 대화를 모두 사용했어요.",
+    "remaining": "오늘 무료 대화 {count}회 남음"
+  },
+  "premium": {
+    "headlineLimit": "오늘 무료 대화를 모두 사용했어요.",
+    "headlineDefault": "Premium으로 더 깊은 대화",
+    "primaryBenefit": "무제한 대화",
+    "subtitle": "⭐ Premium 가입 시",
+    "benefitUnlimited": "♾️ 무제한 대화",
+    "benefitFuture": "장기 기억 · 전화 · 사진 · 음성 (준비 중)",
+    "cta": "Premium 시작하기",
+    "ctaPriceMonthly": "월간 구독 — ₩9,900",
+    "paymentPreparing": "한국 결제 연동 준비 중이에요. 곧 이용할 수 있어요.",
+    "paymentUnavailable": "지금은 결제를 시작할 수 없어요. 잠시 후 다시 시도해 주세요."
+  }
+}

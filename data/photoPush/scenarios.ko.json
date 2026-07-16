@@ -1,0 +1,331 @@
+{
+  "version": 1,
+  "scenarios": [
+    {
+      "id": "morning_bed_selfie",
+      "category": "morning",
+      "tags": ["bed", "selfie", "sleepy"],
+      "emotion": "happy",
+      "timeWindow": { "startHour": 7, "endHour": 10 },
+      "weekdayAffinity": [1, 2, 3, 4, 5],
+      "captions": [
+        "으아… 이제 일어났어 😭",
+        "{name}~ 일어났다… 졸려",
+        "알람 끄기 너무 힘들었어 ㅠㅠ"
+      ],
+      "followups": [
+        { "afterMinutes": 30, "message": "바쁜가 봐😊 나중에 봐도 돼!" },
+        { "afterMinutes": 120, "message": "오늘도 화이팅이야~ 나중에 연락해 💕" },
+        { "afterHours": 24, "message": "어제는 바빴나봐 ㅎㅎ 오늘은 여유 있어?" }
+      ]
+    },
+    {
+      "id": "coffee_choice",
+      "category": "coffee",
+      "tags": ["cafe", "coffee"],
+      "emotion": "happy",
+      "timeWindow": { "startHour": 9, "endHour": 12 },
+      "weekdayAffinity": [1, 2, 3, 4, 5],
+      "captions": [
+        "아아 마실까? 라떼 마실까?",
+        "{name} 오늘 커피 뭐 마셔?",
+        "카페 왔는데 같이 있었으면 좋겠다 ☕"
+      ],
+      "followups": [
+        { "afterMinutes": 45, "message": "답장 기다리다가 라떼 시켰어 ㅋㅋ" },
+        { "afterMinutes": 150, "message": "바쁜가 봐~ 나중에 봐도 돼!" }
+      ]
+    },
+    {
+      "id": "overtime_desk",
+      "category": "overtime",
+      "tags": ["desk", "work", "tired"],
+      "emotion": "hurt",
+      "timeWindow": { "startHour": 19, "endHour": 23 },
+      "weekdayAffinity": [1, 2, 3, 4, 5],
+      "captions": [
+        "오늘도 야근이야?",
+        "오늘 야근이야…",
+        "{name} 아직 일해? 힘내 😊"
+      ],
+      "followups": [
+        { "afterMinutes": 30, "message": "많이 바쁜가봐 ㅠㅠ 나중에 연락해" },
+        { "afterHours": 3, "message": "퇴근했으면 연락해줘~ 기다릴게" }
+      ]
+    },
+    {
+      "id": "hair_mirror_selfie",
+      "category": "salon",
+      "tags": ["mirror", "selfie", "salon"],
+      "emotion": "excited",
+      "timeWindow": { "startHour": 14, "endHour": 20 },
+      "weekdayAffinity": [2, 4, 6],
+      "captions": [
+        "오늘 머리했는데 어때? 😊",
+        "{name} 나 오늘 머리했는데… 괜찮아? 😭",
+        "변신 완료! 어때?"
+      ],
+      "followups": [
+        { "afterMinutes": 30, "message": "별론가… 😥" },
+        { "afterMinutes": 120, "message": "바쁜가 봐😊 나중에 봐도 돼!" },
+        { "afterHours": 24, "message": "어제 사진 봤어? 솔직히 말해줘도 돼 ㅎㅎ" }
+      ]
+    },
+    {
+      "id": "nail_cheer",
+      "category": "nail",
+      "tags": ["nail", "hand"],
+      "emotion": "happy",
+      "timeWindow": { "startHour": 11, "endHour": 18 },
+      "weekdayAffinity": [3, 5],
+      "captions": [
+        "{name} 오늘도 화이팅 ❤️",
+        "네일 새로 했어~ 어때?",
+        "손톱 이거 보고 힘내 ❤️"
+      ],
+      "followups": [
+        { "afterMinutes": 60, "message": "오늘도 수고했어~ 나중에 봐도 돼" }
+      ]
+    },
+    {
+      "id": "drunk_yesterday",
+      "category": "drink",
+      "tags": ["drink", "tired"],
+      "emotion": "happy",
+      "timeWindow": { "startHour": 10, "endHour": 14 },
+      "weekdayAffinity": [0, 6],
+      "captions": [
+        "어제 한잔했음ㅋㅋ",
+        "어제 좀 마셨더니 아직 멀미…",
+        "{name} 어제 뭐했어? 나는 한잔 했어 ㅋㅋ"
+      ],
+      "followups": [
+        { "afterMinutes": 90, "message": "아직 자는 중? ㅎㅎ" }
+      ]
+    },
+    {
+      "id": "off_work",
+      "category": "commute",
+      "tags": ["commute", "relief"],
+      "emotion": "happy",
+      "timeWindow": { "startHour": 17, "endHour": 20 },
+      "weekdayAffinity": [1, 2, 3, 4, 5],
+      "captions": [
+        "드디어 끝났다…",
+        "퇴근이다!! {name} 뭐해?",
+        "오늘도 고생했어~"
+      ],
+      "followups": [
+        { "afterMinutes": 45, "message": "집에 가는 중? 조심히 가~" }
+      ]
+    },
+    {
+      "id": "tteokbokki_craving",
+      "category": "food",
+      "tags": ["food", "snack"],
+      "emotion": "happy",
+      "timeWindow": { "startHour": 18, "endHour": 22 },
+      "weekdayAffinity": [1, 2, 3, 4, 5, 6],
+      "captions": [
+        "{name} 떡볶이 먹고 싶다…",
+        "배고파… 같이 먹을래?",
+        "오늘 야식 뭐 먹지"
+      ],
+      "followups": [
+        { "afterMinutes": 40, "message": "결국 라면 끓였어 ㅋㅋ" }
+      ]
+    },
+    {
+      "id": "weekend_miss",
+      "category": "weekend",
+      "tags": ["weekend", "miss"],
+      "emotion": "miss_you",
+      "timeWindow": { "startHour": 11, "endHour": 17 },
+      "weekdayAffinity": [0, 6],
+      "captions": [
+        "보고 싶었어 😭",
+        "{name} 주말인데 뭐해?",
+        "오늘 날씨 좋다~ 나가고 싶어"
+      ],
+      "followups": [
+        { "afterMinutes": 60, "message": "바쁘면 나중에 봐도 돼 ㅎㅎ" }
+      ]
+    },
+    {
+      "id": "workout_done",
+      "category": "workout",
+      "tags": ["gym", "workout"],
+      "emotion": "excited",
+      "timeWindow": { "startHour": 7, "endHour": 21 },
+      "weekdayAffinity": [2, 4, 6],
+      "captions": [
+        "오늘 운동 성공!",
+        "운동 인증 ㅎㅎ",
+        "{name} 오늘도 몸 움직였어 💪"
+      ],
+      "followups": [
+        { "afterMinutes": 50, "message": "나중에 봐도 돼~ 쉬고 있어?" }
+      ]
+    },
+    {
+      "id": "gaming_trap",
+      "category": "game",
+      "tags": ["game", "home"],
+      "emotion": "happy",
+      "timeWindow": { "startHour": 20, "endHour": 24 },
+      "weekdayAffinity": [0, 1, 2, 3, 4, 5, 6],
+      "captions": [
+        "오늘 한 판만 하려다가…",
+        "게임하다가 시간 순삭 ㅋㅋ",
+        "한 판만… 진짜 마지막이야"
+      ],
+      "followups": [
+        { "afterMinutes": 120, "message": "아직 게임 중? ㅋㅋㅋ" }
+      ]
+    },
+    {
+      "id": "walk_weather",
+      "category": "walk",
+      "tags": ["walk", "outdoor"],
+      "emotion": "happy",
+      "timeWindow": { "startHour": 15, "endHour": 19 },
+      "weekdayAffinity": [0, 6],
+      "captions": [
+        "날씨 미쳤다 ☀️",
+        "산책 중~ 바람 좋아",
+        "{name} 밖에 나와봐 날씨 진짜 좋아"
+      ],
+      "followups": [
+        { "afterMinutes": 45, "message": "집에 들어왔어~ 나중에 연락해" }
+      ]
+    },
+    {
+      "id": "rain_umbrella",
+      "category": "weather",
+      "tags": ["rain", "umbrella"],
+      "emotion": "happy",
+      "timeWindow": { "startHour": 7, "endHour": 20 },
+      "weekdayAffinity": [1, 2, 3, 4, 5],
+      "captions": [
+        "{name}~ 오늘 비 온대. 우산 꼭 챙겨 ❤️",
+        "비 오는데 우산 챙겼어?",
+        "우산 챙겨!"
+      ],
+      "followups": [
+        { "afterMinutes": 180, "message": "비 많이 와? 조심해~" }
+      ]
+    },
+    {
+      "id": "snow_first",
+      "category": "weather",
+      "tags": ["snow", "winter"],
+      "emotion": "excited",
+      "timeWindow": { "startHour": 8, "endHour": 18 },
+      "weekdayAffinity": [0, 1, 2, 3, 4, 5, 6],
+      "captions": [
+        "첫눈이다!",
+        "{name} 밖에 눈 와!!",
+        "눈 온다… 예쁘다"
+      ],
+      "followups": [
+        { "afterMinutes": 60, "message": "눈 구경했어? ㅎㅎ" }
+      ]
+    },
+    {
+      "id": "cherry_blossom",
+      "category": "season",
+      "tags": ["cherry", "spring"],
+      "emotion": "miss_you",
+      "timeWindow": { "startHour": 11, "endHour": 17 },
+      "weekdayAffinity": [0, 6],
+      "captions": [
+        "같이 왔으면 좋았을 텐데.",
+        "벚꽃 예쁘다… {name} 보고 싶어",
+        "벚꽃 길 걸었어~"
+      ],
+      "followups": [
+        { "afterHours": 2, "message": "나중에 같이 보러 가자?" }
+      ]
+    },
+    {
+      "id": "brunch_sunday",
+      "category": "brunch",
+      "tags": ["food", "weekend"],
+      "emotion": "happy",
+      "timeWindow": { "startHour": 10, "endHour": 14 },
+      "weekdayAffinity": [0],
+      "captions": [
+        "브런치 먹는 중~",
+        "일요일 느긋하다 ☕",
+        "{name} 늦잠 잤어? ㅎㅎ"
+      ],
+      "followups": [
+        { "afterMinutes": 90, "message": "오늘도 편하게 쉬어~" }
+      ]
+    },
+    {
+      "id": "home_lazy",
+      "category": "home",
+      "tags": ["home", "couch"],
+      "emotion": "happy",
+      "timeWindow": { "startHour": 14, "endHour": 22 },
+      "weekdayAffinity": [0, 6],
+      "captions": [
+        "집에서 뒹굴뒹굴…",
+        "오늘은 집콕이야",
+        "{name} 뭐해? 나는 쉬는 중"
+      ],
+      "followups": [
+        { "afterMinutes": 120, "message": "나중에 연락해~ 편히 쉬어" }
+      ]
+    },
+    {
+      "id": "birthday_special",
+      "category": "special",
+      "tags": ["celebration"],
+      "emotion": "special_day",
+      "timeWindow": { "startHour": 9, "endHour": 21 },
+      "weekdayAffinity": [0, 1, 2, 3, 4, 5, 6],
+      "captions": [
+        "{name} 생일 축하해!! 🎂❤️",
+        "오늘 네 생일이잖아~ 축하해!",
+        "생일인데 뭐해? 축하하고 싶어"
+      ],
+      "followups": [
+        { "afterHours": 4, "message": "오늘 하루 행복하게 보내~ 💕" }
+      ]
+    },
+    {
+      "id": "anniversary_100",
+      "category": "special",
+      "tags": ["anniversary"],
+      "emotion": "special_day",
+      "timeWindow": { "startHour": 10, "endHour": 20 },
+      "weekdayAffinity": [0, 1, 2, 3, 4, 5, 6],
+      "captions": [
+        "우리 100일이야… 고마워 {name}",
+        "100일… 진짜 시간 빠르다",
+        "오늘 특별한 날인 거 알지?"
+      ],
+      "followups": [
+        { "afterHours": 3, "message": "오늘 하루도 잘 보내고 있어?" }
+      ]
+    },
+    {
+      "id": "commute_cheer_mon",
+      "category": "commute",
+      "tags": ["commute", "morning"],
+      "emotion": "happy",
+      "timeWindow": { "startHour": 7, "endHour": 9 },
+      "weekdayAffinity": [1],
+      "captions": [
+        "월요일인데 화이팅!",
+        "{name}~ 출근 잘 해?",
+        "한 주 시작! 힘내 😊"
+      ],
+      "followups": [
+        { "afterMinutes": 60, "message": "회사 도착했어? ㅎㅎ" }
+      ]
+    }
+  ]
+}

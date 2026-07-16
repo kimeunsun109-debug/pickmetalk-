@@ -20,7 +20,7 @@
 Vercel 대시보드에 **Connect Git**이 보이면 아직 GitHub 연동이 안 된 상태입니다.
 
 1. [Project Settings → Git](https://vercel.com/kimeunsun-s-projects/app-girl-friend/settings/git)
-2. **Connect Git Repository** → `kimeunsun109-debug/app_girl-friend`
+2. **Connect Git Repository** → `kimeunsun109-debug/pickmetalk`
 3. **Production Branch**: `main`
 4. **Automatically deploy**: Enabled
 

@@ -1,3 +1,4 @@
+import { ageFromBirthDate } from "@/lib/userAge";
 import { mapUserProfile } from "@/lib/db/mappers";
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
@@ -74,7 +75,11 @@ export async function PATCH(request: Request) {
     userContext.name = body.displayName;
   }
   if (body.gender) userContext.gender = body.gender;
-  if (body.birthDate) userContext.birthDate = body.birthDate;
+  if (body.birthDate) {
+    userContext.birthDate = body.birthDate;
+    const age = ageFromBirthDate(body.birthDate);
+    if (age != null) userContext.age = String(age);
+  }
   if (body.mbti) userContext.mbti = body.mbti;
   if (body.idealType) userContext.idealType = body.idealType;
   if (body.interests) userContext.interests = body.interests;

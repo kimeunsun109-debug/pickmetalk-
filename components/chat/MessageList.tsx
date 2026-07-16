@@ -12,6 +12,7 @@ import { memo } from "react";
 export interface MessageListProps {
   messages: ChatMessage[];
   characterName: string;
+  characterId: string;
   isTyping: boolean;
   onLongPress: (messageId: string) => void;
 }
@@ -19,6 +20,7 @@ export interface MessageListProps {
 export const MessageList = memo(function MessageList({
   messages,
   characterName,
+  characterId,
   isTyping,
   onLongPress,
 }: MessageListProps) {
@@ -51,6 +53,7 @@ export const MessageList = memo(function MessageList({
             <MessageItem
               message={msg}
               characterName={characterName}
+              characterId={characterId}
               isStreaming={isStreaming}
               showAvatar={group.showAvatar}
               showAvatarSpacer={group.showAvatarSpacer}

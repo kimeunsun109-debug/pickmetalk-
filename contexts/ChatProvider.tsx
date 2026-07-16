@@ -1,5 +1,9 @@
 "use client";
 
+import {
+  shouldShowUsageBanner,
+  usageBannerMessageForRemaining,
+} from "@/components/chat/FreeUsageBanner";
 import { markBrowserSessionActive } from "@/lib/auth/browserSession";
 import { deviceSessionHeaders } from "@/lib/auth/deviceSession";
 import { normalizeEmotion } from "@/lib/emotions";
@@ -24,6 +28,9 @@ export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   createdAt?: string;
+  mediaType?: "photo" | null;
+  mediaUrl?: string | null;
+  photoDeliveryId?: string | null;
 }
 
 interface ChatContextValue {
@@ -44,7 +51,10 @@ interface ChatContextValue {
   deleteMessage: (messageId: string) => Promise<void>;
   reload: () => Promise<void>;
   showPremiumModal: boolean;
-  openPremiumModal: () => void;
+  premiumModalReason: "daily_limit" | "content" | null;
+  usageBannerMessage: string | null;
+  dismissUsageBanner: () => void;
+  openPremiumModal: (reason?: "daily_limit" | "content") => void;
   closePremiumModal: () => void;
 }
 
@@ -160,8 +170,62 @@ export function ChatProvider({
   );
   const [lastChatAt, setLastChatAt] = useState<string | null>(initialLastChatAt);
   const [showPremiumModal, setShowPremiumModal] = useState(false);
+  const [premiumModalReason, setPremiumModalReason] = useState<
+    "daily_limit" | "content" | null
+  >(null);
+  const [usageBannerMessage, setUsageBannerMessage] = useState<string | null>(
+    null
+  );
+  const [freeRemaining, setFreeRemaining] = useState<number | null>(null);
+  const freeRemainingRef = useRef<number | null>(null);
+  freeRemainingRef.current = freeRemaining;
+  const usageDayRef = useRef<string>("");
+  const isPremiumRef = useRef(isPremiumUser);
+  isPremiumRef.current = isPremiumUser;
 
   const safeConversationId = conversationId?.trim() || null;
+
+  const applyUsageResponse = useCallback(
+    (data: { remaining?: number | null; usageDay?: string; isPremium?: boolean }) => {
+      if (data.isPremium) {
+        setFreeRemaining(null);
+        freeRemainingRef.current = null;
+        return;
+      }
+      if (data.remaining == null) return;
+      setFreeRemaining(data.remaining);
+      freeRemainingRef.current = data.remaining;
+      if (data.usageDay) usageDayRef.current = data.usageDay;
+      const msg = usageBannerMessageForRemaining(data.remaining);
+      if (
+        msg &&
+        shouldShowUsageBanner(data.remaining, data.usageDay ?? usageDayRef.current)
+      ) {
+        setUsageBannerMessage(msg);
+      }
+    },
+    []
+  );
+
+  const refreshUsage = useCallback(async () => {
+    if (isPremiumRef.current) return;
+    try {
+      const res = await fetch("/api/profile/usage", { cache: "no-store" });
+      if (!res.ok) return;
+      const data = (await res.json()) as {
+        remaining?: number | null;
+        usageDay?: string;
+        isPremium?: boolean;
+      };
+      applyUsageResponse(data);
+    } catch {
+      /* ignore */
+    }
+  }, [applyUsageResponse]);
+
+  useEffect(() => {
+    void refreshUsage();
+  }, [refreshUsage, safeConversationId]);
 
   const fetchMessages = useCallback(async (convId: string) => {
     const msgRes = await fetch(
@@ -184,12 +248,18 @@ export function ChatProvider({
         role: string;
         content: string;
         createdAt?: string;
+        mediaType?: "photo" | null;
+        mediaUrl?: string | null;
+        photoDeliveryId?: string | null;
       }>
     ).map((m) => ({
       id: m.id,
       role: m.role as "user" | "assistant",
       content: m.content,
       createdAt: m.createdAt,
+      mediaType: m.mediaType,
+      mediaUrl: m.mediaUrl,
+      photoDeliveryId: m.photoDeliveryId,
     }));
   }, []);
 
@@ -314,6 +384,21 @@ export function ChatProvider({
 
       const trimmed = text.trim();
       const resend = options?.resend === true;
+
+      if (!resend && !isPremiumRef.current) {
+        if (freeRemainingRef.current === null) {
+          await refreshUsage();
+        }
+        if (
+          freeRemainingRef.current !== null &&
+          freeRemainingRef.current <= 0
+        ) {
+          setPremiumModalReason("daily_limit");
+          setShowPremiumModal(true);
+          return;
+        }
+      }
+
       const userMsgId = resend
         ? (messagesRef.current.filter((m) => m.role === "user").at(-1)?.id ??
           `user-${Date.now()}`)
@@ -350,7 +435,23 @@ export function ChatProvider({
         });
 
         if (!res.ok) {
-          const err = (await res.json()) as { error?: string };
+          const err = (await res.json()) as {
+            error?: string;
+            code?: string;
+          };
+          if (res.status === 429 || err.code === "DAILY_LIMIT_REACHED") {
+            if (!resend) {
+              setMessages((prev) => prev.filter((m) => m.id !== userMsgId));
+            }
+            setFreeRemaining(0);
+            freeRemainingRef.current = 0;
+            setPremiumModalReason("daily_limit");
+            setShowPremiumModal(true);
+            return;
+          }
+          if (!resend) {
+            setMessages((prev) => prev.filter((m) => m.id !== userMsgId));
+          }
           throw new Error(err.error ?? "전송 실패");
         }
 
@@ -426,6 +527,9 @@ export function ChatProvider({
                   chunk.relationshipLevel as RelationshipLevel
                 );
               if (chunk.emotion) setEmotion(normalizeEmotion(chunk.emotion));
+              if (!resend) {
+                void refreshUsage();
+              }
               if (chunk.userMessageId) {
                 setMessages((prev) =>
                   prev.map((m) =>
@@ -453,6 +557,9 @@ export function ChatProvider({
           }
         }
       } catch (e) {
+        if (!resend && !isPremiumRef.current) {
+          void refreshUsage();
+        }
         const errText =
           e instanceof Error
             ? `오류: ${e.message}`
@@ -474,7 +581,7 @@ export function ChatProvider({
         streamingIdRef.current = null;
       }
     },
-    [safeConversationId, isTyping]
+    [safeConversationId, isTyping, refreshUsage]
   );
 
   const deleteMessage = useCallback(async (messageId: string) => {
@@ -513,8 +620,18 @@ export function ChatProvider({
     }
   }, [deleteMessage, sendMessage, isTyping]);
 
-  const openPremiumModal = useCallback(() => setShowPremiumModal(true), []);
-  const closePremiumModal = useCallback(() => setShowPremiumModal(false), []);
+  const openPremiumModal = useCallback(
+    (reason: "daily_limit" | "content" = "content") => {
+      setPremiumModalReason(reason);
+      setShowPremiumModal(true);
+    },
+    []
+  );
+  const closePremiumModal = useCallback(() => {
+    setShowPremiumModal(false);
+    setPremiumModalReason(null);
+  }, []);
+  const dismissUsageBanner = useCallback(() => setUsageBannerMessage(null), []);
 
   const contextValue = useMemo<ChatContextValue>(
     () => ({
@@ -534,6 +651,9 @@ export function ChatProvider({
       deleteMessage,
       reload: syncHistoryInBackground,
       showPremiumModal,
+      premiumModalReason,
+      usageBannerMessage,
+      dismissUsageBanner,
       openPremiumModal,
       closePremiumModal,
     }),
@@ -554,6 +674,9 @@ export function ChatProvider({
       deleteMessage,
       syncHistoryInBackground,
       showPremiumModal,
+      premiumModalReason,
+      usageBannerMessage,
+      dismissUsageBanner,
       openPremiumModal,
       closePremiumModal,
     ]

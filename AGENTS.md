@@ -2,7 +2,9 @@
 
 ## Repo
 
-- **App:** PickmeTalk AI girlfriend chat (`pickmetalk.com`)
+- **App:** PickmeTalk (`pickmetalk.com`)
+- **GitHub / local folder:** `pickmetalk` (formerly `app_girl-friend`)
+- **Ops companion:** `pickmetalk-ops` (formerly `ai_girlfriend_app`) — do not merge
 - **Stack:** Next.js 15, Supabase, DeepSeek, Vercel
 
 ## Start (Cloud)

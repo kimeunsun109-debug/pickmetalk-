@@ -192,6 +192,9 @@ export interface Message {
   role: "user" | "assistant" | "system";
   content: string;
   emotion?: EmotionState;
+  mediaType?: "photo" | null;
+  mediaUrl?: string | null;
+  photoDeliveryId?: string | null;
   createdAt: string;
 }
 

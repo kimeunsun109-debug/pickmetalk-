@@ -1,6 +1,9 @@
 /** 무료 체험·일일 메시지 한도 등 — 비즈니스 규칙 */
 export const TRIAL_DAYS = 14;
-export const FREE_DAILY_MESSAGE_LIMIT = 30;
+export const FREE_DAILY_MESSAGE_LIMIT = 50;
+/** 무료 잔여 횟수 안내 배너 (회당 1회, KST 일 기준) */
+export const FREE_USAGE_WARN_THRESHOLDS = [10, 5] as const;
+export const USAGE_BANNER_DURATION_MS = 2500;
 export const ABSENCE_EVENT_DAYS = 3;
 export const AFFECTION_MAX = 100;
 export const RELATIONSHIP_LEVELS = [1, 2, 3, 4, 5] as const;
