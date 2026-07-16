@@ -449,6 +449,9 @@ export function ChatProvider({
             setShowPremiumModal(true);
             return;
           }
+          if (!resend) {
+            setMessages((prev) => prev.filter((m) => m.id !== userMsgId));
+          }
           throw new Error(err.error ?? "전송 실패");
         }
 

@@ -111,11 +111,10 @@ export async function runPhotoPushCron(
     if (!profileRow) continue;
     const profile = mapUserProfile(profileRow);
 
-    const { data: stateRow } = await supabase
-      .from("user_character_states")
+    const { data: convRow } = await supabase
+      .from("conversations")
       .select("relationship_level, affection")
-      .eq("user_id", slot.user_id)
-      .eq("character_id", slot.character_id)
+      .eq("id", slot.conversation_id)
       .maybeSingle();
 
     const result = await deliverPhotoPush(supabase, {
@@ -127,9 +126,9 @@ export async function runPhotoPushCron(
       displayName: profile.displayName,
       isSpecialDay: slot.is_special_day as boolean,
       relationshipLevel:
-        (stateRow?.relationship_level as number | undefined) ?? 1,
+        (convRow?.relationship_level as number | undefined) ?? 1,
       isPremium: profile.isPremium,
-      affection: (stateRow?.affection as number | undefined) ?? 0,
+      affection: (convRow?.affection as number | undefined) ?? 0,
     });
 
     if (result) delivered += 1;

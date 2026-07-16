@@ -129,6 +129,27 @@ export async function deliverPhotoPush(
   }
 
   if (existingDelivery) {
+    const { data: linkedMsg } = await supabase
+      .from("messages")
+      .select("id")
+      .eq("photo_delivery_id", existingDelivery.id)
+      .maybeSingle();
+
+    if (linkedMsg) {
+      await supabase
+        .from("photo_push_deliveries")
+        .update({ message_id: linkedMsg.id })
+        .eq("id", existingDelivery.id);
+      await supabase
+        .from("photo_push_scheduled")
+        .update({ status: "delivered" })
+        .eq("id", params.scheduledId);
+      return {
+        deliveryId: existingDelivery.id as string,
+        messageId: linkedMsg.id as string,
+      };
+    }
+
     await supabase
       .from("photo_push_deliveries")
       .delete()

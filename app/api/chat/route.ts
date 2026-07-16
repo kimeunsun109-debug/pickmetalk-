@@ -87,6 +87,7 @@ export async function POST(request: Request) {
   }
 
   let dailySlotReserved = false;
+  let dailySlotReservedCount = 0;
 
   if (!resend) {
     const { data: profileRow } = await supabase
@@ -133,6 +134,7 @@ export async function POST(request: Request) {
         );
       }
       dailySlotReserved = true;
+      dailySlotReservedCount = count + 1;
     }
   }
 
@@ -178,7 +180,11 @@ export async function POST(request: Request) {
 
       const releaseReservedSlot = async () => {
         if (dailySlotReserved && !userMessagePersisted) {
-          await releaseDailyMessageSlot(supabase, userId);
+          await releaseDailyMessageSlot(
+            supabase,
+            userId,
+            dailySlotReservedCount
+          );
           dailySlotReserved = false;
         }
       };
