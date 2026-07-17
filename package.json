@@ -22,7 +22,6 @@
   "dependencies": {
     "@capacitor/android": "^8.4.0",
     "@capacitor/core": "^8.4.0",
-    "@ducanh2912/next-pwa": "^10.2.9",
     "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.49.1",
     "clsx": "^2.1.1",
