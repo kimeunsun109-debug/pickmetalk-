@@ -130,6 +130,22 @@ export async function insertProactiveMessage(
     throw new Error(error?.message ?? "선제 메시지 저장 실패");
   }
 
+  // 동시 요청 경합으로 같은 선제 메시지가 중복 삽입됐으면 내 것(나중 것)을 지우고
+  // 먼저 들어간 메시지를 결과로 사용한다
+  const { data: dupes } = await supabase
+    .from("messages")
+    .select("id, role, content, created_at")
+    .eq("conversation_id", conversationId)
+    .eq("role", "assistant")
+    .eq("content", candidate.message)
+    .order("created_at", { ascending: true });
+
+  let resultRow = inserted;
+  if (dupes && dupes.length > 1 && dupes[0].id !== inserted.id) {
+    await supabase.from("messages").delete().eq("id", inserted.id);
+    resultRow = dupes[0];
+  }
+
   await updateConversationLastMessage(
     supabase,
     conversationId,
@@ -151,7 +167,7 @@ export async function insertProactiveMessage(
     .eq("user_id", userId)
     .eq("character_id", characterId);
 
-  return inserted;
+  return resultRow;
 }
 
 export async function runProactiveMessageFlow(

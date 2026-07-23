@@ -266,10 +266,11 @@ export function ChatProvider({
   const runProactiveInBackground = useCallback(
     (convId: string) => {
       if (proactiveDoneRef.current === convId) return;
+      // POST 발사 전에 마킹 — 동시 마운트(strict mode 등)로 인한 이중 인사 방지
+      proactiveDoneRef.current = convId;
 
       void fetch(`/api/conversations/${convId}/proactive`, { method: "POST" })
         .then(() => {
-          proactiveDoneRef.current = convId;
           return fetchMessages(convId);
         })
         .then((refreshed) => {
