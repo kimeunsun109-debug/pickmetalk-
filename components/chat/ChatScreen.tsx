@@ -3,7 +3,6 @@
 import { ChatHeader } from "@/components/chat/ChatHeader";
 import { FreeUsageBanner } from "@/components/chat/FreeUsageBanner";
 import { ChatInput } from "@/components/chat/ChatInput";
-import { AssistantMessageActions } from "@/components/chat/AssistantMessageActions";
 import { ChatOnboarding } from "@/components/chat/ChatOnboarding";
 import { MessageActionSheet } from "@/components/chat/MessageActionSheet";
 import { MessageList } from "@/components/chat/MessageList";
@@ -32,7 +31,6 @@ export function ChatScreen({
     isTyping,
     lastChatAt,
     sendMessage,
-    regenerateLastReply,
     deleteMessage,
     usageBannerMessage,
     dismissUsageBanner,
@@ -123,24 +121,36 @@ export function ChatScreen({
     (messageId: string) => {
       const meta = messages.findIndex((m) => m.id === messageId);
       if (meta < 0) return;
-      const { canDelete } = getMessageGroupMeta(messages, meta);
       const isStreamingLast =
         isTyping &&
         meta === messages.length - 1 &&
         messages[meta]?.role === "assistant";
-      if (!canDelete || isStreamingLast) return;
+      if (isStreamingLast) return;
       setMenuMessageId(messageId);
     },
     [messages, isTyping]
   );
 
+  const handleCopyMessage = useCallback(
+    (messageId: string) => {
+      const target = messages.find((m) => m.id === messageId);
+      if (!target?.content.trim()) return;
+      void navigator.clipboard
+        .writeText(target.content)
+        .then(() => trackEvent("message_copy", characterId))
+        .catch(() => undefined);
+    },
+    [messages, characterId]
+  );
+
+  const menuMessageIndex = menuMessageId
+    ? messages.findIndex((m) => m.id === menuMessageId)
+    : -1;
+  const menuCanDelete =
+    menuMessageIndex >= 0 &&
+    getMessageGroupMeta(messages, menuMessageIndex).canDelete;
+
   const showOnboarding = messages.length === 0;
-  const lastAssistant =
-    lastMsg?.role === "assistant" ? lastMsg : null;
-  const showActions =
-    lastAssistant &&
-    !isTyping &&
-    lastAssistant.content.trim().length > 0;
 
   return (
     <div className="flex min-h-[100dvh] flex-col bg-[#b2c7d9]/30">
@@ -167,15 +177,6 @@ export function ChatScreen({
           />
         )}
 
-        {showActions && lastAssistant && (
-          <AssistantMessageActions
-            messageId={lastAssistant.id}
-            content={lastAssistant.content}
-            characterId={characterId}
-            onRegenerate={() => void regenerateLastReply()}
-          />
-        )}
-
         <div ref={bottomRef} />
       </main>
 
@@ -194,9 +195,13 @@ export function ChatScreen({
       <MessageActionSheet
         open={menuMessageId !== null}
         onClose={() => setMenuMessageId(null)}
+        onCopy={() => {
+          if (menuMessageId) handleCopyMessage(menuMessageId);
+        }}
         onDelete={() => {
           if (menuMessageId) void handleDeleteMessage(menuMessageId);
         }}
+        canDelete={menuCanDelete}
       />
 
       <PremiumModal />

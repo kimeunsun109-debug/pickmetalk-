@@ -45,8 +45,9 @@ export const CHAT_MESSAGE_LIST_LIMIT = 30;
  * 첫 스트림 청크 지연 시 폴백 전송 (ms).
  * 너무 짧으면 실제 응답이 오기 전에 임시 문장이 떴다가 교체되며 깜빡임이 생긴다.
  * 타이핑 인디케이터가 대기를 가려주므로 진짜 지연(스톨)일 때만 폴백한다.
+ * (폴백 후에도 실제 청크가 오면 즉시 교체·스트리밍 재개 — chat route 참고)
  */
-export const CHAT_STREAM_FIRST_CHUNK_MS = 2500;
+export const CHAT_STREAM_FIRST_CHUNK_MS = 4000;
 
 /** 웹 검색 대기 상한 — 초과 시 검색 없이 바로 LLM 스트림 */
 export const WEB_SEARCH_CHAT_BUDGET_MS = 1200;

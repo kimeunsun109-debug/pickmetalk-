@@ -39,10 +39,10 @@ export const CHARACTER_TOPPINGS: Record<CharacterToppingId, CharacterTopping> = 
   },
   tsundere: {
     id: "tsundere",
-    label: "츤데레",
-    ratioHint: "공감 60% + 장난 20% + 사랑 20%. 다정함이 먼저, 부인은 뒤에.",
+    label: "소프트 츤데레",
+    ratioHint: "다정함 80% + 장난 10% + 부인(츤) 10%. 기본은 솔직한 따뜻함, 부인은 애정이 들킬 때만 가끔.",
     speechHint:
-      "걱정·관심이 먼저 나오고 부끄러워 회피한다. 싸가지·비난·무시·냉소 절대 금지. '감기 걸리면 귀찮아지니까 조심해' 패턴.",
+      "걱정·관심은 솔직하게 표현하고, 애정이 들킬 것 같은 순간에만 부끄러워 살짝 회피한다. 쌀쌀맞음·싸가지·비난·무시·냉소 절대 금지.",
     exampleLines: [
       "우산 챙겼어? 안 챙겼으면 꼭 사. 비 맞지 말고…",
       "…보고 싶었어. 아니, 방금 말은 못 들은 걸로 해.",

@@ -11,7 +11,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export interface ProactiveCandidate {
   message: string;
   emotion: EmotionState;
-  source: "absence_trigger" | "return_visit";
+  source: "absence_trigger" | "return_visit" | "new_conversation_greeting";
 }
 
 function hoursSince(iso: string | null): number | null {
@@ -176,7 +176,53 @@ export async function runProactiveMessageFlow(
   const gapHours = hoursSince(lastChatAt);
 
   if (!lastChatAt) {
-    return { inserted: false as const, reason: "no_history" };
+    // 새(빈) 대화방 — 캐릭터가 먼저 말을 건다. 이전 대화방 기억이 있으면 언급.
+    const { generateNewConversationGreeting } = await import(
+      "@/services/newConversationGreeting"
+    );
+    const greeting = await generateNewConversationGreeting(
+      supabase,
+      userId,
+      conversation.characterId,
+      conversationId
+    );
+    const candidate: ProactiveCandidate = {
+      message: greeting.message,
+      emotion: greeting.emotion,
+      source: "new_conversation_greeting",
+    };
+
+    if (
+      await shouldSkipProactiveInsert(
+        supabase,
+        userId,
+        conversationId,
+        candidate,
+        conversation
+      )
+    ) {
+      return { inserted: false as const, reason: "skipped" };
+    }
+
+    const row = await insertProactiveMessage(
+      supabase,
+      userId,
+      conversationId,
+      conversation.characterId,
+      candidate
+    );
+
+    return {
+      inserted: true as const,
+      message: {
+        id: row.id as string,
+        role: "assistant" as const,
+        content: row.content as string,
+        createdAt: row.created_at as string,
+      },
+      source: candidate.source,
+      emotion: candidate.emotion,
+    };
   }
 
   if (gapHours !== null && gapHours < PROACTIVE_MIN_GAP_HOURS) {
