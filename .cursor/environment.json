@@ -1,3 +1,4 @@
 {
-  "install": "npm install && pip install openpyxl"
+  "install": "npm install && pip install openpyxl && bash scripts/cloud_env_setup.sh",
+  "start": "bash scripts/cloud_env_setup.sh"
 }
