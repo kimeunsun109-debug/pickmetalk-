@@ -429,22 +429,17 @@ export async function POST(request: Request) {
           .join("\n\n");
 
         const systemPrompt = trace.sync("Prompt Build", () =>
-          buildSystemPrompt(
+          buildSystemPrompt({
             characterId,
-            newEmotion,
-            newLevelPreview,
-            newAffectionPreview,
-            summary,
+            emotion: newEmotion,
+            level: newLevelPreview,
+            affection: newAffectionPreview,
+            memorySummary: summary,
             emotionDurationTurns,
-            userContents.length,
             dynamicContextBlock,
-            ongoingSession,
-            recent,
             speechProfile,
-            userText,
-            timeAwareCtx,
-            freshChatStart
-          )
+            freshChatStart,
+          })
         );
         trace.mark("Prompt length", `${systemPrompt.length} chars`);
 
