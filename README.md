@@ -1,4 +1,4 @@
-# 픽미톡 (PickmeTalk) — 감성 연애 채팅
+﻿# 픽미톡 (PickmeTalk) — 감성 연애 채팅
 
 **도메인:** [pickmetalk.com](https://pickmetalk.com)
 
@@ -9,7 +9,7 @@
 - **Frontend:** Next.js 15 (App Router), TypeScript, Tailwind CSS
 - **Backend:** Next.js API Routes
 - **DB / Auth:** Supabase
-- **AI:** DeepSeek (`deepseek-chat`)
+- **AI:** DeepSeek (`deepseek-v4-flash`)
 - **배포:** Vercel
 
 ## 로컬 실행

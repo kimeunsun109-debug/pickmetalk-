@@ -1,7 +1,9 @@
 import type { ChatMessage } from "@/services/ai/provider";
 import OpenAI from "openai";
 
-const MODEL = "deepseek-chat";
+/** Legacy `deepseek-chat` retired 2026-07-24 UTC — use v4 ids only. */
+const MODEL =
+  process.env.DEEPSEEK_MODEL?.trim() || "deepseek-v4-flash";
 
 let deepseekClientInstance: OpenAI | null = null;
 
