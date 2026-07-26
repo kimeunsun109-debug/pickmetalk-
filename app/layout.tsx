@@ -40,7 +40,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko">
-      <body className="antialiased">
+      <body className="font-sans antialiased">
         <BrowserSessionGuard />
         <DeviceSessionGuard />
         <div className="app-shell">{children}</div>

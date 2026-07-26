@@ -2,9 +2,10 @@
 
 import { PhotoMessageBubble } from "@/components/chat/PhotoMessageBubble";
 import type { ChatMessage } from "@/contexts/ChatProvider";
-import { useLongPress } from "@/hooks/useLongPress";
+import { characterAvatarSrc } from "@/lib/characters/images";
 import { formatBubbleTime } from "@/lib/formatMessageTime";
-import { memo, useMemo } from "react";
+import Image from "next/image";
+import { memo, useMemo, useState } from "react";
 
 function bubbleRadiusClass(
   isUser: boolean,
@@ -77,8 +78,6 @@ export interface MessageItemProps {
   isGroupedWithPrev?: boolean;
   isGroupedWithNext?: boolean;
   showTimestamp?: boolean;
-  onLongPress?: (messageId: string) => void;
-  canDelete?: boolean;
 }
 
 export const MessageItem = memo(function MessageItem({
@@ -91,17 +90,11 @@ export const MessageItem = memo(function MessageItem({
   isGroupedWithPrev = false,
   isGroupedWithNext = false,
   showTimestamp = false,
-  onLongPress,
-  canDelete = false,
 }: MessageItemProps) {
   const { role, content, mediaType, mediaUrl, photoDeliveryId } = message;
   const isUser = role === "user";
   const isPhoto = !isUser && mediaType === "photo" && mediaUrl;
-
-  const longPress = useLongPress(
-    () => onLongPress?.(message.id),
-    { disabled: !canDelete || !onLongPress }
-  );
+  const [avatarError, setAvatarError] = useState(false);
 
   const rowPadding = isGroupedWithPrev ? "pt-0.5" : "pt-2";
 
@@ -117,11 +110,21 @@ export const MessageItem = memo(function MessageItem({
   return (
     <div
       className={`flex w-full px-3 ${rowPadding} ${isUser ? "justify-end" : "justify-start"}`}
-      {...(canDelete ? longPress : {})}
     >
       {!isUser && showAvatar && (
         <div className="mr-1.5 mt-auto flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-pink-200 to-pink-400 text-[11px] font-bold text-white shadow-sm">
-          {characterName[0]}
+          {characterId && !avatarError ? (
+            <Image
+              src={characterAvatarSrc(characterId)}
+              alt={characterName}
+              width={32}
+              height={32}
+              className="size-8 object-cover"
+              onError={() => setAvatarError(true)}
+            />
+          ) : (
+            characterName[0]
+          )}
         </div>
       )}
 

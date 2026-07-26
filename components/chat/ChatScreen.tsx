@@ -4,12 +4,10 @@ import { ChatHeader } from "@/components/chat/ChatHeader";
 import { FreeUsageBanner } from "@/components/chat/FreeUsageBanner";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { ChatOnboarding } from "@/components/chat/ChatOnboarding";
-import { MessageActionSheet } from "@/components/chat/MessageActionSheet";
 import { MessageList } from "@/components/chat/MessageList";
 import { PremiumModal } from "@/components/chat/PremiumModal";
 import { useChat } from "@/contexts/ChatProvider";
 import { usePerfRenderCount } from "@/lib/perf/client";
-import { getMessageGroupMeta } from "@/lib/chatMessageLayout";
 import { getAbsenceTier } from "@/lib/returnVisit";
 import { trackEvent } from "@/services/analytics";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -31,7 +29,6 @@ export function ChatScreen({
     isTyping,
     lastChatAt,
     sendMessage,
-    deleteMessage,
     usageBannerMessage,
     dismissUsageBanner,
   } = useChat();
@@ -49,7 +46,6 @@ export function ChatScreen({
     return () => cancelAnimationFrame(frame);
   }, [messages.length, isTyping, streamScrollBucket]);
   const [sendError, setSendError] = useState<string | null>(null);
-  const [menuMessageId, setMenuMessageId] = useState<string | null>(null);
   const returnVisitTrackedRef = useRef(false);
   const photoPushTrackedRef = useRef(false);
 
@@ -103,35 +99,6 @@ export function ChatScreen({
     [sendMessage, characterId]
   );
 
-  const handleDeleteMessage = useCallback(
-    async (messageId: string) => {
-      setSendError(null);
-      try {
-        await deleteMessage(messageId);
-      } catch (e) {
-        setSendError(
-          e instanceof Error ? e.message : "메시지를 삭제하지 못했습니다."
-        );
-      }
-    },
-    [deleteMessage]
-  );
-
-  const handleMessageLongPress = useCallback(
-    (messageId: string) => {
-      const meta = messages.findIndex((m) => m.id === messageId);
-      if (meta < 0) return;
-      const { canDelete } = getMessageGroupMeta(messages, meta);
-      const isStreamingLast =
-        isTyping &&
-        meta === messages.length - 1 &&
-        messages[meta]?.role === "assistant";
-      if (!canDelete || isStreamingLast) return;
-      setMenuMessageId(messageId);
-    },
-    [messages, isTyping]
-  );
-
   const showOnboarding = messages.length === 0;
 
   return (
@@ -155,7 +122,6 @@ export function ChatScreen({
             characterName={character.name}
             characterId={characterId}
             isTyping={isTyping}
-            onLongPress={handleMessageLongPress}
           />
         )}
 
@@ -172,14 +138,6 @@ export function ChatScreen({
         disabled={isTyping}
         isWaitingReply={isTyping}
         onSend={handleSend}
-      />
-
-      <MessageActionSheet
-        open={menuMessageId !== null}
-        onClose={() => setMenuMessageId(null)}
-        onDelete={() => {
-          if (menuMessageId) void handleDeleteMessage(menuMessageId);
-        }}
       />
 
       <PremiumModal />

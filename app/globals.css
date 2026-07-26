@@ -1,3 +1,6 @@
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+@import url("https://fonts.googleapis.com/css2?family=Song+Myung&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -6,6 +9,8 @@
   --bg-ivory: #fff8f0;
   --accent-pink: #ff8fab;
   --text-main: #1a1a1a;
+  --font-pretendard: "Pretendard Variable", Pretendard, "Noto Sans KR", sans-serif;
+  --font-display: "Song Myung", "Pretendard Variable", serif;
   /* 노치·홈바 safe area */
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -95,4 +100,59 @@ button, a, [role="button"] {
   background-size: 200% 100%;
   animation: shimmer 1.4s infinite;
   border-radius: 0.5rem;
+}
+
+@keyframes hero-breath {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.035);
+  }
+}
+.animate-hero-breath {
+  animation: hero-breath 9s ease-in-out infinite;
+}
+
+@keyframes hero-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-hero-rise {
+  animation: hero-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.animate-hero-rise-delay {
+  animation: hero-rise 0.85s cubic-bezier(0.22, 1, 0.36, 1) 0.12s both;
+}
+
+@keyframes hero-shimmer {
+  0% {
+    background-position: 120% 0;
+  }
+  100% {
+    background-position: -20% 0;
+  }
+}
+.animate-hero-shimmer {
+  background: linear-gradient(
+    115deg,
+    transparent 35%,
+    rgba(255, 255, 255, 0.22) 48%,
+    transparent 62%
+  );
+  background-size: 220% 100%;
+  animation: hero-shimmer 5.5s ease-in-out infinite;
+}
+
+/* 채팅 말풍선 — 드래그 부분선택·시스템 복사 허용 */
+.select-text {
+  user-select: text;
+  -webkit-user-select: text;
 }

@@ -125,7 +125,7 @@ PR #4(로딩 개선) 미머지/미배포 환경에서는 **중복 API 호출**�
 | Supabase Dashboard | messages·conversations 인덱스 확인 권장 (`conversation_id`, `user_id`) |
 | Prompt 길이 | `PERF_TRACE=1` 채팅 시 `Prompt length N chars` 서버 로그 |
 | LocalStorage | 현재 핫패스 미사용 (무시) |
-| Image Load | `/assets/characters/*.png` 404 시 fallback — Network 탭 확인 |
+| Image Load | `/assets/characters/*.jpg` 404 시 fallback — Network 탭 확인 |
 
 ---
 

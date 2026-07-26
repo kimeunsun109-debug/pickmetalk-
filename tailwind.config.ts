@@ -18,6 +18,7 @@ const config: Config = {
       },
       fontFamily: {
         sans: ["var(--font-pretendard)", "system-ui", "sans-serif"],
+        display: ["var(--font-display)", "var(--font-pretendard)", "serif"],
       },
       animation: {
         "pulse-soft": "pulse-soft 2s ease-in-out infinite",

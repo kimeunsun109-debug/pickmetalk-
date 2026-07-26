@@ -3,6 +3,7 @@
 import { characterChatHref } from "@/lib/navigateChat";
 import { useRefreshOnVisible } from "@/hooks/useRefreshOnVisible";
 import type { Conversation } from "@/types";
+import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useMemo, useRef, useState } from "react";
 
@@ -198,8 +199,20 @@ export function ConversationListClient({
                   deletingId === conv.id ? "opacity-50" : ""
                 }`}
               >
-                <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-pink-200 to-pink-400 text-base font-bold text-white">
-                  {meta?.name?.[0] ?? conv.characterId[0]?.toUpperCase()}
+                <div className="relative size-12 shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-pink-200 to-pink-400 text-base font-bold text-white">
+                  {meta?.avatar ? (
+                    <Image
+                      src={meta.avatar}
+                      alt={meta.name}
+                      width={48}
+                      height={48}
+                      className="size-12 object-cover"
+                    />
+                  ) : (
+                    <span className="flex size-12 items-center justify-center">
+                      {meta?.name?.[0] ?? conv.characterId[0]?.toUpperCase()}
+                    </span>
+                  )}
                 </div>
 
                 <div className="min-w-0 flex-1">
