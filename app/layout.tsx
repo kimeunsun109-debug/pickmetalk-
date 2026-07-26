@@ -1,5 +1,6 @@
 import { BrowserSessionGuard } from "@/components/auth/BrowserSessionGuard";
 import { DeviceSessionGuard } from "@/components/auth/DeviceSessionGuard";
+import { PwaInstallBanner } from "@/components/pwa/PwaInstallBanner";
 import { BRAND } from "@/lib/brand";
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
@@ -43,6 +44,7 @@ export default function RootLayout({
         <BrowserSessionGuard />
         <DeviceSessionGuard />
         <div className="app-shell">{children}</div>
+        <PwaInstallBanner />
       </body>
     </html>
   );

@@ -8,6 +8,8 @@ import { markBrowserSessionActive } from "@/lib/auth/browserSession";
 import { deviceSessionHeaders } from "@/lib/auth/deviceSession";
 import { normalizeEmotion } from "@/lib/emotions";
 import { resolveCharacterId } from "@/lib/chatRoute";
+import { useConversationRealtime } from "@/hooks/useConversationRealtime";
+import { useRefreshOnVisible } from "@/hooks/useRefreshOnVisible";
 import { perfClientTrace, usePerfRenderCount } from "@/lib/perf/client";
 import { isPerfEnabled } from "@/lib/perf/trace";
 import type { EmotionState, PublicCharacter, RelationshipLevel } from "@/types";
@@ -351,6 +353,33 @@ export function ChatProvider({
   useEffect(() => {
     markBrowserSessionActive();
   }, []);
+
+  const handleRealtimeInsert = useCallback((incoming: ChatMessage) => {
+    if (streamingIdRef.current) return;
+    setMessages((prev) => {
+      if (prev.some((m) => m.id === incoming.id)) return prev;
+      const merged = [...prev, incoming];
+      merged.sort((a, b) => {
+        const ta = a.createdAt ? Date.parse(a.createdAt) : 0;
+        const tb = b.createdAt ? Date.parse(b.createdAt) : 0;
+        return ta - tb;
+      });
+      return merged;
+    });
+  }, []);
+
+  useConversationRealtime({
+    conversationId: safeConversationId,
+    onInsert: handleRealtimeInsert,
+    isPaused: isTyping,
+  });
+
+  useRefreshOnVisible(
+    useCallback(() => {
+      if (!safeConversationId) return;
+      void syncHistoryInBackground({ proactive: false, skipIfHydrated: false });
+    }, [safeConversationId, syncHistoryInBackground])
+  );
 
   useEffect(() => {
     const snap = initialSnapshotRef.current;

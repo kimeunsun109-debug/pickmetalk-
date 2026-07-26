@@ -68,7 +68,29 @@ npm start
 2. **`/characters`** — 유나·나린·윤서·은하·지유 중 선택
 3. **`/chat`** — 메시지 전송 → DeepSeek 스트리밍 응답
 4. 새로고침해도 Supabase `messages`에서 최근 30개 대화 복원
-5. 메시지 1회 왕복마다 호감도 +1, 관계 레벨 자동 갱신
+5. **PC·모바일 동기화** — 동일 이메일 로그인 시 `/conversations`에서 같은 히스토리 (Realtime + 탭 복귀 시 sync)
+6. 메시지 1회 왕복마다 호감도 +1, 관계 레벨 자동 갱신
+
+### PC ↔ 모바일 대화 이어하기
+
+1. PC·폰 모두 [pickmetalk.com](https://pickmetalk.com) + **같은 계정** 로그인
+2. PC에서 채팅 → Supabase `messages` 저장
+3. 폰 `/conversations` → 같은 대화방 → 히스토리 자동 복원 (Realtime 또는 앱 재진입)
+4. iOS: Safari **공유 → 홈 화면에 추가** / Android: PWA 설치 배너
+
+검증 스크립트 (`.env.local` + 테스트 계정 필요):
+
+```bash
+npm run verify:sync
+# 또는 프로덕션 대상
+npm run verify:sync -- https://pickmetalk.com
+```
+
+Supabase SQL Editor에서 Realtime 활성화 (1회):
+
+```sql
+-- supabase/migrations/012_messages_realtime.sql 실행
+```
 
 ## 주요 경로
 

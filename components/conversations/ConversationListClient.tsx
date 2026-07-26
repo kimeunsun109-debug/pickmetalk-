@@ -1,9 +1,10 @@
 "use client";
 
 import { characterChatHref } from "@/lib/navigateChat";
+import { useRefreshOnVisible } from "@/hooks/useRefreshOnVisible";
 import type { Conversation } from "@/types";
 import Link from "next/link";
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 interface CharacterMeta {
   name: string;
@@ -57,6 +58,20 @@ export function ConversationListClient({
       }),
     [items]
   );
+
+  const refreshList = useCallback(async () => {
+    const qs = filterCharacterId ? `?characterId=${filterCharacterId}` : "";
+    try {
+      const res = await fetch(`/api/conversations${qs}`, { cache: "no-store" });
+      if (!res.ok) return;
+      const data = (await res.json()) as { conversations?: Conversation[] };
+      if (Array.isArray(data.conversations)) setItems(data.conversations);
+    } catch {
+      /* keep current list */
+    }
+  }, [filterCharacterId]);
+
+  useRefreshOnVisible(refreshList);
 
   async function deleteConversation(conversationId: string) {
     const res = await fetch(`/api/conversations/${conversationId}`, {
