@@ -11,7 +11,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export interface ProactiveCandidate {
   message: string;
   emotion: EmotionState;
-  source: "absence_trigger" | "return_visit";
+  source: "absence_trigger" | "return_visit" | "new_conversation_greeting";
 }
 
 function hoursSince(iso: string | null): number | null {
@@ -130,6 +130,22 @@ export async function insertProactiveMessage(
     throw new Error(error?.message ?? "선제 메시지 저장 실패");
   }
 
+  // 동시 요청 경합으로 같은 선제 메시지가 중복 삽입됐으면 내 것(나중 것)을 지우고
+  // 먼저 들어간 메시지를 결과로 사용한다
+  const { data: dupes } = await supabase
+    .from("messages")
+    .select("id, role, content, created_at")
+    .eq("conversation_id", conversationId)
+    .eq("role", "assistant")
+    .eq("content", candidate.message)
+    .order("created_at", { ascending: true });
+
+  let resultRow = inserted;
+  if (dupes && dupes.length > 1 && dupes[0].id !== inserted.id) {
+    await supabase.from("messages").delete().eq("id", inserted.id);
+    resultRow = dupes[0];
+  }
+
   await updateConversationLastMessage(
     supabase,
     conversationId,
@@ -151,7 +167,7 @@ export async function insertProactiveMessage(
     .eq("user_id", userId)
     .eq("character_id", characterId);
 
-  return inserted;
+  return resultRow;
 }
 
 export async function runProactiveMessageFlow(
@@ -176,7 +192,53 @@ export async function runProactiveMessageFlow(
   const gapHours = hoursSince(lastChatAt);
 
   if (!lastChatAt) {
-    return { inserted: false as const, reason: "no_history" };
+    // 새(빈) 대화방 — 캐릭터가 먼저 말을 건다. 이전 대화방 기억이 있으면 언급.
+    const { generateNewConversationGreeting } = await import(
+      "@/services/newConversationGreeting"
+    );
+    const greeting = await generateNewConversationGreeting(
+      supabase,
+      userId,
+      conversation.characterId,
+      conversationId
+    );
+    const candidate: ProactiveCandidate = {
+      message: greeting.message,
+      emotion: greeting.emotion,
+      source: "new_conversation_greeting",
+    };
+
+    if (
+      await shouldSkipProactiveInsert(
+        supabase,
+        userId,
+        conversationId,
+        candidate,
+        conversation
+      )
+    ) {
+      return { inserted: false as const, reason: "skipped" };
+    }
+
+    const row = await insertProactiveMessage(
+      supabase,
+      userId,
+      conversationId,
+      conversation.characterId,
+      candidate
+    );
+
+    return {
+      inserted: true as const,
+      message: {
+        id: row.id as string,
+        role: "assistant" as const,
+        content: row.content as string,
+        createdAt: row.created_at as string,
+      },
+      source: candidate.source,
+      emotion: candidate.emotion,
+    };
   }
 
   if (gapHours !== null && gapHours < PROACTIVE_MIN_GAP_HOURS) {

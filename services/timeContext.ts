@@ -35,6 +35,9 @@ export interface AbsenceContext {
   tier: AbsenceTier;
   gapHours: number | null;
   gapLabel: string | null;
+  /** 이번 세션이 시작될 때 기준, 직전 대화와의 간격 (연속 대화 중에도 유지) */
+  sessionStartGapHours: number | null;
+  sessionStartGapLabel: string | null;
   lastActivityAt: string | null;
   ongoingSession: boolean;
   narrativePauseReturn: boolean;
@@ -243,6 +246,24 @@ function detectNarrativePauseReturn(
   };
 }
 
+/**
+ * 이번 세션 시작 시점의 접속 간격 — 연속 대화 중에도 "나 며칠 만에 왔지?"에
+ * 답할 수 있도록, 최근 45분+ 공백 지점(세션 경계)의 간격을 찾는다.
+ */
+function computeSessionStartGapHours(
+  userMsgs: Message[],
+  sessionGapMinutes = 45
+): number | null {
+  for (let i = userMsgs.length - 1; i >= 1; i -= 1) {
+    const gapH =
+      (new Date(userMsgs[i].createdAt).getTime() -
+        new Date(userMsgs[i - 1].createdAt).getTime()) /
+      (1000 * 60 * 60);
+    if (gapH >= sessionGapMinutes / 60) return gapH;
+  }
+  return null;
+}
+
 export function buildAbsenceContext(options: {
   history: Message[];
   ongoingSession: boolean;
@@ -273,6 +294,11 @@ export function buildAbsenceContext(options: {
     lastActivityAt = options.lastSeenAt;
   }
 
+  // 연속 대화 중에도 세션 시작 시점 기준 간격은 유지 (접속 간격 질문 대응)
+  const sessionStartGapHours = options.ongoingSession
+    ? computeSessionStartGapHours(userMsgs)
+    : gapHours;
+
   if (options.ongoingSession) {
     gapHours = null;
   }
@@ -288,6 +314,11 @@ export function buildAbsenceContext(options: {
     tier,
     gapHours,
     gapLabel: gapHours != null ? formatGapHours(gapHours) : null,
+    sessionStartGapHours,
+    sessionStartGapLabel:
+      sessionStartGapHours != null
+        ? formatGapHours(sessionStartGapHours)
+        : null,
     lastActivityAt,
     ongoingSession: options.ongoingSession,
     narrativePauseReturn,
@@ -330,11 +361,11 @@ const CHARACTER_TIME_REACTIONS: Record<
     special_7d: "특별 재회. '진짜 오랜만… 걱정했어.' 진심 톤.",
   },
   narin: {
-    none: "짧고 자연스럽게. 필요하면 우산·밥 정도만.",
-    wait_3h: "기다린 척 안 함. '…왔네. 바빴어?' 정도.",
-    miss_24h: "부인하며 그리움. '…연락 없길래. 아니, 신경 쓴 건 아니고.'",
-    reunion_3d: "서운+반가움 숨김. '…며칠 만이네. 뭐, 괜찮아?'",
-    special_7d: "특별 재회. 실수로 진심 새어 나옴 후 부인.",
+    none: "따뜻하고 자연스럽게. 우산·밥·컨디션 챙기기.",
+    wait_3h: "반갑게 맞으며 살짝 부인. '왔네 ㅎㅎ 바빴어? 기다렸잖아. 아, 조금만.'",
+    miss_24h: "그리움이 새어 나옴. '하루 만이네~ 연락 없어서 걱정했잖아.'",
+    reunion_3d: "서운+반가움. '며칠 만이야~ 보고 싶었단 말이야. ..조금.'",
+    special_7d: "특별 재회. 진심을 솔직하게. '진짜 오랜만이다.. 걱정 많이 했어.'",
   },
   yoonseo: {
     none: "필요 시 현재 시각·요일을 데이터처럼 언급 가능.",
@@ -383,9 +414,22 @@ export function buildTimeContextPromptBlock(
 
   if (absence.ongoingSession) {
     lines.push("- 마지막 접속 후: 같은 대화 세션 중 (45분 이내)");
+    if (absence.sessionStartGapLabel) {
+      lines.push(
+        `- 이번 세션 시작 기준: 지난 대화 이후 ${absence.sessionStartGapLabel} 만에 접속했다`
+      );
+    }
   } else if (absence.gapLabel) {
     lines.push(`- 마지막 대화 후 경과: ${absence.gapLabel}`);
     lines.push(`- 미접속 티어: ${ABSENCE_TIER_KO[absence.tier]}`);
+  }
+
+  if (absence.gapLabel || absence.sessionStartGapLabel) {
+    lines.push(
+      "[접속 간격 질문 — 필수]",
+      "- 사용자가 '나 며칠 만에 왔어?', '몇 시간 만이지?', '우리 언제 마지막으로 얘기했지?'처럼 접속·대화 간격을 물으면, 위 경과 정보를 근거로 자연스럽고 정확하게 답한다. 예: '3일 만이야~ 오래 걸렸네!'",
+      "- 이 정보가 있는데도 '모르겠다', '기억 안 나'라고 답하지 마라."
+    );
   }
 
   if (conversationSummary) {

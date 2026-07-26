@@ -42,7 +42,7 @@ export function ChatOnboarding({ character, nickname }: Props) {
           <ul className="mt-2 list-inside list-disc space-y-1 text-xs text-gray-600">
             <li>캐릭터를 고르고 편하게 말을 걸어 보세요.</li>
             <li>일상·고민·취미 무엇이든 대화해요.</li>
-            <li>답변 아래 📋 버튼으로 대화를 복사할 수 있어요.</li>
+            <li>말풍선을 길게 누르면 대화를 복사할 수 있어요.</li>
           </ul>
         </div>
 

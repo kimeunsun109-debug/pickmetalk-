@@ -121,16 +121,34 @@ export function ChatScreen({
     (messageId: string) => {
       const meta = messages.findIndex((m) => m.id === messageId);
       if (meta < 0) return;
-      const { canDelete } = getMessageGroupMeta(messages, meta);
       const isStreamingLast =
         isTyping &&
         meta === messages.length - 1 &&
         messages[meta]?.role === "assistant";
-      if (!canDelete || isStreamingLast) return;
+      if (isStreamingLast) return;
       setMenuMessageId(messageId);
     },
     [messages, isTyping]
   );
+
+  const handleCopyMessage = useCallback(
+    (messageId: string) => {
+      const target = messages.find((m) => m.id === messageId);
+      if (!target?.content.trim()) return;
+      void navigator.clipboard
+        .writeText(target.content)
+        .then(() => trackEvent("message_copy", characterId))
+        .catch(() => undefined);
+    },
+    [messages, characterId]
+  );
+
+  const menuMessageIndex = menuMessageId
+    ? messages.findIndex((m) => m.id === menuMessageId)
+    : -1;
+  const menuCanDelete =
+    menuMessageIndex >= 0 &&
+    getMessageGroupMeta(messages, menuMessageIndex).canDelete;
 
   const showOnboarding = messages.length === 0;
 
@@ -177,9 +195,13 @@ export function ChatScreen({
       <MessageActionSheet
         open={menuMessageId !== null}
         onClose={() => setMenuMessageId(null)}
+        onCopy={() => {
+          if (menuMessageId) handleCopyMessage(menuMessageId);
+        }}
         onDelete={() => {
           if (menuMessageId) void handleDeleteMessage(menuMessageId);
         }}
+        canDelete={menuCanDelete}
       />
 
       <PremiumModal />

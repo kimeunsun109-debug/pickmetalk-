@@ -3,14 +3,18 @@
 interface MessageActionSheetProps {
   open: boolean;
   onClose: () => void;
+  onCopy: () => void;
   onDelete: () => void;
+  canDelete: boolean;
 }
 
-/** Long-press delete menu — KakaoTalk-style bottom sheet. */
+/** Long-press message menu (copy/delete) — KakaoTalk-style bottom sheet. */
 export function MessageActionSheet({
   open,
   onClose,
+  onCopy,
   onDelete,
+  canDelete,
 }: MessageActionSheetProps) {
   if (!open) return null;
 
@@ -33,14 +37,25 @@ export function MessageActionSheet({
           <button
             type="button"
             onClick={() => {
-              onDelete();
+              onCopy();
               onClose();
             }}
-            className="flex w-full items-center justify-center gap-2 border-b border-gray-100 py-4 text-[15px] font-medium text-red-500 active:bg-red-50"
+            className="flex w-full items-center justify-center gap-2 border-b border-gray-100 py-4 text-[15px] font-medium text-gray-800 active:bg-gray-50"
           >
-            <span aria-hidden>🗑</span>
-            삭제
+            복사
           </button>
+          {canDelete && (
+            <button
+              type="button"
+              onClick={() => {
+                onDelete();
+                onClose();
+              }}
+              className="flex w-full items-center justify-center gap-2 border-b border-gray-100 py-4 text-[15px] font-medium text-red-500 active:bg-red-50"
+            >
+              삭제
+            </button>
+          )}
           <button
             type="button"
             onClick={onClose}

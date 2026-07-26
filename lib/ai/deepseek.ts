@@ -57,7 +57,7 @@ export async function* streamDeepSeekChat(
       messages,
       stream: true,
       temperature: 0.85,
-      max_tokens: 512,
+      max_tokens: 640,
     });
 
     for await (const chunk of stream) {
@@ -75,4 +75,20 @@ export async function* streamDeepSeekChat(
     }
     throw err;
   }
+}
+
+/** DeepSeek 단발 완성 — 새 대화 첫 인사 등 짧은 비스트리밍 호출용 */
+export async function completeDeepSeekChat(
+  messages: ChatMessage[],
+  options?: { maxTokens?: number; temperature?: number }
+): Promise<string> {
+  const client = getDeepSeekClient();
+  const completion = await client.chat.completions.create({
+    model: MODEL,
+    messages,
+    stream: false,
+    temperature: options?.temperature ?? 0.9,
+    max_tokens: options?.maxTokens ?? 200,
+  });
+  return completion.choices[0]?.message?.content?.trim() ?? "";
 }

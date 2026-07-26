@@ -429,22 +429,17 @@ export async function POST(request: Request) {
           .join("\n\n");
 
         const systemPrompt = trace.sync("Prompt Build", () =>
-          buildSystemPrompt(
+          buildSystemPrompt({
             characterId,
-            newEmotion,
-            newLevelPreview,
-            newAffectionPreview,
-            summary,
+            emotion: newEmotion,
+            level: newLevelPreview,
+            affection: newAffectionPreview,
+            memorySummary: summary,
             emotionDurationTurns,
-            userContents.length,
             dynamicContextBlock,
-            ongoingSession,
-            recent,
             speechProfile,
-            userText,
-            timeAwareCtx,
-            freshChatStart
-          )
+            freshChatStart,
+          })
         );
         trace.mark("Prompt length", `${systemPrompt.length} chars`);
 
@@ -476,7 +471,12 @@ export async function POST(request: Request) {
           gotModelChunk = true;
           if (streamTimeout) clearTimeout(streamTimeout);
           fullReply += chunk;
-          if (!fallbackUsed) {
+          if (fallbackUsed) {
+            // 폴백 문장이 이미 나갔어도 실제 답변이 오면 즉시 교체하고
+            // 스트리밍을 재개한다. (교체 없이 완주를 기다리면 체감 지연이 1분+로 늘어난다)
+            fallbackUsed = false;
+            send({ content: fullReply, replace: true, clearFallback: true });
+          } else {
             enqueueChunk(chunk);
           }
         }

@@ -60,7 +60,6 @@ export const MessageList = memo(function MessageList({
               isGroupedWithPrev={group.isGroupedWithPrev}
               isGroupedWithNext={group.isGroupedWithNext}
               showTimestamp={!group.isGroupedWithNext && !isStreaming}
-              canDelete={group.canDelete && !isStreaming}
               onLongPress={onLongPress}
             />
           </div>

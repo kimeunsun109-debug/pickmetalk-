@@ -37,6 +37,9 @@ next-env.d.ts
 
 # supabase local temp
 supabase/.temp/
+supabase/.branches/
+# cloud_env_setup.sh가 로컬 한정으로 생성 — 커밋 금지 (원격 마이그레이션 싱크 깨짐)
+supabase/migrations/000_schema.sql
 
 # script debug artifacts
 scripts/inspect_out.txt

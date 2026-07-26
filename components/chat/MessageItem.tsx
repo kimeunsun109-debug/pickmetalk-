@@ -78,7 +78,6 @@ export interface MessageItemProps {
   isGroupedWithNext?: boolean;
   showTimestamp?: boolean;
   onLongPress?: (messageId: string) => void;
-  canDelete?: boolean;
 }
 
 export const MessageItem = memo(function MessageItem({
@@ -92,15 +91,16 @@ export const MessageItem = memo(function MessageItem({
   isGroupedWithNext = false,
   showTimestamp = false,
   onLongPress,
-  canDelete = false,
 }: MessageItemProps) {
   const { role, content, mediaType, mediaUrl, photoDeliveryId } = message;
   const isUser = role === "user";
   const isPhoto = !isUser && mediaType === "photo" && mediaUrl;
 
+  // 복사는 삭제 가능 여부와 무관하게 길게 눌러 사용할 수 있어야 한다.
+  const longPressEnabled = Boolean(onLongPress) && !isStreaming;
   const longPress = useLongPress(
     () => onLongPress?.(message.id),
-    { disabled: !canDelete || !onLongPress }
+    { disabled: !longPressEnabled }
   );
 
   const rowPadding = isGroupedWithPrev ? "pt-0.5" : "pt-2";
@@ -117,7 +117,7 @@ export const MessageItem = memo(function MessageItem({
   return (
     <div
       className={`flex w-full px-3 ${rowPadding} ${isUser ? "justify-end" : "justify-start"}`}
-      {...(canDelete ? longPress : {})}
+      {...(longPressEnabled ? longPress : {})}
     >
       {!isUser && showAvatar && (
         <div className="mr-1.5 mt-auto flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-pink-200 to-pink-400 text-[11px] font-bold text-white shadow-sm">

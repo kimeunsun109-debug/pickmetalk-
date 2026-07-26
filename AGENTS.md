@@ -12,13 +12,32 @@
 ```bash
 npm install
 pip install openpyxl
-cp .env.example .env.local
-# Fill secrets in Cursor Cloud dashboard Secrets tab
+bash scripts/cloud_env_setup.sh   # Docker + 로컬 Supabase + .env.local + 테스트 계정 자동 구성
 npm run dev
 ```
 
-Required secrets: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `DEEPSEEK_API_KEY`  
+`scripts/cloud_env_setup.sh` (아이덤포턴트, `.cursor/environment.json`에서 자동 실행):
+
+- `.env.local` 생성 — 로컬 Supabase 데모 키 + `DEEPSEEK_API_KEY` 주입
+- Docker 설치·기동 (vfs 스토리지 드라이버 — 중첩 VM이라 overlayfs 불가) + `iptables-legacy -P FORWARD ACCEPT` (없으면 컨테이너 간 통신이 막혀 supabase start가 timeout)
+- 로컬 Supabase 기동: `schema.sql`을 `migrations/000_schema.sql`로 선적용(로컬 한정, gitignore 처리)하고 realtime/studio/storage를 config.toml에 로컬 한정 비활성(start 후 자동 원복 — **이 블록 커밋 금지**, `supabase config push` 시 프로덕션 서비스가 꺼짐)
+- `anon`/`authenticated` 역할 테이블 GRANT (schema.sql은 대시보드 실행 기준이라 GRANT가 없음)
+- 테스트 계정: `tester@pickme.local` / `test1234!`
+
+Required secrets: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `DEEPSEEK_API_KEY` 
 Optional: `TAVILY_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_APP_URL`
+
+**시크릿 이름 주의**: 대시보드 시크릿에 `딥시크 api`, `OAuth 클라이언트 ID`처럼 한글·공백 이름이 있으면
+유효한 env 변수명이 아니라 앱이 읽지 못한다. `DEEPSEEK_API_KEY`, `TAVILY_API_KEY` 등 표준 이름으로
+바꾸는 것이 정석이며, 바꾸기 전까지는 `cloud_env_setup.sh`가 `딥시크 api` → `DEEPSEEK_API_KEY`,
+`타빌리 API 플랫폼` → `TAVILY_API_KEY`로 자동 매핑한다.
+또한 한글 이름 시크릿은 커밋 시 시크릿 스캔 훅을 `invalid variable name`으로 죽인다. 커밋이 그 오류로
+실패하면 아래처럼 유효한 이름만 걸러서 커밋:
+
+```bash
+VALID=$(echo "$CLOUD_AGENT_INJECTED_SECRET_NAMES" | tr ',' '\n' | grep -E '^[A-Za-z_][A-Za-z0-9_]*$' | paste -sd, -)
+CLOUD_AGENT_INJECTED_SECRET_NAMES="$VALID" git commit -m "..."
+```
 
 See also `docs/CURSOR_CLOUD.md`.
 
@@ -56,11 +75,13 @@ live in `package.json` and setup steps in `README.md`.
 ### Services
 
 - **Next.js dev server**: `npm run dev` → http://localhost:3000. `npm run build` then
-  `npm start` for production. Lint: `npm run lint`.
-- **Supabase** (external/hosted, or local via `npx supabase start`): required for auth and
-  persistence (messages, characters, affection/relationship).
+ `npm start` for production. Lint: `npm run lint`.
+- **Supabase** (external/hosted, or local): required for auth and persistence (messages,
+ characters, affection/relationship). Cloud에서는 `bash scripts/cloud_env_setup.sh` 한 번으로
+ 로컬 Supabase(Docker)가 구성된다 — 직접 `npx supabase start` 하지 말 것 (schema 선적용·GRANT·
+ config 오버라이드가 빠져 실패한다).
 - **DeepSeek API** (external): required for `/api/chat`. No local mock; throws if
-  `DEEPSEEK_API_KEY` is missing.
+ `DEEPSEEK_API_KEY` is missing. Cloud egress는 허용되어 실제 호출 가능.
 
 Android/Capacitor, PWA (`ENABLE_PWA=true`), and Telegram vars are optional.
 

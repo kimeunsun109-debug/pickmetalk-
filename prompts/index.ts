@@ -1,142 +1,17 @@
-import { getCharacterById } from "@/lib/characters/full";
 import {
-  buildDialogueEngineRules,
-  buildRecentDialogueGuard,
-  buildSessionContinuityRules,
-  buildConversationNudgeRules,
-  buildFreshStartRules,
-  generateBaseSystemPrompt,
-  MEMORY_PROMPT_RULES,
-} from "./base";
-import { buildCharacterToppingBlock } from "./characterToppings";
-import { buildCharacterPromptById } from "./characterPrompt";
-import {
-  buildCharacterTopicGuides,
-  buildMealAndContextRules,
-} from "./topicGuides";
-import { buildKickLineHint } from "./kickLines";
-import { getContextMemoryPrompt } from "@/services/memory";
-import { buildSpeechStylePromptBlock } from "@/services/speechStyle";
-import type { UserSpeechProfile } from "@/services/speechStyle";
-import type { TimeAwareContext } from "@/services/timeContext";
-import type { EmotionState, Message, RelationshipLevel } from "@/types";
-
-const MEMORY_SUMMARY_LINE_CAP = 5;
-const MEMORY_SUMMARY_LINE_THRESHOLD = 10;
-
-function limitMemorySummaryBlock(memorySummary: string | null): string {
-  if (!memorySummary?.trim()) return "";
-  const lines = memorySummary.trim().split("\n");
-  const body =
-    lines.length > MEMORY_SUMMARY_LINE_THRESHOLD
-      ? lines.slice(0, MEMORY_SUMMARY_LINE_CAP).join("\n")
-      : memorySummary.trim();
-  return `${MEMORY_PROMPT_RULES}\n\n[기억 요약]\n${body}`;
-}
+  buildNaturalSystemPrompt,
+  type NaturalPromptOptions,
+} from "./natural";
 
 /**
- * Tier 기반 시스템 프롬프트 — 필수 블록 우선, 조건부·선택 블록으로 토큰 절감
+ * 채팅 시스템 프롬프트 — 사만다(Her) 스타일 자연 대화 모드.
  *
- * Tier 1: base + character + dialogue guard (필수)
- * Tier 2: 감정·세션·동적 컨텍스트·기억 힌트 (조건부)
- * Tier 3: 토핑·토픽·킥라인 (초반·맥락 필요 시)
+ * 이전의 Tier 기반 규칙 대본(비율 가이드·킥라인·토픽 가이드·금지어 목록 등)은
+ * "짜내서 말하는" 느낌을 만들어 폐기했다. 캐릭터 정체성 + 존재 방식 + 기본 매너 +
+ * 상황 데이터만 전달한다. 이전 빌더들은 prompts/base.ts 등에 남아 있다.
  */
-export function buildSystemPrompt(
-  characterId: string,
-  emotion: EmotionState,
-  level: RelationshipLevel,
-  affection: number,
-  memorySummary?: string | null,
-  emotionDurationTurns = 1,
-  userMessageCount = 0,
-  dynamicContextBlock = "",
-  ongoingSession = false,
-  recentMessages: Message[] = [],
-  speechProfile: UserSpeechProfile | null = null,
-  latestUserMessage = "",
-  timeContext: TimeAwareContext | null = null,
-  freshChatStart = false
-): string {
-  const character = getCharacterById(characterId);
-  const characterName = character?.name ?? "캐릭터";
-  const inAcuteEmotion = emotion === "hurt" || emotion === "pouty";
+export type { NaturalPromptOptions as BuildSystemPromptOptions };
 
-  const characterBlock = buildCharacterPromptById(
-    characterId,
-    emotion,
-    affection,
-    level
-  );
-  const baseBlock = generateBaseSystemPrompt({
-    characterId,
-    characterName,
-    emotion,
-    emotionDurationTurns,
-    relationshipLevel: level,
-  });
-
-  const tier1 = [
-    baseBlock,
-    characterBlock,
-    buildDialogueEngineRules(characterId, characterName),
-    buildRecentDialogueGuard(recentMessages),
-  ];
-
-  const tier2: string[] = [];
-  if (freshChatStart) {
-    tier2.push(buildFreshStartRules());
-  }
-  tier2.push(buildConversationNudgeRules());
-
-  const trimmedDynamic = dynamicContextBlock.trim();
-  if (trimmedDynamic) {
-    tier2.push(trimmedDynamic);
-  }
-
-  if (inAcuteEmotion || ongoingSession) {
-    tier2.push(
-      buildSessionContinuityRules({
-        ongoingSession,
-        userMessageCount,
-        absenceTier: timeContext?.absence.tier,
-        narrativePauseReturn: timeContext?.absence.narrativePauseReturn,
-      })
-    );
-  }
-
-  const speechStyleBlock = buildSpeechStylePromptBlock(speechProfile);
-  if (speechStyleBlock) tier2.push(speechStyleBlock);
-
-  const memoryPriorityHints = getContextMemoryPrompt(memorySummary ?? null, {
-    userMessageCount,
-    emotion,
-    emotionDurationTurns,
-    ongoingSession,
-  });
-  if (memoryPriorityHints) tier2.push(memoryPriorityHints);
-
-  const tier3: string[] = [];
-  if (userMessageCount < 12) {
-    tier3.push(buildMealAndContextRules());
-    const topping = buildCharacterToppingBlock(characterId);
-    if (topping) tier3.push(topping);
-  }
-
-  if (userMessageCount <= 10) {
-    const kickLineHint = buildKickLineHint({
-      characterId,
-      userMessage: latestUserMessage,
-      turnCount: userMessageCount,
-    });
-    if (kickLineHint) tier3.push(kickLineHint);
-  }
-
-  if (userMessageCount >= 2) {
-    const topicGuides = buildCharacterTopicGuides(characterId);
-    if (topicGuides) tier3.push(topicGuides);
-  }
-
-  const memory = limitMemorySummaryBlock(memorySummary ?? null);
-
-  return [...tier1, ...tier2, ...tier3, memory].filter(Boolean).join("\n\n");
+export function buildSystemPrompt(options: NaturalPromptOptions): string {
+  return buildNaturalSystemPrompt(options);
 }

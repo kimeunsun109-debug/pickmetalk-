@@ -35,8 +35,11 @@ export const ENABLE_WEB_SEARCH =
 export const WEB_SEARCH_MAX_RESULTS = 4;
 export const WEB_SEARCH_TIMEOUT_MS = 8000;
 
-/** LLM에 주입하는 최근 대화 메시지 수 (턴) */
-export const CHAT_CONTEXT_TURNS = 6;
+/**
+ * LLM에 주입하는 최근 대화 메시지 수.
+ * 6(=3턴)일 때 몇 턴 전 결정·약속을 잊고 같은 질문을 반복하는 문맥 끊김이 확인되어 12(=6턴)로 확대.
+ */
+export const CHAT_CONTEXT_TURNS = 12;
 
 /** API·SSR 채팅 히스토리 복원 개수 (README: 최근 30개) */
 export const CHAT_MESSAGE_LIST_LIMIT = 30;
@@ -45,8 +48,9 @@ export const CHAT_MESSAGE_LIST_LIMIT = 30;
  * 첫 스트림 청크 지연 시 폴백 전송 (ms).
  * 너무 짧으면 실제 응답이 오기 전에 임시 문장이 떴다가 교체되며 깜빡임이 생긴다.
  * 타이핑 인디케이터가 대기를 가려주므로 진짜 지연(스톨)일 때만 폴백한다.
+ * (폴백 후에도 실제 청크가 오면 즉시 교체·스트리밍 재개 — chat route 참고)
  */
-export const CHAT_STREAM_FIRST_CHUNK_MS = 2500;
+export const CHAT_STREAM_FIRST_CHUNK_MS = 4000;
 
 /** 웹 검색 대기 상한 — 초과 시 검색 없이 바로 LLM 스트림 */
 export const WEB_SEARCH_CHAT_BUDGET_MS = 1200;
