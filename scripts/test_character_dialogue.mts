@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 캐릭터별 대화 품질 체크 — 실제 buildSystemPrompt 사용
  */
 import { readFileSync } from "node:fs";
@@ -101,7 +101,7 @@ async function main() {
 
     for (const msg of TEST_MESSAGES) {
       const res = await client.chat.completions.create({
-        model: "deepseek-chat",
+        model: "deepseek-v4-flash",
         messages: [
           { role: "system", content: system },
           { role: "user", content: "오늘 좀 피곤해" },

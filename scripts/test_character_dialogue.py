@@ -1,4 +1,4 @@
-"""캐릭터별 대화 샘플 생성·품질 체크 (DeepSeek API)"""
+﻿"""캐릭터별 대화 샘플 생성·품질 체크 (DeepSeek API)"""
 from __future__ import annotations
 
 import json
@@ -50,7 +50,7 @@ def build_minimal_system(char_id: str, name: str) -> str:
 
 def call_deepseek(api_key: str, base_url: str, system: str, user: str) -> str:
     payload = {
-        "model": "deepseek-chat",
+        "model": "deepseek-v4-flash",
         "messages": [
             {"role": "system", "content": system},
             {"role": "user", "content": user},
