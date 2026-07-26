@@ -133,11 +133,7 @@ export const MessageItem = memo(function MessageItem({
         className={`max-w-[78%] ${isUser ? "items-end" : "items-start"} flex flex-col gap-1`}
       >
         {isPhoto ? (
-          <div
-            className={`rounded-2xl rounded-tl-sm bg-bubble-ai px-3 py-2 shadow-sm ${
-              canDelete ? "select-none" : ""
-            }`}
-          >
+          <div className="rounded-2xl rounded-tl-sm bg-bubble-ai px-3 py-2 shadow-sm">
             <PhotoMessageBubble
               mediaUrl={mediaUrl!}
               caption={content}
@@ -161,7 +157,7 @@ export const MessageItem = memo(function MessageItem({
                 className={`flex items-end gap-1.5 ${isUser ? "flex-row-reverse" : "flex-row"}`}
               >
                 <div
-                  className={`px-3.5 py-2 text-[15px] leading-[1.45] ${bubbleRadiusClass(
+                  className={`select-text px-3.5 py-2 text-[15px] leading-[1.45] ${bubbleRadiusClass(
                     isUser,
                     groupedPrev,
                     groupedNext
@@ -169,7 +165,7 @@ export const MessageItem = memo(function MessageItem({
                     isUser
                       ? "bg-bubble-user text-gray-900"
                       : "bg-bubble-ai text-gray-800 shadow-sm"
-                  } ${canDelete ? "select-none" : ""}`}
+                  }`}
                 >
                   <p className="whitespace-pre-wrap break-words">{segment}</p>
                 </div>

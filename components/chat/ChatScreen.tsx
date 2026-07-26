@@ -3,7 +3,6 @@
 import { ChatHeader } from "@/components/chat/ChatHeader";
 import { FreeUsageBanner } from "@/components/chat/FreeUsageBanner";
 import { ChatInput } from "@/components/chat/ChatInput";
-import { AssistantMessageActions } from "@/components/chat/AssistantMessageActions";
 import { ChatOnboarding } from "@/components/chat/ChatOnboarding";
 import { MessageActionSheet } from "@/components/chat/MessageActionSheet";
 import { MessageList } from "@/components/chat/MessageList";
@@ -32,7 +31,6 @@ export function ChatScreen({
     isTyping,
     lastChatAt,
     sendMessage,
-    regenerateLastReply,
     deleteMessage,
     usageBannerMessage,
     dismissUsageBanner,
@@ -135,12 +133,6 @@ export function ChatScreen({
   );
 
   const showOnboarding = messages.length === 0;
-  const lastAssistant =
-    lastMsg?.role === "assistant" ? lastMsg : null;
-  const showActions =
-    lastAssistant &&
-    !isTyping &&
-    lastAssistant.content.trim().length > 0;
 
   return (
     <div className="flex min-h-[100dvh] flex-col bg-[#b2c7d9]/30">
@@ -164,15 +156,6 @@ export function ChatScreen({
             characterId={characterId}
             isTyping={isTyping}
             onLongPress={handleMessageLongPress}
-          />
-        )}
-
-        {showActions && lastAssistant && (
-          <AssistantMessageActions
-            messageId={lastAssistant.id}
-            content={lastAssistant.content}
-            characterId={characterId}
-            onRegenerate={() => void regenerateLastReply()}
           />
         )}
 
