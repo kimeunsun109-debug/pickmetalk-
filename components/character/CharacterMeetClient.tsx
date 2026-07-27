@@ -124,7 +124,7 @@ export function CharacterMeetClient({
   }
 
   return (
-    <div className="relative min-h-[100dvh] bg-[#1a1216]">
+    <div className="relative min-h-[100dvh] bg-night">
       <div
         ref={scrollerRef}
         onScroll={onScroll}
@@ -145,17 +145,18 @@ export function CharacterMeetClient({
               >
                 <Image
                   src={characterHeroSrc(id)}
-                  alt={c.name}
+                  alt=""
                   fill
                   priority={i === initialIndex}
                   sizes="(max-width: 448px) 100vw, 448px"
-                  className="object-cover object-[center_20%]"
+                  className="object-cover object-[center_18%]"
                 />
               </div>
               <div
-                className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/80"
+                className="absolute inset-0 bg-gradient-to-b from-night/65 via-transparent to-night/90"
                 aria-hidden
               />
+              <div className="absolute inset-0 film-grain opacity-[0.28]" aria-hidden />
 
               <button
                 type="button"
@@ -170,10 +171,10 @@ export function CharacterMeetClient({
       </div>
 
       <div className="pointer-events-none absolute inset-x-0 top-0 z-20 px-5 pt-[max(1rem,env(safe-area-inset-top))]">
-        <div className="pointer-events-auto flex items-center gap-3">
+        <div className="pointer-events-auto flex items-center gap-2">
           <Link
             href="/"
-            className="rounded-full bg-black/25 p-2 text-white/90 backdrop-blur-md"
+            className="border border-paper/20 bg-night/35 p-2 text-paper/90 backdrop-blur-sm"
             aria-label="홈으로"
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="size-5">
@@ -186,7 +187,7 @@ export function CharacterMeetClient({
           </Link>
           <Link
             href="/conversations"
-            className="rounded-full bg-black/25 px-3 py-2 text-xs font-medium text-white/90 backdrop-blur-md"
+            className="border border-paper/20 bg-night/35 px-3 py-2 text-[11px] tracking-wide text-paper/90 backdrop-blur-sm"
           >
             대화 목록
           </Link>
@@ -194,34 +195,35 @@ export function CharacterMeetClient({
       </div>
 
       {current && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 px-6 pb-[max(1.75rem,env(safe-area-inset-bottom))]">
           <div className="pointer-events-auto animate-hero-rise">
             {error && (
-              <p className="mb-3 rounded-xl bg-red-500/90 px-3 py-2 text-sm text-white">
+              <p className="mb-3 bg-red-700/90 px-3 py-2 text-sm text-paper">
                 {error}
               </p>
             )}
-            <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-pink-soft/90">
+            <div className="mb-4 h-px w-10 bg-rose-muted/80" aria-hidden />
+            <p className="text-[11px] tracking-[0.18em] text-rose-muted">
               {activeCharacterId === current.id ? "지금 함께" : "만나보기"}
             </p>
-            <h1 className="mt-1 font-display text-[2.35rem] leading-none text-white">
+            <h1 className="mt-2 font-display text-[2.45rem] leading-none text-paper">
               {current.name}
             </h1>
-            <p className="mt-2 max-w-[20rem] text-sm leading-snug text-white/72">
+            <p className="mt-2.5 max-w-[20rem] text-[13.5px] leading-snug text-paper/68">
               {current.tagline.includes("(")
                 ? current.tagline.slice(current.tagline.indexOf("(") + 1, -1)
                 : current.tagline}
             </p>
 
-            <div className="mt-5 flex items-center gap-2">
+            <div className="mt-5 flex items-center gap-1.5">
               {characters.map((c, i) => (
                 <button
                   key={c.id}
                   type="button"
                   aria-label={`${c.name} 보기`}
                   onClick={() => scrollToIndex(i)}
-                  className={`h-1.5 rounded-full transition-all ${
-                    i === index ? "w-7 bg-pink-accent" : "w-1.5 bg-white/35"
+                  className={`h-[2px] transition-all ${
+                    i === index ? "w-8 bg-rose-deep" : "w-3 bg-paper/30"
                   }`}
                 />
               ))}
@@ -231,7 +233,7 @@ export function CharacterMeetClient({
               type="button"
               disabled={Boolean(loadingId)}
               onClick={() => current && selectCharacter(current)}
-              className="mt-5 w-full rounded-full bg-pink-accent py-3.5 text-sm font-semibold text-white shadow-[0_10px_30px_rgba(255,143,171,0.35)] disabled:opacity-60"
+              className="mt-6 w-full bg-rose-deep py-3.5 text-[13px] font-semibold tracking-wide text-paper disabled:opacity-60"
             >
               {loadingId === resolveCharacterId(current.id)
                 ? "들어가는 중…"
@@ -243,17 +245,17 @@ export function CharacterMeetClient({
 
       {pickerCharacter && (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 p-4 sm:items-center"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-night/55 p-0 sm:items-center sm:p-4"
           role="dialog"
           aria-modal
           aria-label={`${pickerCharacter.name} 대화 선택`}
         >
-          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl">
-            <h2 className="text-lg font-bold text-gray-900">
-              {pickerCharacter.name}와 대화하기
+          <div className="w-full max-w-md border-t border-ink/10 bg-paper px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-5 sm:border sm:border-ink/10">
+            <h2 className="font-display text-2xl text-ink">
+              {pickerCharacter.name}
             </h2>
-            <p className="mt-1 text-sm text-gray-500">
-              이어갈 대화를 선택하거나 새 대화를 시작하세요.
+            <p className="mt-1 text-[13px] text-ink/55">
+              이어갈 대화를 고르거나 새로 시작하세요.
             </p>
 
             {conversations[0] && (
@@ -263,17 +265,17 @@ export function CharacterMeetClient({
                 onClick={() =>
                   continueConversation(pickerCharacter.id, conversations[0].id)
                 }
-                className="mt-4 w-full rounded-xl bg-pink-soft px-4 py-3 text-left text-sm hover:bg-pink-100 disabled:opacity-50"
+                className="mt-5 w-full border border-ink/10 bg-white px-4 py-3.5 text-left text-sm disabled:opacity-50"
               >
-                <span className="font-semibold text-pink-accent">최근 대화 이어가기</span>
-                <span className="mt-0.5 block font-medium text-gray-900">
+                <span className="text-[11px] tracking-wide text-rose-deep">최근 대화</span>
+                <span className="mt-0.5 block font-medium text-ink">
                   {conversations[0].title}
                 </span>
               </button>
             )}
 
             {conversations.length > 1 && (
-              <ul className="mt-3 max-h-40 space-y-2 overflow-y-auto">
+              <ul className="mt-2 max-h-40 space-y-1.5 overflow-y-auto">
                 {conversations.slice(1).map((conv) => (
                   <li key={conv.id}>
                     <button
@@ -282,10 +284,10 @@ export function CharacterMeetClient({
                       onClick={() =>
                         continueConversation(pickerCharacter.id, conv.id)
                       }
-                      className="w-full rounded-xl border border-gray-100 px-4 py-3 text-left text-sm hover:border-pink-soft hover:bg-pink-50/40 disabled:opacity-50"
+                      className="w-full border border-transparent px-4 py-3 text-left text-sm hover:border-ink/10 hover:bg-white disabled:opacity-50"
                     >
-                      <span className="font-medium text-gray-900">{conv.title}</span>
-                      <span className="mt-0.5 block text-[11px] text-gray-400">
+                      <span className="font-medium text-ink">{conv.title}</span>
+                      <span className="mt-0.5 block text-[11px] text-ink/40">
                         호감도 {conv.affection}% · Lv{conv.relationshipLevel}
                       </span>
                     </button>
@@ -298,13 +300,13 @@ export function CharacterMeetClient({
               type="button"
               disabled={pickerLoading}
               onClick={() => startNewConversation(pickerCharacter.id)}
-              className="mt-4 w-full rounded-full bg-pink-accent py-3 text-sm font-semibold text-white disabled:opacity-50"
+              className="mt-4 w-full bg-rose-deep py-3 text-[13px] font-semibold tracking-wide text-paper disabled:opacity-50"
             >
               {pickerLoading ? "처리 중..." : "새 대화 시작하기"}
             </button>
             <button
               type="button"
-              className="mt-3 w-full py-2 text-sm text-gray-400"
+              className="mt-2 w-full py-2.5 text-[13px] text-ink/45"
               onClick={() => setPickerCharacter(null)}
             >
               닫기

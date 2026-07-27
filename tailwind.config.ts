@@ -9,11 +9,16 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ivory: "#FFF8F0",
-        "pink-soft": "#FFD6E0",
-        "pink-accent": "#FF8FAB",
+        ivory: "#F7F1EC",
+        paper: "#F7F1EC",
+        night: "#100C0E",
+        ink: "#1C1418",
+        "rose-deep": "#B86A7A",
+        "rose-muted": "#E0A8B4",
+        "pink-soft": "#E8C4CC",
+        "pink-accent": "#C97B8A",
         kakao: "#FEE500",
-        "bubble-user": "#FFE4EC",
+        "bubble-user": "#F0DCE2",
         "bubble-ai": "#FFFFFF",
       },
       fontFamily: {

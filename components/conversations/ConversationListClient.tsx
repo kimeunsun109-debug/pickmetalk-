@@ -138,13 +138,14 @@ export function ConversationListClient({
 
   if (items.length === 0) {
     return (
-      <div className="mt-12 text-center">
-        <p className="text-sm text-gray-500">대화가 아직 없어요.</p>
+      <div className="mt-16 px-2 text-center">
+        <div className="mx-auto mb-4 h-px w-8 bg-rose-muted" aria-hidden />
+        <p className="text-sm text-ink/50">대화가 아직 없어요.</p>
         <Link
           href="/characters"
-          className="mt-4 inline-block text-sm text-pink-accent underline"
+          className="mt-5 inline-block bg-rose-deep px-5 py-2.5 text-[13px] font-semibold tracking-wide text-paper"
         >
-          캐릭터를 선택하고 대화를 시작해보세요.
+          캐릭터 만나기
         </Link>
       </div>
     );
@@ -153,7 +154,7 @@ export function ConversationListClient({
   return (
     <div className="flex flex-col gap-1">
       {error && (
-        <p className="mb-2 rounded-xl bg-red-50 px-4 py-3 text-xs text-red-600">
+        <p className="mb-2 border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">
           {error}
         </p>
       )}
@@ -161,24 +162,21 @@ export function ConversationListClient({
       {filterCharacterId && (
         <Link
           href="/conversations"
-          className="mb-2 text-xs text-gray-400 hover:text-pink-accent"
+          className="mb-3 text-xs tracking-wide text-ink/40 hover:text-rose-deep"
         >
           ← 전체 대화 보기
         </Link>
       )}
 
-      <ul className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-gray-100">
-        {sorted.map((conv, index) => {
+      <ul className="divide-y divide-ink/8 border-y border-ink/10">
+        {sorted.map((conv) => {
           const meta = characterMap[conv.characterId];
           const preview =
             conv.lastMessagePreview ??
             (conv.summary ? conv.summary.slice(0, 40) : "대화를 시작해보세요");
 
           return (
-            <li
-              key={conv.id}
-              className={index > 0 ? "border-t border-gray-50" : undefined}
-            >
+            <li key={conv.id}>
               <Link
                 href={characterChatHref(conv.characterId, conv.id)}
                 onClick={(event) => {
@@ -195,11 +193,11 @@ export function ConversationListClient({
                 onPointerUp={clearLongPressTimer}
                 onPointerLeave={clearLongPressTimer}
                 onPointerCancel={clearLongPressTimer}
-                className={`flex cursor-pointer items-center gap-3 px-4 py-3.5 transition-colors active:bg-gray-50 ${
+                className={`flex cursor-pointer items-center gap-3.5 py-3.5 transition-colors active:bg-ink/[0.03] ${
                   deletingId === conv.id ? "opacity-50" : ""
                 }`}
               >
-                <div className="relative size-12 shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-pink-200 to-pink-400 text-base font-bold text-white">
+                <div className="relative size-12 shrink-0 overflow-hidden bg-ink/10 text-base font-bold text-ink/40">
                   {meta?.avatar ? (
                     <Image
                       src={meta.avatar}
@@ -217,14 +215,14 @@ export function ConversationListClient({
 
                 <div className="min-w-0 flex-1">
                   <div className="flex items-baseline justify-between gap-2">
-                    <p className="truncate text-[15px] font-semibold text-gray-900">
+                    <p className="truncate font-display text-[17px] text-ink">
                       {meta?.name ?? conv.characterId}
                     </p>
-                    <span className="shrink-0 text-[11px] text-gray-400">
+                    <span className="shrink-0 text-[11px] tabular-nums text-ink/35">
                       {formatWhen(conv.lastMessageAt ?? conv.updatedAt)}
                     </span>
                   </div>
-                  <p className="mt-0.5 truncate text-[13px] text-gray-500">
+                  <p className="mt-0.5 truncate text-[13px] text-ink/45">
                     {preview}
                   </p>
                 </div>
@@ -234,38 +232,37 @@ export function ConversationListClient({
         })}
       </ul>
 
-      <p className="mt-3 text-center text-[10px] text-gray-400">
-        대화를 길게 누르면 삭제할 수 있어요
+      <p className="mt-4 text-center text-[10px] tracking-wide text-ink/35">
+        길게 누르면 삭제
       </p>
 
       <button
         type="button"
         disabled={deletingAll}
         onClick={() => setShowDeleteAllConfirm(true)}
-        className="mt-4 w-full rounded-xl border border-red-200 py-3 text-sm text-red-500 disabled:opacity-50"
+        className="mt-4 w-full border border-red-300/80 py-3 text-[13px] tracking-wide text-red-600 disabled:opacity-50"
       >
         전체 대화 삭제
       </button>
 
       {showDeleteAllConfirm && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-night/50 p-4"
           role="dialog"
           aria-modal
           aria-label="전체 대화 삭제 확인"
         >
-          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl">
-            <p className="text-base font-semibold text-gray-900">
+          <div className="w-full max-w-sm border border-ink/10 bg-paper p-5">
+            <p className="font-display text-xl text-ink">
               대화를 모두 삭제할까요?
             </p>
-            <p className="mt-2 text-sm text-gray-600">
-              대화 내용을 삭제하면 다시 복구할 수 없습니다. 프로필·기본 설정은
-              유지되며, 새 대화를 시작하게 됩니다.
+            <p className="mt-2 text-sm leading-relaxed text-ink/55">
+              대화 내용은 복구할 수 없습니다. 프로필·기본 설정은 유지됩니다.
             </p>
             <div className="mt-5 flex gap-2">
               <button
                 type="button"
-                className="flex-1 rounded-full border py-2.5 text-sm text-gray-600"
+                className="flex-1 border border-ink/15 py-2.5 text-[13px] text-ink/60"
                 onClick={() => setShowDeleteAllConfirm(false)}
               >
                 취소
@@ -273,7 +270,7 @@ export function ConversationListClient({
               <button
                 type="button"
                 disabled={deletingAll}
-                className="flex-1 rounded-full bg-red-500 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+                className="flex-1 bg-red-600 py-2.5 text-[13px] font-semibold text-paper disabled:opacity-50"
                 onClick={() => void handleDeleteAll()}
               >
                 {deletingAll ? "삭제 중..." : "삭제"}
