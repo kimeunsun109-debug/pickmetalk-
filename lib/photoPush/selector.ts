@@ -11,7 +11,7 @@ export function defaultAssetUrl(
   const id = CHARACTER_IDS.includes(characterId as (typeof CHARACTER_IDS)[number])
     ? characterId
     : "yuna";
-  return `/assets/characters/${id}/${emotion}.png`;
+  return `/assets/characters/${id}/${emotion}.jpg`;
 }
 
 export function assetFingerprint(

@@ -48,7 +48,7 @@ Migration: `011_photo_storage_bridge.sql`
 - `lib/photoCatalog/selectPhoto.ts` — cron deliver path
 - `GET /api/photos/search` — authenticated catalog probe
 
-If catalog is empty, product falls back to `/assets/characters/{id}/{emotion}.png`.
+If catalog is empty, product falls back to `/assets/characters/{id}/{emotion}.jpg`.
 
 ## What product MUST NOT do
 

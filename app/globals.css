@@ -1,11 +1,21 @@
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+@import url("https://fonts.googleapis.com/css2?family=Song+Myung&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --bg-ivory: #fff8f0;
-  --accent-pink: #ff8fab;
-  --text-main: #1a1a1a;
+  --bg-ivory: #f7f1ec;
+  --bg-paper: #f7f1ec;
+  --accent-pink: #c97b8a;
+  --rose-deep: #b86a7a;
+  --rose-muted: #e0a8b4;
+  --night: #100c0e;
+  --ink: #1c1418;
+  --text-main: #1c1418;
+  --font-pretendard: "Pretendard Variable", Pretendard, "Noto Sans KR", sans-serif;
+  --font-display: "Song Myung", "Pretendard Variable", serif;
   /* 노치·홈바 safe area */
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -17,7 +27,7 @@ html,
 body {
   max-width: 100vw;
   overflow-x: hidden;
-  background: var(--bg-ivory);
+  background: #0a0809;
   color: var(--text-main);
   /* 모바일 탭 하이라이트 제거 */
   -webkit-tap-highlight-color: transparent;
@@ -25,7 +35,7 @@ body {
 
 /* 모바일 앱 껍데기 — 최대 너비 제한 */
 .app-shell {
-  @apply mx-auto min-h-[100dvh] w-full max-w-md bg-ivory shadow-sm;
+  @apply mx-auto min-h-[100dvh] w-full max-w-md bg-paper;
 }
 
 /* Safe area 패딩 유틸 */
@@ -95,4 +105,66 @@ button, a, [role="button"] {
   background-size: 200% 100%;
   animation: shimmer 1.4s infinite;
   border-radius: 0.5rem;
+}
+
+@keyframes hero-breath {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.035);
+  }
+}
+.animate-hero-breath {
+  animation: hero-breath 9s ease-in-out infinite;
+}
+
+@keyframes hero-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-hero-rise {
+  animation: hero-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.animate-hero-rise-delay {
+  animation: hero-rise 0.85s cubic-bezier(0.22, 1, 0.36, 1) 0.12s both;
+}
+
+@keyframes hero-shimmer {
+  0% {
+    background-position: 120% 0;
+  }
+  100% {
+    background-position: -20% 0;
+  }
+}
+.animate-hero-shimmer {
+  background: linear-gradient(
+    115deg,
+    transparent 38%,
+    rgba(255, 240, 245, 0.14) 50%,
+    transparent 62%
+  );
+  background-size: 220% 100%;
+  animation: hero-shimmer 7s ease-in-out infinite;
+}
+
+/* 필름 그레인 — 히어로 분위기 */
+.film-grain {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+  mix-blend-mode: overlay;
+}
+
+/* 채팅 말풍선 — 드래그 부분선택·시스템 복사 허용 */
+.select-text {
+  user-select: text;
+  -webkit-user-select: text;
 }

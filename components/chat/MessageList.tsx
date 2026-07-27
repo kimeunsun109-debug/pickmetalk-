@@ -14,7 +14,6 @@ export interface MessageListProps {
   characterName: string;
   characterId: string;
   isTyping: boolean;
-  onLongPress: (messageId: string) => void;
 }
 
 export const MessageList = memo(function MessageList({
@@ -22,7 +21,6 @@ export const MessageList = memo(function MessageList({
   characterName,
   characterId,
   isTyping,
-  onLongPress,
 }: MessageListProps) {
   if (messages.length === 0) {
     return null;
@@ -60,7 +58,6 @@ export const MessageList = memo(function MessageList({
               isGroupedWithPrev={group.isGroupedWithPrev}
               isGroupedWithNext={group.isGroupedWithNext}
               showTimestamp={!group.isGroupedWithNext && !isStreaming}
-              onLongPress={onLongPress}
             />
           </div>
         );

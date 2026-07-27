@@ -6,6 +6,6 @@ export const BRAND = {
   url: "https://pickmetalk.com",
   /** Google Play / Capacitor app id. Do not change after store registration. */
   appId: "com.pickmetalk.app",
-  tagline: "나를 기다리는 그녀와 나누는 감성 대화",
-  description: "감성 AI 캐릭터와 나누는 연애 채팅 앱 픽미톡",
+  tagline: "오늘의 얼굴, 오늘의 대화",
+  description: "확정된 얼굴로 만나는 감성 AI 연애 채팅 — 픽미톡",
 } as const;

@@ -61,14 +61,17 @@ export default async function ConversationsPage({
   );
 
   return (
-    <main className="min-h-screen bg-[#b2c7d9]/20 p-4 pb-24">
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-900">채팅</h1>
+    <main className="min-h-screen bg-paper px-4 pb-24 pt-[max(1rem,env(safe-area-inset-top))]">
+      <div className="mb-6 flex items-end justify-between gap-3">
+        <div>
+          <p className="text-[11px] tracking-[0.18em] text-rose-muted">Inbox</p>
+          <h1 className="mt-1 font-display text-3xl leading-none text-ink">채팅</h1>
+        </div>
         <Link
           href="/characters"
-          className="rounded-full bg-pink-accent px-4 py-1.5 text-xs font-semibold text-white"
+          className="bg-rose-deep px-4 py-2 text-[12px] font-semibold tracking-wide text-paper"
         >
-          + 새 대화
+          새 대화
         </Link>
       </div>
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useChatMeta } from "@/contexts/ChatProvider";
+import { characterAvatarSrc } from "@/lib/characters/images";
 import { goToCharacterChat } from "@/lib/navigateChat";
 import {
   affectionProgressBlocks,
@@ -25,8 +26,9 @@ export const ChatHeader = memo(function ChatHeader({
   const stage = getRelationshipStage(affection);
   const { filled, total, percent } = affectionProgressBlocks(affection);
 
-  const avatarSrc = `/assets/characters/${characterId}/${emotion}.png`;
+  const avatarSrc = `/assets/characters/${characterId}/${emotion}.jpg`;
   const [imgError, setImgError] = useState(false);
+  const [fallbackSrc, setFallbackSrc] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
@@ -105,12 +107,18 @@ export const ChatHeader = memo(function ChatHeader({
         <div className="relative shrink-0">
           {!imgError ? (
             <Image
-              src={avatarSrc}
+              src={fallbackSrc ?? avatarSrc}
               alt={character.name}
               width={40}
               height={40}
               className="size-10 rounded-full object-cover"
-              onError={() => setImgError(true)}
+              onError={() => {
+                if (!fallbackSrc) {
+                  setFallbackSrc(characterAvatarSrc(characterId));
+                  return;
+                }
+                setImgError(true);
+              }}
               priority
             />
           ) : (

@@ -1,5 +1,6 @@
 import { BrowserSessionGuard } from "@/components/auth/BrowserSessionGuard";
 import { DeviceSessionGuard } from "@/components/auth/DeviceSessionGuard";
+import { PwaInstallBanner } from "@/components/pwa/PwaInstallBanner";
 import { BRAND } from "@/lib/brand";
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
@@ -29,7 +30,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  themeColor: "#FF8FAB",
+  themeColor: "#100C0E",
 };
 
 export default function RootLayout({
@@ -39,10 +40,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko">
-      <body className="antialiased">
+      <body className="font-sans antialiased">
         <BrowserSessionGuard />
         <DeviceSessionGuard />
         <div className="app-shell">{children}</div>
+        <PwaInstallBanner />
       </body>
     </html>
   );
