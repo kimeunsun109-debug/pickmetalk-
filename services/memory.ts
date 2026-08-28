@@ -3,11 +3,13 @@ import type { Message, EmotionState } from "@/types";
 const RECENT_MESSAGE_LIMIT = 20;
 const MAX_MEMORY_FACTS = 10;
 const MAX_EMOTION_MEMORIES = 2;
+const MAX_PERSONAL_MEMORIES = 3;
 
 const SKIP_MESSAGE =
   /^(ㅇ+|응|네|아니|하이|안녕|ㅎㅇ|ㅋㅋ+|ㅎㅎ+|ㅠ+|ㅜ+|고마워|감사|굿|ok|okay)$/i;
 
 export type MemoryCategory =
+  | "personal"
   | "schedule"
   | "hobby"
   | "work"
@@ -20,8 +22,9 @@ export interface MemoryEntity {
   timestamp: number;
 }
 
-/** 프롬프트 우선순위 (낮을수록 먼저) — emotion은 마지막 */
+/** 프롬프트 우선순위 (낮을수록 먼저) — personal 최우선, emotion 마지막 */
 const CATEGORY_WEIGHT: Record<MemoryCategory, number> = {
+  personal: -1,
   schedule: 0,
   work: 1,
   hobby: 2,
@@ -84,6 +87,145 @@ const EMOTION_PATTERNS: { pattern: RegExp; label: string }[] = [
   { pattern: /기분\s?좋|신나|행복|설레/u, label: "기분 좋음" },
   { pattern: /별로|기분\s?(?:안|별)/u, label: "기분 안 좋음" },
 ];
+
+// ─── Personal (이름·반려동물·가족) ──────────────────────────────
+
+const PET_ANIMALS = [
+  "강아지",
+  "고양이",
+  "토끼",
+  "햄스터",
+  "앵무새",
+  "물고기",
+  "고슴도치",
+  "거북이",
+  "페럿",
+  "새",
+  "금붕어",
+] as const;
+
+const FAMILY_RELATIONS = [
+  "형",
+  "언니",
+  "오빠",
+  "누나",
+  "엄마",
+  "아빠",
+  "남동생",
+  "여동생",
+  "동생",
+  "할머니",
+  "할아버지",
+] as const;
+
+const OCCUPATION_WORDS = new Set([
+  "학생",
+  "직원",
+  "대리",
+  "과장",
+  "팀장",
+  "부장",
+  "사장",
+  "알바생",
+  "알바",
+  "인턴",
+  "강사",
+  "의사",
+  "간호사",
+  "선생",
+  "교수",
+  "프리랜서",
+  "백수",
+  "주부",
+  "군인",
+]);
+
+function isLikelyKoreanName(text: string): boolean {
+  return /^[가-힣]{1,5}$/.test(text) && !OCCUPATION_WORDS.has(text);
+}
+
+function extractPersonalEntity(
+  text: string,
+  timestamp: number
+): MemoryEntity | null {
+  // 반려동물: "{name}라는/이라는 {animal}"
+  for (const animal of PET_ANIMALS) {
+    const m1 = text.match(
+      new RegExp(
+        `([가-힣a-zA-Z]{1,8})(?:라는|이라는)\\s*${animal}`,
+        "u"
+      )
+    );
+    if (m1?.[1]) {
+      const name = m1[1].replace(/이$/, "").trim();
+      if (name.length >= 1) {
+        return {
+          fact: `반려동물: ${name} (${animal})`,
+          category: "personal",
+          timestamp,
+        };
+      }
+    }
+
+    // "{animal} 이름이/은/이 {name}야/이야"
+    const m2 = text.match(
+      new RegExp(
+        `${animal}\\s*이름(?:이|은|가)?\\s*([가-힣a-zA-Z]{1,8})(?:야|이야|이에요|이고)?`,
+        "u"
+      )
+    );
+    if (m2?.[1]) {
+      return {
+        fact: `반려동물: ${m2[1]} (${animal})`,
+        category: "personal",
+        timestamp,
+      };
+    }
+  }
+
+  // 유저 이름: "내 이름[은/이] {name}야/이야"
+  const nameM1 = text.match(
+    /내\s*이름(?:은|이)?\s*([가-힣]{1,5})(?:야|이야|이에요)?\s*$/u
+  );
+  if (nameM1?.[1] && isLikelyKoreanName(nameM1[1])) {
+    return {
+      fact: `유저 이름: ${nameM1[1]}`,
+      category: "personal",
+      timestamp,
+    };
+  }
+
+  // 유저 이름: "{name}라고/이라고 해/불러"
+  const nameM2 = text.match(
+    /([가-힣]{1,5})(?:라고|이라고)\s*(?:불러|해|부르면\s*돼)/u
+  );
+  if (nameM2?.[1] && isLikelyKoreanName(nameM2[1])) {
+    return {
+      fact: `유저 이름: ${nameM2[1]}`,
+      category: "personal",
+      timestamp,
+    };
+  }
+
+  // 가족 이름: "{relation} 이름이 {name}야"
+  for (const relation of FAMILY_RELATIONS) {
+    const m = text.match(
+      new RegExp(
+        `${relation}\\s*이름(?:이|은|가)?\\s*([가-힣]{1,6})(?:야|이야|이에요)?`,
+        "u"
+      )
+    );
+    if (m?.[1]) {
+      return {
+        fact: `${relation} 이름: ${m[1]}`,
+        category: "personal",
+        timestamp,
+      };
+    }
+  }
+
+  return null;
+}
 
 /** 비용 최적화: 최근 N개 + DB 요약만 AI에 전달 */
 export function pickMessagesForContext(
@@ -186,7 +328,7 @@ function extractEmotionEntity(
   return null;
 }
 
-/** 명사·키워드 Fact 우선 추출 (emotion은 보조) */
+/** 명사·키워드 Fact 우선 추출 (personal 최우선, emotion은 보조) */
 export function extractKeyMemories(
   userMessage: string,
   timestamp = Date.now()
@@ -196,8 +338,11 @@ export function extractKeyMemories(
 
   const entities: MemoryEntity[] = [];
 
+  // personal 먼저 (이름·반려동물·가족 — weight=-1 최우선)
+  const personal = extractPersonalEntity(text, timestamp);
+  if (personal) entities.push(personal);
+
   const schedule = extractScheduleEntity(text, timestamp);
-  if (schedule) entities.push(schedule);
 
   const workFact = buildFactFromKeywords(text, WORK_KEYWORDS);
   if (workFact) {
@@ -248,7 +393,7 @@ function entityKey(entity: MemoryEntity): string {
 function parseStoredEntity(line: string, fallbackTimestamp: number): MemoryEntity {
   const stripped = line.replace(/^[-•*]\s*/, "").trim();
   const tagged = stripped.match(
-    /^\[(schedule|hobby|work|finance|emotion)\]\s*(.+)$/i
+    /^\[(personal|schedule|hobby|work|finance|emotion)\]\s*(.+)$/i
   );
   if (tagged) {
     return {
@@ -296,11 +441,16 @@ function sortByPriority(entities: MemoryEntity[]): MemoryEntity[] {
 }
 
 function capWithEmotionLimit(entities: MemoryEntity[]): MemoryEntity[] {
-  const facts = entities.filter((e) => e.category !== "emotion");
+  const personal = entities
+    .filter((e) => e.category === "personal")
+    .slice(0, MAX_PERSONAL_MEMORIES);
+  const facts = entities.filter(
+    (e) => e.category !== "emotion" && e.category !== "personal"
+  );
   const emotions = entities.filter((e) => e.category === "emotion");
   const cappedEmotions = emotions.slice(0, MAX_EMOTION_MEMORIES);
-  const remaining = MAX_MEMORY_FACTS - cappedEmotions.length;
-  return [...facts.slice(0, remaining), ...cappedEmotions];
+  const remaining = MAX_MEMORY_FACTS - personal.length - cappedEmotions.length;
+  return [...personal, ...facts.slice(0, remaining), ...cappedEmotions];
 }
 
 function serializeEntity(entity: MemoryEntity): string {
@@ -349,12 +499,15 @@ export function getContextMemoryPrompt(
 
   if (!isStablePhase) return "";
 
-  const topEntities = sortByPriority(entities).slice(0, 2);
-  if (topEntities.length === 0) return "";
+  // personal은 buildCommonContextBlock에서 처리하므로 여기선 제외
+  const nonPersonal = sortByPriority(
+    entities.filter((e) => e.category !== "personal")
+  ).slice(0, 2);
+  if (nonPersonal.length === 0) return "";
 
   const lines = ["[기억 활용 지침 — 선택적 회상]"];
 
-  for (const entity of topEntities) {
+  for (const entity of nonPersonal) {
     switch (entity.category) {
       case "work":
         lines.push(
