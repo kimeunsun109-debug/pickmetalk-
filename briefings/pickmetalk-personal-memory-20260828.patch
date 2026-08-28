@@ -1,0 +1,590 @@
+From 83084ec43d8da92d77d093d4f60dd953f08550aa Mon Sep 17 00:00:00 2001
+From: Cursor Cloud Agent <agent@cursor.sh>
+Date: Fri, 28 Aug 2026 17:17:47 +0000
+Subject: [PATCH] feat(memory): add personal category for user name, pet, and
+ family names
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- New MemoryCategory 'personal' (weight=-1, highest priority)
+- Extracts user name from '내 이름은 X야', 'X라고 불러' patterns
+- Extracts pet names from 'X라는 강아지', '강아지 이름이 X야' patterns
+- Extracts family names from '형 이름이 X야' etc.
+- Personal facts appear in buildCommonContextBlock for every turn
+- Profile nickname takes precedence over memory-extracted name
+- 22/22 tests pass, tsc clean, lint clean
+---
+ scripts/test_personal_memory.mts | 246 +++++++++++++++++++++++++++++++
+ services/context.ts              |  21 ++-
+ services/memory.ts               | 173 ++++++++++++++++++++--
+ 3 files changed, 429 insertions(+), 11 deletions(-)
+ create mode 100644 scripts/test_personal_memory.mts
+
+diff --git a/scripts/test_personal_memory.mts b/scripts/test_personal_memory.mts
+new file mode 100644
+index 0000000..87246d1
+--- /dev/null
++++ b/scripts/test_personal_memory.mts
+@@ -0,0 +1,246 @@
++/**
++ * Personal memory category 추출 테스트
++ * Usage: npx tsx scripts/test_personal_memory.mts
++ */
++
++import {
++  extractKeyMemories,
++  updateMemorySummary,
++  parseStoredSummary,
++} from "../services/memory.js";
++import { extractUserContext, buildCommonContextBlock } from "../services/context.js";
++
++const GREEN = "\x1b[32m";
++const RED = "\x1b[31m";
++const RESET = "\x1b[0m";
++const BOLD = "\x1b[1m";
++
++let passed = 0;
++let failed = 0;
++
++function test(description: string, fn: () => void) {
++  try {
++    fn();
++    console.log(`${GREEN}✓${RESET} ${description}`);
++    passed++;
++  } catch (e) {
++    console.log(`${RED}✗${RESET} ${description}`);
++    console.log(`  ${RED}${(e as Error).message}${RESET}`);
++    failed++;
++  }
++}
++
++function expect(actual: unknown) {
++  return {
++    toBe(expected: unknown) {
++      if (actual !== expected) {
++        throw new Error(`Expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
++      }
++    },
++    toContain(expected: string) {
++      if (typeof actual !== "string" || !actual.includes(expected)) {
++        throw new Error(`Expected "${actual}" to contain "${expected}"`);
++      }
++    },
++    toBeNull() {
++      if (actual !== null) {
++        throw new Error(`Expected null, got ${JSON.stringify(actual)}`);
++      }
++    },
++    notToBeNull() {
++      if (actual === null || actual === undefined) {
++        throw new Error(`Expected non-null value, got ${actual}`);
++      }
++    },
++    toHaveLength(n: number) {
++      const arr = actual as unknown[];
++      if (!Array.isArray(arr) || arr.length !== n) {
++        throw new Error(
++          `Expected length ${n}, got ${Array.isArray(arr) ? arr.length : "not an array"}: ${JSON.stringify(arr)}`
++        );
++      }
++    },
++  };
++}
++
++console.log(`\n${BOLD}=== Personal Memory Category Tests ===${RESET}\n`);
++
++// ─── Pet extraction ──────────────────────────────────────────
++
++test("강아지 이름 추출 (X라는 강아지)", () => {
++  const entities = extractKeyMemories("망고라는 강아지가 있어");
++  expect(entities.length).toBe(1);
++  expect(entities[0].category).toBe("personal");
++  expect(entities[0].fact).toContain("망고");
++  expect(entities[0].fact).toContain("강아지");
++});
++
++test("강아지 이름 추출 (강아지 이름이 X야)", () => {
++  const entities = extractKeyMemories("강아지 이름이 보리야");
++  expect(entities.length).toBe(1);
++  expect(entities[0].category).toBe("personal");
++  expect(entities[0].fact).toContain("보리");
++  expect(entities[0].fact).toContain("강아지");
++});
++
++test("고양이 이름 추출 (X이라는 고양이)", () => {
++  const entities = extractKeyMemories("나비이라는 고양이 키워");
++  expect(entities.length).toBe(1);
++  expect(entities[0].category).toBe("personal");
++  expect(entities[0].fact).toContain("고양이");
++});
++
++test("고양이 이름 추출 (고양이 이름이 X야)", () => {
++  const entities = extractKeyMemories("고양이 이름이 루나야");
++  expect(entities.length).toBe(1);
++  expect(entities[0].category).toBe("personal");
++  expect(entities[0].fact).toContain("루나");
++  expect(entities[0].fact).toContain("고양이");
++});
++
++// ─── User name extraction ────────────────────────────────────
++
++test("유저 이름 추출 (내 이름은 X야)", () => {
++  const entities = extractKeyMemories("내 이름은 민준이야");
++  expect(entities.length).toBe(1);
++  expect(entities[0].category).toBe("personal");
++  expect(entities[0].fact).toContain("민준");
++});
++
++test("유저 이름 추출 (내 이름이 X야)", () => {
++  const entities = extractKeyMemories("내 이름이 지호야");
++  expect(entities.length).toBe(1);
++  expect(entities[0].category).toBe("personal");
++  expect(entities[0].fact).toContain("지호");
++});
++
++test("유저 이름 추출 (X라고 불러)", () => {
++  const entities = extractKeyMemories("나 준혁이라고 불러");
++  expect(entities.length).toBe(1);
++  expect(entities[0].category).toBe("personal");
++  expect(entities[0].fact).toContain("준혁");
++});
++
++test("유저 이름 추출 (X라고 해)", () => {
++  const entities = extractKeyMemories("그냥 민수라고 해");
++  expect(entities.length).toBe(1);
++  expect(entities[0].category).toBe("personal");
++  expect(entities[0].fact).toContain("민수");
++});
++
++// ─── Family name extraction ──────────────────────────────────
++
++test("형 이름 추출", () => {
++  const entities = extractKeyMemories("형 이름이 민수야");
++  expect(entities.length).toBe(1);
++  expect(entities[0].category).toBe("personal");
++  expect(entities[0].fact).toContain("형");
++  expect(entities[0].fact).toContain("민수");
++});
++
++test("엄마 이름 추출", () => {
++  const entities = extractKeyMemories("엄마 이름이 박순자야");
++  expect(entities.length).toBe(1);
++  expect(entities[0].category).toBe("personal");
++  expect(entities[0].fact).toContain("엄마");
++  expect(entities[0].fact).toContain("박순자");
++});
++
++test("동생 이름 추출", () => {
++  const entities = extractKeyMemories("동생 이름이 지은이야");
++  expect(entities.length).toBe(1);
++  expect(entities[0].category).toBe("personal");
++  expect(entities[0].fact).toContain("동생");
++});
++
++// ─── Negative tests (should NOT extract personal) ────────────
++
++test("직업 추출 안 함 (나는 학생이야)", () => {
++  const entities = extractKeyMemories("나는 학생이야");
++  const personal = entities.filter((e) => e.category === "personal");
++  expect(personal.length).toBe(0);
++});
++
++test("직업 추출 안 함 (나는 의사야)", () => {
++  const entities = extractKeyMemories("나는 의사야");
++  const personal = entities.filter((e) => e.category === "personal");
++  expect(personal.length).toBe(0);
++});
++
++test("짧은 메시지 추출 안 함", () => {
++  const entities = extractKeyMemories("응");
++  expect(entities.length).toBe(0);
++});
++
++// ─── Memory summary persistence ──────────────────────────────
++
++test("memory_summary에 personal 저장됨", () => {
++  const summary = updateMemorySummary(null, "망고라는 강아지가 있어");
++  expect(summary).notToBeNull();
++  expect(summary!).toContain("[personal]");
++  expect(summary!).toContain("망고");
++});
++
++test("기존 summary에 personal 추가됨", () => {
++  const existing = "- [hobby] 야구 좋아함";
++  const summary = updateMemorySummary(existing, "강아지 이름이 콩이야");
++  expect(summary).notToBeNull();
++  expect(summary!).toContain("[personal]");
++  expect(summary!).toContain("콩");
++  expect(summary!).toContain("[hobby]");
++});
++
++test("personal이 summary 최상단에 위치", () => {
++  const existing = "- [hobby] 야구 좋아함\n- [work] 야근 힘들다";
++  const summary = updateMemorySummary(existing, "내 이름은 재훈이야");
++  expect(summary).notToBeNull();
++  const lines = summary!.split("\n");
++  expect(lines[0]).toContain("[personal]");
++});
++
++test("parseStoredSummary가 personal 태그 파싱", () => {
++  const summary = "- [personal] 반려동물: 망고 (강아지)\n- [hobby] 야구 좋아함";
++  const entities = parseStoredSummary(summary);
++  const personal = entities.filter((e) => e.category === "personal");
++  expect(personal.length).toBe(1);
++  expect(personal[0].fact).toContain("망고");
++});
++
++// ─── Context block integration ───────────────────────────────
++
++test("buildCommonContextBlock에 personalFacts 표시", () => {
++  const summary = "- [personal] 반려동물: 망고 (강아지)\n- [personal] 반려동물: 나비 (고양이)";
++  const ctx = extractUserContext(summary, {});
++  const block = buildCommonContextBlock(ctx);
++  expect(block).toContain("망고");
++  expect(block).toContain("나비");
++});
++
++test("유저 이름이 context의 userName에 반영됨", () => {
++  const summary = "- [personal] 유저 이름: 민준";
++  const ctx = extractUserContext(summary, {});
++  expect(ctx.userName).toBe("민준");
++});
++
++test("프로필 닉네임이 메모리 이름보다 우선", () => {
++  const summary = "- [personal] 유저 이름: 민준";
++  const ctx = extractUserContext(summary, { nickname: "철수" });
++  expect(ctx.userName).toBe("철수");
++});
++
++test("반려동물 이름이 personalFacts에 있고 userName에는 없음", () => {
++  const summary = "- [personal] 반려동물: 망고 (강아지)";
++  const ctx = extractUserContext(summary, {});
++  expect(ctx.userName).toBe(undefined);
++  expect(ctx.personalFacts).notToBeNull();
++  const facts = ctx.personalFacts!;
++  expect(facts.length).toBe(1);
++  expect(facts[0]).toContain("망고");
++});
++
++// ─── Summary ────────────────────────────────────────────────
++
++console.log(`\n${BOLD}Results: ${passed} passed, ${failed} failed${RESET}\n`);
++if (failed > 0) {
++  process.exit(1);
++}
+diff --git a/services/context.ts b/services/context.ts
+index 7e5f966..d431209 100644
+--- a/services/context.ts
++++ b/services/context.ts
+@@ -13,6 +13,8 @@ export interface UserContextData {
+   userInterests: string[];
+   recentStressor?: string;
+   recentSchedule?: string;
++  /** 반려동물 이름, 가족 이름 등 대화에서 언급한 개인 정보 */
++  personalFacts?: string[];
+ }
+ 
+ export interface YoonseoStats {
+@@ -51,6 +53,7 @@ export function extractUserContext(
+ ): UserContextData {
+   const entities = parseStoredSummary(memorySummary);
+ 
++  const personalEntities = entities.filter((e) => e.category === "personal");
+   const workFacts = entities
+     .filter((e) => e.category === "work")
+     .map((e) => e.fact);
+@@ -68,6 +71,17 @@ export function extractUserContext(
+   const recentStressor = workFacts[0];
+   const recentSchedule = scheduleFacts[0];
+ 
++  // 대화에서 유저가 알려준 이름 (프로필 닉네임보다 낮은 우선순위)
++  const memoryUserName = personalEntities
++    .find((e) => e.fact.startsWith("유저 이름:"))
++    ?.fact.replace("유저 이름:", "")
++    .trim();
++
++  // 반려동물·가족 이름 등 (대화에 자연스럽게 활용할 개인 정보)
++  const personalFacts = personalEntities
++    .filter((e) => !e.fact.startsWith("유저 이름:"))
++    .map((e) => e.fact);
++
+   const derivedAge = profileCtx.age
+     ? profileCtx.age
+     : (() => {
+@@ -76,7 +90,7 @@ export function extractUserContext(
+       })();
+ 
+   return {
+-    userName: profileCtx.nickname ?? profileCtx.name,
++    userName: profileCtx.nickname ?? profileCtx.name ?? memoryUserName,
+     userAge: derivedAge,
+     userJob: profileCtx.job,
+     userInterests: [
+@@ -88,6 +102,7 @@ export function extractUserContext(
+     ],
+     recentStressor,
+     recentSchedule,
++    personalFacts: personalFacts.length > 0 ? personalFacts : undefined,
+   };
+ }
+ 
+@@ -107,6 +122,10 @@ export function buildCommonContextBlock(ctx: UserContextData): string {
+     lines.push(`- 최근 예정 일정: ${ctx.recentSchedule}`);
+   if (ctx.userInterests.length > 0)
+     lines.push(`- 관심사·취미: ${ctx.userInterests.join(", ")}`);
++  if (ctx.personalFacts && ctx.personalFacts.length > 0)
++    lines.push(
++      `- 유저가 알려준 정보: ${ctx.personalFacts.join(", ")} (자연스럽게 활용, 같은 질문 반복 금지)`
++    );
+ 
+   if (lines.length === 0) return "";
+ 
+diff --git a/services/memory.ts b/services/memory.ts
+index 6f7ac9a..ff4429d 100644
+--- a/services/memory.ts
++++ b/services/memory.ts
+@@ -3,11 +3,13 @@ import type { Message, EmotionState } from "@/types";
+ const RECENT_MESSAGE_LIMIT = 20;
+ const MAX_MEMORY_FACTS = 10;
+ const MAX_EMOTION_MEMORIES = 2;
++const MAX_PERSONAL_MEMORIES = 3;
+ 
+ const SKIP_MESSAGE =
+   /^(ㅇ+|응|네|아니|하이|안녕|ㅎㅇ|ㅋㅋ+|ㅎㅎ+|ㅠ+|ㅜ+|고마워|감사|굿|ok|okay)$/i;
+ 
+ export type MemoryCategory =
++  | "personal"
+   | "schedule"
+   | "hobby"
+   | "work"
+@@ -20,8 +22,9 @@ export interface MemoryEntity {
+   timestamp: number;
+ }
+ 
+-/** 프롬프트 우선순위 (낮을수록 먼저) — emotion은 마지막 */
++/** 프롬프트 우선순위 (낮을수록 먼저) — personal 최우선, emotion 마지막 */
+ const CATEGORY_WEIGHT: Record<MemoryCategory, number> = {
++  personal: -1,
+   schedule: 0,
+   work: 1,
+   hobby: 2,
+@@ -85,6 +88,145 @@ const EMOTION_PATTERNS: { pattern: RegExp; label: string }[] = [
+   { pattern: /별로|기분\s?(?:안|별)/u, label: "기분 안 좋음" },
+ ];
+ 
++// ─── Personal (이름·반려동물·가족) ──────────────────────────────
++
++const PET_ANIMALS = [
++  "강아지",
++  "고양이",
++  "토끼",
++  "햄스터",
++  "앵무새",
++  "물고기",
++  "고슴도치",
++  "거북이",
++  "페럿",
++  "새",
++  "금붕어",
++] as const;
++
++const FAMILY_RELATIONS = [
++  "형",
++  "언니",
++  "오빠",
++  "누나",
++  "엄마",
++  "아빠",
++  "남동생",
++  "여동생",
++  "동생",
++  "할머니",
++  "할아버지",
++] as const;
++
++const OCCUPATION_WORDS = new Set([
++  "학생",
++  "직원",
++  "대리",
++  "과장",
++  "팀장",
++  "부장",
++  "사장",
++  "알바생",
++  "알바",
++  "인턴",
++  "강사",
++  "의사",
++  "간호사",
++  "선생",
++  "교수",
++  "프리랜서",
++  "백수",
++  "주부",
++  "군인",
++]);
++
++function isLikelyKoreanName(text: string): boolean {
++  return /^[가-힣]{1,5}$/.test(text) && !OCCUPATION_WORDS.has(text);
++}
++
++function extractPersonalEntity(
++  text: string,
++  timestamp: number
++): MemoryEntity | null {
++  // 반려동물: "{name}라는/이라는 {animal}"
++  for (const animal of PET_ANIMALS) {
++    const m1 = text.match(
++      new RegExp(
++        `([가-힣a-zA-Z]{1,8})(?:라는|이라는)\\s*${animal}`,
++        "u"
++      )
++    );
++    if (m1?.[1]) {
++      const name = m1[1].replace(/이$/, "").trim();
++      if (name.length >= 1) {
++        return {
++          fact: `반려동물: ${name} (${animal})`,
++          category: "personal",
++          timestamp,
++        };
++      }
++    }
++
++    // "{animal} 이름이/은/이 {name}야/이야"
++    const m2 = text.match(
++      new RegExp(
++        `${animal}\\s*이름(?:이|은|가)?\\s*([가-힣a-zA-Z]{1,8})(?:야|이야|이에요|이고)?`,
++        "u"
++      )
++    );
++    if (m2?.[1]) {
++      return {
++        fact: `반려동물: ${m2[1]} (${animal})`,
++        category: "personal",
++        timestamp,
++      };
++    }
++  }
++
++  // 유저 이름: "내 이름[은/이] {name}야/이야"
++  const nameM1 = text.match(
++    /내\s*이름(?:은|이)?\s*([가-힣]{1,5})(?:야|이야|이에요)?\s*$/u
++  );
++  if (nameM1?.[1] && isLikelyKoreanName(nameM1[1])) {
++    return {
++      fact: `유저 이름: ${nameM1[1]}`,
++      category: "personal",
++      timestamp,
++    };
++  }
++
++  // 유저 이름: "{name}라고/이라고 해/불러"
++  const nameM2 = text.match(
++    /([가-힣]{1,5})(?:라고|이라고)\s*(?:불러|해|부르면\s*돼)/u
++  );
++  if (nameM2?.[1] && isLikelyKoreanName(nameM2[1])) {
++    return {
++      fact: `유저 이름: ${nameM2[1]}`,
++      category: "personal",
++      timestamp,
++    };
++  }
++
++  // 가족 이름: "{relation} 이름이 {name}야"
++  for (const relation of FAMILY_RELATIONS) {
++    const m = text.match(
++      new RegExp(
++        `${relation}\\s*이름(?:이|은|가)?\\s*([가-힣]{1,6})(?:야|이야|이에요)?`,
++        "u"
++      )
++    );
++    if (m?.[1]) {
++      return {
++        fact: `${relation} 이름: ${m[1]}`,
++        category: "personal",
++        timestamp,
++      };
++    }
++  }
++
++  return null;
++}
++
+ /** 비용 최적화: 최근 N개 + DB 요약만 AI에 전달 */
+ export function pickMessagesForContext(
+   messages: Message[],
+@@ -186,7 +328,7 @@ function extractEmotionEntity(
+   return null;
+ }
+ 
+-/** 명사·키워드 Fact 우선 추출 (emotion은 보조) */
++/** 명사·키워드 Fact 우선 추출 (personal 최우선, emotion은 보조) */
+ export function extractKeyMemories(
+   userMessage: string,
+   timestamp = Date.now()
+@@ -196,8 +338,11 @@ export function extractKeyMemories(
+ 
+   const entities: MemoryEntity[] = [];
+ 
++  // personal 먼저 (이름·반려동물·가족 — weight=-1 최우선)
++  const personal = extractPersonalEntity(text, timestamp);
++  if (personal) entities.push(personal);
++
+   const schedule = extractScheduleEntity(text, timestamp);
+-  if (schedule) entities.push(schedule);
+ 
+   const workFact = buildFactFromKeywords(text, WORK_KEYWORDS);
+   if (workFact) {
+@@ -248,7 +393,7 @@ function entityKey(entity: MemoryEntity): string {
+ function parseStoredEntity(line: string, fallbackTimestamp: number): MemoryEntity {
+   const stripped = line.replace(/^[-•*]\s*/, "").trim();
+   const tagged = stripped.match(
+-    /^\[(schedule|hobby|work|finance|emotion)\]\s*(.+)$/i
++    /^\[(personal|schedule|hobby|work|finance|emotion)\]\s*(.+)$/i
+   );
+   if (tagged) {
+     return {
+@@ -296,11 +441,16 @@ function sortByPriority(entities: MemoryEntity[]): MemoryEntity[] {
+ }
+ 
+ function capWithEmotionLimit(entities: MemoryEntity[]): MemoryEntity[] {
+-  const facts = entities.filter((e) => e.category !== "emotion");
++  const personal = entities
++    .filter((e) => e.category === "personal")
++    .slice(0, MAX_PERSONAL_MEMORIES);
++  const facts = entities.filter(
++    (e) => e.category !== "emotion" && e.category !== "personal"
++  );
+   const emotions = entities.filter((e) => e.category === "emotion");
+   const cappedEmotions = emotions.slice(0, MAX_EMOTION_MEMORIES);
+-  const remaining = MAX_MEMORY_FACTS - cappedEmotions.length;
+-  return [...facts.slice(0, remaining), ...cappedEmotions];
++  const remaining = MAX_MEMORY_FACTS - personal.length - cappedEmotions.length;
++  return [...personal, ...facts.slice(0, remaining), ...cappedEmotions];
+ }
+ 
+ function serializeEntity(entity: MemoryEntity): string {
+@@ -349,12 +499,15 @@ export function getContextMemoryPrompt(
+ 
+   if (!isStablePhase) return "";
+ 
+-  const topEntities = sortByPriority(entities).slice(0, 2);
+-  if (topEntities.length === 0) return "";
++  // personal은 buildCommonContextBlock에서 처리하므로 여기선 제외
++  const nonPersonal = sortByPriority(
++    entities.filter((e) => e.category !== "personal")
++  ).slice(0, 2);
++  if (nonPersonal.length === 0) return "";
+ 
+   const lines = ["[기억 활용 지침 — 선택적 회상]"];
+ 
+-  for (const entity of topEntities) {
++  for (const entity of nonPersonal) {
+     switch (entity.category) {
+       case "work":
+         lines.push(
+-- 
+2.43.0
+
