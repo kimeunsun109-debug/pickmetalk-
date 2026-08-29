@@ -109,6 +109,11 @@ function tokenize(text: string): string[] {
     .filter((token) => token.length >= 2);
 }
 
+/**
+ * 활성 단기기억과 유저 메시지의 관련도를 점수화한다.
+ * 토큰 매칭(2점/토큰) + 동사-타입 보너스로 구성.
+ * 최소 점수가 0보다 커야 완료 처리 대상이 된다 (false positive 방지).
+ */
 function scoreMemory(memory: ShortTermMemory, userText: string): number {
   const tokens = tokenize(userText);
   if (tokens.length === 0) return 0;
@@ -119,15 +124,27 @@ function scoreMemory(memory: ShortTermMemory, userText: string): number {
     if (content.includes(token)) score += 2;
   }
 
-  if (memory.memoryType === "purchase" && /(샀어|구매)/.test(userText)) score += 3;
-  if (memory.memoryType === "reminder" && /(챙겼어|했어|완료)/.test(userText))
-    score += 2;
-  if (memory.memoryType === "mission" && /(했어|완료|끝냈어)/.test(userText))
-    score += 2;
+  // 타입별 동사 보너스 — 확장된 패턴 포함
+  const type = memory.memoryType;
+  if (type === "purchase" && /(샀어|샀다|구매했어|사왔어|사왔다)/.test(userText)) score += 4;
+  if (type === "health" && /(먹었어|먹었다|마셨어|마셨다|맞았어|맞았다|다녀왔어|다녀왔다)/.test(userText)) score += 4;
+  if (type === "weather" && /(챙겼어|챙겼다|챙겨왔어|우산\s*챙)/.test(userText)) score += 4;
+  if (type === "reminder" && /(챙겼어|했어|완료|처리했어|됐어|됐다)/.test(userText)) score += 2;
+  if (type === "mission" && /(했어|완료|끝냈어|끝났다|해결했어)/.test(userText)) score += 2;
+  if (type === "follow_up" && /(갔어|갔다|만났어|다녀왔어|받았어|받았다)/.test(userText)) score += 3;
+
+  // 일반 완료 동사 추가 보너스 (타입 무관)
+  if (/(다녀왔어|다녀왔다|도착했어|도착했다)/.test(userText)) score += 2;
+  if (/(갔어|갔다|갔음)/.test(userText)) score += 1;
+  if (/(예약했어|예약했다|예약했음)/.test(userText)) score += 2;
 
   return score;
 }
 
+/**
+ * 유저 메시지와 가장 관련 있는 활성 단기기억을 완료 처리한다.
+ * 관련 메모리가 없으면(score === 0) 아무것도 완료하지 않는다.
+ */
 export async function completeMostRelevantShortTermMemory(
   supabase: SupabaseClient,
   userId: string,
@@ -137,20 +154,23 @@ export async function completeMostRelevantShortTermMemory(
   const memories = await getActiveShortTermMemories(supabase, userId, nowIso, 12);
   if (memories.length === 0) return null;
 
-  const [best] = memories
+  const scored = memories
     .map((memory) => ({ memory, score: scoreMemory(memory, userText) }))
     .sort((a, b) => b.score - a.score);
 
-  const target = best.score > 0 ? best.memory : memories[0];
+  const [best] = scored;
+
+  // score가 0이면 관련 메모리가 없는 것 — 완료하지 않고 null 반환
+  if (best.score === 0) return null;
 
   const { error } = await supabase
     .from("short_term_memories")
     .update({ status: "completed", updated_at: nowIso })
-    .eq("id", target.id)
+    .eq("id", best.memory.id)
     .eq("user_id", userId);
 
   if (error) return null;
-  return target;
+  return best.memory;
 }
 
 function formatDue(memory: ShortTermMemory): string {

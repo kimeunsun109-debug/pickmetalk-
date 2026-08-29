@@ -566,3 +566,48 @@ export function updateMemorySummary(
   const prioritized = capWithEmotionLimit(sortByPriority(merged));
   return prioritized.map(serializeEntity).join("\n");
 }
+
+/**
+ * 완료 관련 메시지를 감지해 장기 memory_summary에서 연관 schedule 팩트를 제거한다.
+ *
+ * 예: "병원 다녀왔어" → summary에서 "병원" 이 들어간 schedule 팩트 제거
+ *
+ * 연관 여부는 완료 메시지와 팩트 사이의 공통 토큰(≥2자)으로 판단한다.
+ */
+export function removeCompletedScheduleFromSummary(
+  existing: string | null,
+  completionMessage: string
+): string | null {
+  if (!existing?.trim()) return existing;
+
+  const msg = completionMessage.toLowerCase().replace(/\s+/g, "");
+  if (msg.length < 2) return existing;
+
+  // 완료 동사를 제거하고 의미 있는 명사/키워드 토큰을 추출 (1자 이상)
+  // 한국어 단음절 단어("약", "집" 등)도 포함해야 하므로 최소 길이를 1로 설정
+  const tokens = completionMessage
+    .toLowerCase()
+    .replace(
+      /(했어|했다|완료|다녀왔어|다녀왔다|갔어|갔다|먹었어|먹었다|마셨어|마셨다|받았어|받았다|도착했어|도착했다|맞았어|맞았다|됐어|됐다|나왔어|나왔다|만났어|만났다|샀어|구매했어|챙겼어|처리했어|끝냈어|끝났다|해결했어|고쳤어|예약했어|찾았어|가져왔어|보냈어|구매했어|사왔어|사왔다)/g,
+      " "
+    )
+    .split(/\s+/)
+    .filter((t) => t.length >= 1);
+
+  if (tokens.length === 0) return existing;
+
+  const entities = parseStoredSummary(existing);
+  const filtered = entities.filter((entity) => {
+    if (entity.category !== "schedule") return true;
+
+    const factLower = entity.fact.toLowerCase();
+    const hasMatch = tokens.some((token) => factLower.includes(token));
+    return !hasMatch;
+  });
+
+  if (filtered.length === entities.length) return existing;
+
+  return filtered.length === 0
+    ? null
+    : filtered.map(serializeEntity).join("\n");
+}
