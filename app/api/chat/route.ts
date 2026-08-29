@@ -13,7 +13,12 @@ import {
   isOngoingChatSession,
   resolveCharacterEmotion,
 } from "@/services/emotion";
-import { pickMessagesForContext, updateMemorySummary } from "@/services/memory";
+import {
+  pickMessagesForContext,
+  updateMemorySummary,
+  removeCompletedScheduleFromSummary,
+} from "@/services/memory";
+import { isShortTermCompletionMessage } from "@/services/shortTermMemory";
 import {
   analyzeSpeechFromMessages,
   mergeSpeechProfile,
@@ -338,10 +343,11 @@ export async function POST(request: Request) {
         const storedSpeech = parseSpeechProfile(profile?.speechProfile ?? null);
         const speechProfile = mergeSpeechProfile(storedSpeech, sessionSpeech);
 
-        const updatedMemory = updateMemorySummary(
-          conversation.summary,
-          userText
-        );
+        // 완료 메시지인 경우 연관 schedule 팩트를 장기기억에서 제거한 뒤 새 팩트 추가
+        const baseMemory = isShortTermCompletionMessage(userText)
+          ? removeCompletedScheduleFromSummary(conversation.summary, userText)
+          : conversation.summary;
+        const updatedMemory = updateMemorySummary(baseMemory, userText);
         const { recent, summary } = pickMessagesForContext(
           history,
           updatedMemory
