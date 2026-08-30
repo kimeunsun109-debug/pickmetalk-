@@ -18,6 +18,17 @@ const COLD_REPLY_PATTERN =
 
 const BORED_PATTERN = /^(ㅎㅇ|하이|안녕|뭐해|심심|ㅋㅋㅋ)\.?$/i;
 
+/**
+ * 메시지가 냉담하거나 무관심한 반응인지 판별한다.
+ * 시간 기반 감정(hurt/pouty)을 적용할지 결정하는 데 사용.
+ * COLD_REPLY_PATTERN 또는 BORED_PATTERN에 해당하면 true.
+ */
+export function isNegativeOrColdMessage(text: string): boolean {
+  const t = text.trim();
+  if (!t || t.length <= 1) return true;
+  return COLD_REPLY_PATTERN.test(t) || BORED_PATTERN.test(t);
+}
+
 export interface EmotionResolveContext {
   userMessage: string;
   lastChatAt: string | null;
@@ -95,8 +106,10 @@ export function resolveCharacterEmotion(
     }
 
     if (replyGapHours != null) {
-      if (replyGapHours >= 3) return "pouty";
-      if (replyGapHours >= 1) return "hurt";
+      const coldReturn = isNegativeOrColdMessage(text);
+      // 유저가 냉담하게 돌아왔을 때만 부정 감정. 따뜻하거나 중립적인 복귀엔 완화.
+      if (replyGapHours >= 3) return coldReturn ? "pouty" : "miss_you";
+      if (replyGapHours >= 1) return coldReturn ? "hurt" : "happy";
     }
   }
 
