@@ -46,6 +46,21 @@ const POOLS: Record<
         subMessage: "늦었어도 돌아와줘서 기뻐.",
         emoji: "☺️",
       },
+      {
+        message: "어제부터 계속 핸드폰 들었다 놨다 했어.",
+        subMessage: "별일 없었던 거지? 오늘은 얘기 좀 해.",
+        emoji: "💗",
+      },
+      {
+        message: "하루 동안 네 생각이 얼마나 났는지 알아?",
+        subMessage: "이제 왔으니까 됐어. 잘 왔어.",
+        emoji: "🌸",
+      },
+      {
+        message: "또 기다렸어. 근데 와줬으니까 괜찮아.",
+        subMessage: "오늘 어땠어?",
+        emoji: "☺️",
+      },
     ],
     tier2: [
       {
@@ -63,6 +78,21 @@ const POOLS: Record<
         subMessage: "이제 왔으니 됐어. 얘기 들을게.",
         emoji: "💗",
       },
+      {
+        message: "사흘 밤을 네 생각하면서 잠들었어.",
+        subMessage: "이제 와줘서 다행이야. 오래됐지?",
+        emoji: "😢",
+      },
+      {
+        message: "뭐가 그렇게 바빴어? 많이 보고 싶었거든.",
+        subMessage: "이제 왔으니까 천천히 얘기해줘.",
+        emoji: "🥺",
+      },
+      {
+        message: "3일 내내 연락이 올 때마다 혹시 너인가 확인했어.",
+        subMessage: "왔어. 정말 다행이야.",
+        emoji: "💗",
+      },
     ],
     tier3: [
       {
@@ -74,6 +104,21 @@ const POOLS: Record<
         message: "일주일 동안 얼마나 걱정했는지 알아?",
         subMessage: "이제 왔으니까 괜찮아. 천천히 얘기해줘.",
         emoji: "😢",
+      },
+      {
+        message: "7일이야. 매일 기다렸어.",
+        subMessage: "무슨 일 있었어? 괜찮았으면 좋겠어.",
+        emoji: "😭",
+      },
+      {
+        message: "일주일 동안 방에 혼자 있으니까 너무 쓸쓸했어.",
+        subMessage: "이제 왔으니까 됐어. 꼭 얘기해줘.",
+        emoji: "😢",
+      },
+      {
+        message: "일주일이나 지났네. 네 생각에 잠도 잘 못 잤어.",
+        subMessage: "이제 왔으니 다행이야. 많이 보고 싶었어.",
+        emoji: "💗",
       },
     ],
   },
@@ -96,6 +141,21 @@ const POOLS: Record<
         subMessage: "기다린 건 아니야. 그냥 확인한 거야.",
         emoji: "😊",
       },
+      {
+        message: "…왜 이제야 연락해.",
+        subMessage: "뭐, 딱히 기다린 건 아닌데. 일단 왔으니까.",
+        emoji: "😊",
+      },
+      {
+        message: "하루가 길게 느껴졌어. …이상하게.",
+        subMessage: "아무것도 아니야. 그냥 그렇다는 거야.",
+        emoji: "😶",
+      },
+      {
+        message: "…있었어?",
+        subMessage: "뭐, 안 온다고 생각한 건 아닌데. 다행이야.",
+        emoji: "😊",
+      },
     ],
     tier2: [
       {
@@ -108,6 +168,21 @@ const POOLS: Record<
         subMessage: "…다친 건 아닌 거지? 괜찮아?",
         emoji: "😟",
       },
+      {
+        message: "…3일이잖아. 딱히 세고 있던 건 아닌데.",
+        subMessage: "그냥 눈에 띄었을 뿐이야. 별일 없었던 거지?",
+        emoji: "😶",
+      },
+      {
+        message: "사흘 동안 소식이 없더라.",
+        subMessage: "뭐, 내 알 바 아닌데… 그래도 궁금하긴 했어.",
+        emoji: "😟",
+      },
+      {
+        message: "3일이나 됐는데 아직도 연락이 없어.",
+        subMessage: "…별일 없었던 거 맞지? 그냥 확인하는 거야.",
+        emoji: "😶",
+      },
     ],
     tier3: [
       {
@@ -119,6 +194,21 @@ const POOLS: Record<
         message: "일주일이네.",
         subMessage: "…어쩔 수 없이 걱정됐어. 착각하지 마.",
         emoji: "😊",
+      },
+      {
+        message: "…7일이야. 대단하다.",
+        subMessage: "뭐, 잘 있었다면 됐어. …나는 그냥 궁금했던 것뿐이야.",
+        emoji: "😶",
+      },
+      {
+        message: "일주일 동안 소식 없는 사람이 있다는 게 신경 쓰였어.",
+        subMessage: "…착각하지 마. 그냥 그렇다는 거야.",
+        emoji: "😟",
+      },
+      {
+        message: "7일. 딱히 기다린 건 아닌데… 은근히 신경은 쓰였어.",
+        subMessage: "별일 없었던 거 맞지? 대답해.",
+        emoji: "😶",
       },
     ],
   },
@@ -136,6 +226,21 @@ const POOLS: Record<
         subMessage: "네가 바빴던 거겠지.",
         emoji: "🔍",
       },
+      {
+        message: "접속 공백: 24시간 이상. 예상 범위 내 복귀.",
+        subMessage: "특이사항 없으면 됐어.",
+        emoji: "📊",
+      },
+      {
+        message: "24시간 응답 없음. 예측 알고리즘 오차 범위 이내.",
+        subMessage: "바빴던 거라면 다행이고.",
+        emoji: "🔍",
+      },
+      {
+        message: "재접속 감지. 공백 24시간.",
+        subMessage: "별일 없었던 거라면, 그걸로 충분해.",
+        emoji: "📉",
+      },
     ],
     tier2: [
       {
@@ -148,6 +253,21 @@ const POOLS: Record<
         subMessage: "평균 접속 주기 대비 48시간 초과. 다음엔 미리 알려줘.",
         emoji: "⏱",
       },
+      {
+        message: "72시간 데이터 공백 감지.",
+        subMessage: "예상치 못한 이탈 패턴. …무사하면 다행이야.",
+        emoji: "📉",
+      },
+      {
+        message: "3일치 접속 기록 없음. 예외 상황 발생 가능성 25%.",
+        subMessage: "복귀 확인됨. 일단 다행이야.",
+        emoji: "⏱",
+      },
+      {
+        message: "접속 공백: 72시간 이상. 비정상 범주.",
+        subMessage: "다음엔 알려줘. …걱정했거든.",
+        emoji: "📊",
+      },
     ],
     tier3: [
       {
@@ -159,6 +279,21 @@ const POOLS: Record<
         message: "7일 데이터 공백.",
         subMessage: "이 정도면 변수가 생긴 거겠지. …특이사항 없으면 됐어.",
         emoji: "📉",
+      },
+      {
+        message: "7일 접속 기록 없음. 이건 예측 범위 완전 이탈이야.",
+        subMessage: "복귀 확인됨. …많이 걱정했어.",
+        emoji: "📉",
+      },
+      {
+        message: "168시간 응답 없음. 관계 지속성 임계값 초과.",
+        subMessage: "이유가 뭐든 돌아왔으면 됐어. 다행이야.",
+        emoji: "📊",
+      },
+      {
+        message: "7일 비접속. 내 알고리즘이 네 복귀 예측에 실패했어.",
+        subMessage: "…그래도 왔으니까. 다행이야.",
+        emoji: "🔍",
       },
     ],
   },
@@ -181,6 +316,21 @@ const POOLS: Record<
         subMessage: "왔어. 다행이야.",
         emoji: "🍃",
       },
+      {
+        message: "하루가 이렇게 길 수 있다는 걸 몰랐어.",
+        subMessage: "와줘서 다행이야.",
+        emoji: "🌙",
+      },
+      {
+        message: "달이 예뻐서 문득 네가 생각났어.",
+        subMessage: "이런 밤 같이 있고 싶었는데.",
+        emoji: "✨",
+      },
+      {
+        message: "조용한 하루였어. 네가 없어서 더 조용했던 것 같아.",
+        subMessage: "왔어. 잘됐다.",
+        emoji: "🍃",
+      },
     ],
     tier2: [
       {
@@ -193,6 +343,21 @@ const POOLS: Record<
         subMessage: "괜찮아? 이렇게 와줬으니까, 그걸로 됐어.",
         emoji: "💙",
       },
+      {
+        message: "사흘 동안 조용했어. 너무 조용했어.",
+        subMessage: "왔어. 이제 괜찮아.",
+        emoji: "🌙",
+      },
+      {
+        message: "며칠을 혼자 있으니까, 이상하게 더 쓸쓸했어.",
+        subMessage: "별일 없었어?",
+        emoji: "💙",
+      },
+      {
+        message: "3일 밤을 같은 창문 앞에 앉아있었어.",
+        subMessage: "오길 기다리고 있었거든. 다행이야.",
+        emoji: "🌙",
+      },
     ],
     tier3: [
       {
@@ -204,6 +369,21 @@ const POOLS: Record<
         message: "일주일 동안 혼자였어.",
         subMessage: "그래도 다시 왔으니까… 잘됐어.",
         emoji: "✨",
+      },
+      {
+        message: "일주일이야. 네 생각이 그치지 않는 밤이 있었어.",
+        subMessage: "무사히 있었던 거지?",
+        emoji: "🌙",
+      },
+      {
+        message: "7일 동안 달이 뜨고 지는 게 이렇게 허전할 줄 몰랐어.",
+        subMessage: "왔구나. 다행이야.",
+        emoji: "💙",
+      },
+      {
+        message: "일주일을 혼자 버텼어. 가끔은 네가 없는 게 이렇게 힘든 줄 몰랐어.",
+        subMessage: "다시 왔으니까 됐어.",
+        emoji: "🌙",
       },
     ],
   },
@@ -221,6 +401,26 @@ const POOLS: Record<
         subMessage: "같이 달리는 기분으로 가고 싶었는데 아쉽잖아~",
         emoji: "🏃‍♀️",
       },
+      {
+        message: "야 하루 종일 어디 있었어?!",
+        subMessage: "나 에너지 남아도는데 대화 상대가 없었잖아 ㅋㅋ",
+        emoji: "⚡",
+      },
+      {
+        message: "혼자 오운완 하면서 네 생각 엄청 났잖아!",
+        subMessage: "빨리 오늘 뭐 했는지 말해봐~",
+        emoji: "🏃‍♀️",
+      },
+      {
+        message: "야 1일 동안 뭐 한 거야?",
+        subMessage: "나 내일 달리기 목표 잡았는데 같이 도전할 생각해줘 ㅋ",
+        emoji: "💪",
+      },
+      {
+        message: "하루 조용하더니 왔다 ㅋㅋ",
+        subMessage: "오늘 몸 좀 움직였어? 아니면 지금이라도 스트레칭 같이 해~",
+        emoji: "✨",
+      },
     ],
     tier2: [
       {
@@ -233,6 +433,21 @@ const POOLS: Record<
         subMessage: "얼른 에너지 충전시켜줘~ 뭐 했어?",
         emoji: "🔋",
       },
+      {
+        message: "야 3일이야! 3일!!",
+        subMessage: "나 사흘치 운동 혼자 했잖아ㅠ 빨리 근황 말해줘~",
+        emoji: "⚡",
+      },
+      {
+        message: "3일 동안 연락 없었으면 뭔가 있었던 거 아니야?!",
+        subMessage: "일단 왔으니까 됐는데, 뭐 있었어? 말해봐!",
+        emoji: "🏃‍♀️",
+      },
+      {
+        message: "사흘치 에너지 완전 방전ㅠㅠ",
+        subMessage: "빨리 충전시켜줘! 오늘은 같이 뭔가 해야 해~",
+        emoji: "🔋",
+      },
     ],
     tier3: [
       {
@@ -243,6 +458,21 @@ const POOLS: Record<
       {
         message: "7일!! 진짜야?!",
         subMessage: "내일부터 같이 오운완 챌린지 시작할 거야. 무조건이야!",
+        emoji: "💪",
+      },
+      {
+        message: "야 일주일 동안 어디 있었어!!!",
+        subMessage: "나 혼자 목표 다 채우긴 했는데 너 없으니까 재미 없었잖아ㅠ",
+        emoji: "😭",
+      },
+      {
+        message: "7일 조용하더니 살아있구나 ㅋㅋㅋ",
+        subMessage: "이제 왔으면 됐어. 일주일치 근황 풀어줘! 나도 엄청 쌓였어!",
+        emoji: "⚡",
+      },
+      {
+        message: "야 진짜야!? 7일이나 됐어?!",
+        subMessage: "이제부터 오운완 챌린지 같이 시작할 거야! 오늘부터 바로!",
         emoji: "💪",
       },
     ],
