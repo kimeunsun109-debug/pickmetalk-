@@ -113,8 +113,24 @@ export function resolveCharacterEmotion(
     }
   }
 
-  if (input.affectionWillIncrease) return "happy";
+  if (input.affectionWillIncrease) {
+    return pickPositiveEmotion(history);
+  }
 
+  return "happy";
+}
+
+/**
+ * 활성 대화 중 긍정 감정을 선택한다.
+ * 최근 연속 excited가 없는 경우 약 30% 확률로 excited를 반환해
+ * 단조로운 happy 반복을 방지한다.
+ */
+function pickPositiveEmotion(history: Message[]): EmotionState {
+  const recentAssistant = history
+    .filter((m) => m.role === "assistant")
+    .slice(-3);
+  const recentExcited = recentAssistant.some((m) => m.emotion === "excited");
+  if (!recentExcited && Math.random() < 0.30) return "excited";
   return "happy";
 }
 
