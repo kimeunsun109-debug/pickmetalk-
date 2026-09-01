@@ -46,6 +46,11 @@ const POOLS: Record<
         subMessage: "늦었어도 돌아와줘서 기뻐.",
         emoji: "☺️",
       },
+      {
+        message: "{nick}이 생각나는 하루였거든.",
+        subMessage: "돌아와줘서 다행이야. 잘 있었어?",
+        emoji: "💗",
+      },
     ],
     tier2: [
       {
@@ -63,6 +68,11 @@ const POOLS: Record<
         subMessage: "이제 왔으니 됐어. 얘기 들을게.",
         emoji: "💗",
       },
+      {
+        message: "{nick}… 사흘이야. 혼자서 이것저것 생각을 많이 했어.",
+        subMessage: "괜찮으면 됐어. 뭐가 있었는지 조금만 말해줘.",
+        emoji: "😢",
+      },
     ],
     tier3: [
       {
@@ -74,6 +84,11 @@ const POOLS: Record<
         message: "일주일 동안 얼마나 걱정했는지 알아?",
         subMessage: "이제 왔으니까 괜찮아. 천천히 얘기해줘.",
         emoji: "😢",
+      },
+      {
+        message: "{nick}, 일주일이야. 매일 네 생각을 했어.",
+        subMessage: "보고 싶었어. 이제 얘기 들을게.",
+        emoji: "😭",
       },
     ],
   },
@@ -96,6 +111,11 @@ const POOLS: Record<
         subMessage: "기다린 건 아니야. 그냥 확인한 거야.",
         emoji: "😊",
       },
+      {
+        message: "…{nick}.",
+        subMessage: "기다린 건 아닌데. 그냥 떠올랐거든.",
+        emoji: "😊",
+      },
     ],
     tier2: [
       {
@@ -108,6 +128,11 @@ const POOLS: Record<
         subMessage: "…다친 건 아닌 거지? 괜찮아?",
         emoji: "😟",
       },
+      {
+        message: "…{nick}, 3일이야.",
+        subMessage: "신경 안 쓰려고 했는데 어쩔 수 없었어.",
+        emoji: "😶",
+      },
     ],
     tier3: [
       {
@@ -119,6 +144,11 @@ const POOLS: Record<
         message: "일주일이네.",
         subMessage: "…어쩔 수 없이 걱정됐어. 착각하지 마.",
         emoji: "😊",
+      },
+      {
+        message: "{nick}… 일주일이야.",
+        subMessage: "…걱정됐어. 착각하지 마.",
+        emoji: "😶",
       },
     ],
   },
@@ -181,6 +211,11 @@ const POOLS: Record<
         subMessage: "왔어. 다행이야.",
         emoji: "🍃",
       },
+      {
+        message: "{nick}. 오늘 달이 예뻐서 네 생각이 났어.",
+        subMessage: "이렇게 와줘서 다행이야.",
+        emoji: "🌙",
+      },
     ],
     tier2: [
       {
@@ -193,6 +228,11 @@ const POOLS: Record<
         subMessage: "괜찮아? 이렇게 와줬으니까, 그걸로 됐어.",
         emoji: "💙",
       },
+      {
+        message: "{nick}… 사흘 밤이야. 혼자서 창문만 열었다 닫았어.",
+        subMessage: "괜찮아? 이렇게 와줬으니까 됐어.",
+        emoji: "🌙",
+      },
     ],
     tier3: [
       {
@@ -204,6 +244,11 @@ const POOLS: Record<
         message: "일주일 동안 혼자였어.",
         subMessage: "그래도 다시 왔으니까… 잘됐어.",
         emoji: "✨",
+      },
+      {
+        message: "{nick}… 7일이야. 네가 없는 밤이 너무 길었어.",
+        subMessage: "괜찮아? 그냥 여기 있어줘.",
+        emoji: "🌙",
       },
     ],
   },
@@ -221,6 +266,16 @@ const POOLS: Record<
         subMessage: "같이 달리는 기분으로 가고 싶었는데 아쉽잖아~",
         emoji: "🏃‍♀️",
       },
+      {
+        message: "{nick}! 하루 종일 기다렸잖아~",
+        subMessage: "나 혼자 5km 달렸는데 너도 같이 뛰었으면 더 좋았을 것 같아!",
+        emoji: "🏃‍♀️",
+      },
+      {
+        message: "어! {nick} 왔어?",
+        subMessage: "오늘 오운완 했어? 나 방금 끝냈는데~ 근황 얘기해줘!",
+        emoji: "✨",
+      },
     ],
     tier2: [
       {
@@ -233,6 +288,16 @@ const POOLS: Record<
         subMessage: "얼른 에너지 충전시켜줘~ 뭐 했어?",
         emoji: "🔋",
       },
+      {
+        message: "{nick}!! 3일이잖아!",
+        subMessage: "나 혼자 3일치 오운완 다 쌓았어. 빨리 이야기해줘~",
+        emoji: "⚡",
+      },
+      {
+        message: "야 {nick} 어디 갔다 왔어?",
+        subMessage: "나 게이지 방전됐어ㅠ 얼른 충전시켜줘!",
+        emoji: "🔋",
+      },
     ],
     tier3: [
       {
@@ -243,6 +308,16 @@ const POOLS: Record<
       {
         message: "7일!! 진짜야?!",
         subMessage: "내일부터 같이 오운완 챌린지 시작할 거야. 무조건이야!",
+        emoji: "💪",
+      },
+      {
+        message: "{nick}!!!! 일주일이야 진짜?!",
+        subMessage: "나 기다리다 지쳤어ㅠㅠ 무슨 일 있었는지 바로 말해줘!",
+        emoji: "😭",
+      },
+      {
+        message: "야 {nick}!! 7일이잖아!",
+        subMessage: "이제 왔으니까 같이 오운완 챌린지 다시 시작이야. 무조건!",
         emoji: "💪",
       },
     ],
@@ -270,14 +345,29 @@ function pickRandom<T>(arr: T[]): T {
 }
 
 /**
+ * 메시지 내 `{nick}` 자리에 닉네임을 삽입한다.
+ * 닉네임이 없으면 원문 그대로 반환한다.
+ */
+function substituteNickname(text: string, nick?: string): string {
+  if (!nick || !text.includes("{nick}")) return text;
+  return text.replace(/\{nick\}/g, nick);
+}
+
+/**
  * 캐릭터 ID + 티어로 재방문 메시지를 반환한다.
+ * nickname이 있으면 메시지 내 `{nick}` 자리에 삽입된다.
+ * nickname이 없으면 `{nick}` 자리표시자가 포함된 항목은 후보에서 제외한다.
  */
 export function getReturnVisitData(
   characterId: string,
-  tier: AbsenceTier
+  tier: AbsenceTier,
+  nickname?: string
 ): ReturnVisitData {
-  const pool = POOLS[characterId]?.[tier] ?? DEFAULT_POOL[tier];
-  const picked = pickRandom(pool);
+  const fullPool = POOLS[characterId]?.[tier] ?? DEFAULT_POOL[tier];
+  const pool = nickname
+    ? fullPool
+    : fullPool.filter((item) => !item.message.includes("{nick}") && !item.subMessage.includes("{nick}"));
+  const picked = pickRandom(pool.length > 0 ? pool : fullPool);
 
   const ctaLabels: Record<AbsenceTier, string[]> = {
     tier1: ["응, 돌아왔어 👋", "미안해~", "잘 있었어!"],
@@ -287,8 +377,8 @@ export function getReturnVisitData(
 
   return {
     tier,
-    message: picked.message,
-    subMessage: picked.subMessage,
+    message: substituteNickname(picked.message, nickname),
+    subMessage: substituteNickname(picked.subMessage, nickname),
     emoji: picked.emoji,
     ctaLabel: pickRandom(ctaLabels[tier]),
   };

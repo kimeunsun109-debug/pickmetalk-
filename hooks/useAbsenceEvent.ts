@@ -13,10 +13,12 @@ export interface AbsenceEventResult {
  *
  * @param lastChatAt  마지막 대화 시각 ISO string (null = 미대화)
  * @param characterId 캐릭터 ID (메시지 풀 선택용)
+ * @param nickname    유저 닉네임 — 메시지 내 `{nick}` 자리에 삽입됨
  */
 export function useAbsenceEvent(
   lastChatAt: string | null,
-  characterId: string
+  characterId: string,
+  nickname?: string | null
 ): AbsenceEventResult {
   if (!lastChatAt) {
     return { shouldShow: false, data: null, gapHours: 0 };
@@ -31,7 +33,7 @@ export function useAbsenceEvent(
 
   return {
     shouldShow: true,
-    data: getReturnVisitData(characterId, tier),
+    data: getReturnVisitData(characterId, tier, nickname ?? undefined),
     gapHours,
   };
 }
