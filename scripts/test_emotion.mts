@@ -10,6 +10,7 @@ import {
   inferEmotionFromUserMessage,
   isOngoingChatSession,
   countEmotionDurationTurns,
+  pickPositiveEmotion,
 } from "../services/emotion";
 import type { EmotionState, Message } from "../types";
 
@@ -335,6 +336,101 @@ const gapHist: Message[] = [
 test("prev 유저메시지가 30분 전 → ongoing=true", isOngoingChatSession(ongoingHist), true);
 test("prev 유저메시지가 2h 전 → ongoing=false", isOngoingChatSession(gapHist), false);
 test("메시지 1개 → ongoing=false", isOngoingChatSession([makeMessage("user", 5)]), false);
+
+// ─────────────────────────────────────────────
+// 9. pickPositiveEmotion — 캐릭터별 excited 확률
+// ─────────────────────────────────────────────
+
+console.log("\n[9] pickPositiveEmotion — 캐릭터별 excited 확률 (통계)");
+
+function countExcited(characterId: string | undefined, trials: number): number {
+  let excitedCount = 0;
+  for (let i = 0; i < trials; i++) {
+    if (pickPositiveEmotion([], characterId) === "excited") excitedCount++;
+  }
+  return excitedCount;
+}
+
+const TRIALS = 2000;
+
+// jiyu: 0.50 기대 → 실제 범위 [35%, 65%]
+{
+  const count = countExcited("jiyu", TRIALS);
+  const rate = count / TRIALS;
+  test(
+    `jiyu excited 확률 > 35% (실제: ${(rate * 100).toFixed(1)}%)`,
+    rate > 0.35,
+    true
+  );
+  test(
+    `jiyu excited 확률 < 65% (실제: ${(rate * 100).toFixed(1)}%)`,
+    rate < 0.65,
+    true
+  );
+}
+
+// eunha: 0.12 기대 → 실제 범위 [4%, 22%]
+{
+  const count = countExcited("eunha", TRIALS);
+  const rate = count / TRIALS;
+  test(
+    `eunha excited 확률 < 22% (실제: ${(rate * 100).toFixed(1)}%)`,
+    rate < 0.22,
+    true
+  );
+  test(
+    `eunha excited 확률 > 4% (실제: ${(rate * 100).toFixed(1)}%)`,
+    rate > 0.04,
+    true
+  );
+}
+
+// yoonseo: 0.08 기대 → 실제 범위 [2%, 16%]
+{
+  const count = countExcited("yoonseo", TRIALS);
+  const rate = count / TRIALS;
+  test(
+    `yoonseo excited 확률 < 16% (실제: ${(rate * 100).toFixed(1)}%)`,
+    rate < 0.16,
+    true
+  );
+  test(
+    `yoonseo excited 확률 > 2% (실제: ${(rate * 100).toFixed(1)}%)`,
+    rate > 0.02,
+    true
+  );
+}
+
+// jiyu > yoonseo (에너지 차이)
+{
+  const jiyuRate = countExcited("jiyu", TRIALS) / TRIALS;
+  const yoonseoRate = countExcited("yoonseo", TRIALS) / TRIALS;
+  test(
+    `jiyu excited 확률 > yoonseo (${(jiyuRate * 100).toFixed(1)}% vs ${(yoonseoRate * 100).toFixed(1)}%)`,
+    jiyuRate > yoonseoRate,
+    true
+  );
+}
+
+// undefined (기본값) → default 30%에 근접 [18%, 42%]
+{
+  const count = countExcited(undefined, TRIALS);
+  const rate = count / TRIALS;
+  test(
+    `undefined(기본값) excited 확률 18~42% (실제: ${(rate * 100).toFixed(1)}%)`,
+    rate > 0.18 && rate < 0.42,
+    true
+  );
+}
+
+// characterId=characterId, 최근 excited 있으면 항상 happy
+{
+  const recentExcitedHistory: Message[] = [
+    makeMessage("assistant", 10, "excited"),
+  ];
+  const result = pickPositiveEmotion(recentExcitedHistory, "jiyu");
+  test("jiyu + 최근 excited → happy (연속 방지)", result, "happy");
+}
 
 // ─────────────────────────────────────────────
 // 결과

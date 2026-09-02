@@ -36,7 +36,27 @@ export interface EmotionResolveContext {
   currentEmotion?: EmotionState;
   /** 이번 턴에서 호감도가 오를 예정 */
   affectionWillIncrease?: boolean;
+  /** 캐릭터 ID — 지정 시 캐릭터별 excited 확률을 적용 */
+  characterId?: string;
 }
+
+/**
+ * 캐릭터별 excited 감정 발현 확률.
+ * 성격과 에너지 레벨을 반영한다:
+ *   - jiyu  (활기찬 스포츠형): 0.50 — 자주 흥분·설렘을 표현
+ *   - yuna  (현실 상담형):     0.30 — 기본값 (현재 동일)
+ *   - narin (다정한 츤):       0.22 — 부끄러움으로 약간 자제
+ *   - eunha (조용한 감성형):   0.12 — 내향적, 흥분 드뭄
+ *   - yoonseo (냉정한 T형):    0.08 — 감정 표출 최소화
+ */
+const EXCITED_PROBABILITY: Record<string, number> = {
+  jiyu: 0.50,
+  yuna: 0.30,
+  narin: 0.22,
+  eunha: 0.12,
+  yoonseo: 0.08,
+};
+const DEFAULT_EXCITED_PROBABILITY = 0.30;
 
 function hoursSince(iso: string | null): number | null {
   if (!iso) return null;
@@ -114,7 +134,7 @@ export function resolveCharacterEmotion(
   }
 
   if (input.affectionWillIncrease) {
-    return pickPositiveEmotion(history);
+    return pickPositiveEmotion(history, input.characterId);
   }
 
   return "happy";
@@ -122,15 +142,22 @@ export function resolveCharacterEmotion(
 
 /**
  * 활성 대화 중 긍정 감정을 선택한다.
- * 최근 연속 excited가 없는 경우 약 30% 확률로 excited를 반환해
- * 단조로운 happy 반복을 방지한다.
+ * 최근 연속 excited가 없는 경우 캐릭터별 확률로 excited를 반환해
+ * 단조로운 happy 반복을 방지하면서 캐릭터 성격을 반영한다.
  */
-function pickPositiveEmotion(history: Message[]): EmotionState {
+export function pickPositiveEmotion(
+  history: Message[],
+  characterId?: string
+): EmotionState {
   const recentAssistant = history
     .filter((m) => m.role === "assistant")
     .slice(-3);
   const recentExcited = recentAssistant.some((m) => m.emotion === "excited");
-  if (!recentExcited && Math.random() < 0.30) return "excited";
+  const prob =
+    (characterId !== undefined
+      ? (EXCITED_PROBABILITY[characterId] ?? DEFAULT_EXCITED_PROBABILITY)
+      : DEFAULT_EXCITED_PROBABILITY);
+  if (!recentExcited && Math.random() < prob) return "excited";
   return "happy";
 }
 
