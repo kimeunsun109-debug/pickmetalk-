@@ -2,6 +2,61 @@
 
 ---
 
+## 2026-09-02
+
+### 선택한 작업
+`excited` 감정 발현 확률 캐릭터별 config 분리
+
+### 선택 이유
+- 모든 캐릭터가 동일한 30% 확률로 excited를 표현해 성격 차이가 느껴지지 않았음
+- 지유(활기찬 스포츠형)와 은하(조용한 감성형), 윤서(냉정한 T형)의 에너지 차이가 대화에서 반영되어야 함
+- 우선순위 7번: Adaptive Personality — 작은 변경으로 캐릭터 고유성 강화
+
+### 구현 내용
+1. **`services/emotion.ts`**
+   - `EmotionResolveContext`에 `characterId?: string` 추가
+   - `EXCITED_PROBABILITY` 테이블 추가: jiyu=0.50, yuna=0.30, narin=0.22, eunha=0.12, yoonseo=0.08
+   - `pickPositiveEmotion(history, characterId?)` export로 변경, characterId 기반 확률 적용
+   - `resolveCharacterEmotion` → `pickPositiveEmotion` 호출 시 `characterId` 전달
+
+2. **`app/api/chat/route.ts`**
+   - `resolveCharacterEmotion` 호출에 `characterId` 추가
+
+3. **`scripts/test_emotion.mts`**
+   - Section 9 추가: 2000회 통계 기반 캐릭터별 확률 범위 검증
+   - jiyu 50% ±15%, eunha 12% ±8%, yoonseo 8% ±7%, default 30% ±12%
+
+### 해결한 버그
+- 없음 (신규 기능 개선)
+
+### 실행 및 테스트
+```
+npx tsx scripts/test_emotion.mts → 54 passed / 0 failed
+npx tsc --noEmit               → 0 errors
+npm run lint                   → No ESLint warnings or errors
+```
+- jiyu 실제: ~50%, eunha ~12%, yoonseo ~9%, undefined(default) ~29%
+
+### 사용자에게 달라지는 점
+- 지유와 대화 중 호감도가 오를 때 흥분·설렘(excited) 표정을 2배 자주 볼 수 있음
+- 은하·윤서는 감정을 절제하는 성격을 반영해 excited 표정이 드물게 등장
+- 5개 캐릭터가 같은 대화 상황에서도 서로 다른 감정 표현 빈도를 보이게 됨
+
+### PR
+- (생성 예정)
+
+### 남은 문제
+- returnVisit 오버레이에 캐릭터 hero 이미지 삽입 미완료
+- AbsenceWelcome Vercel preview QA 미완료
+- excited 외 다른 감정(miss_you 지속 시간 등)도 캐릭터별 config 가능
+
+### 다음 추천 작업
+- returnVisit / AbsenceWelcome 오버레이에 캐릭터 hero 이미지 삽입 (몰입감 강화)
+- 캐릭터별 hurt/pouty 감정 회복 속도 config 분리
+- AbsenceWelcome Vercel preview QA
+
+---
+
 ## 2026-08-27
 
 ### 선택한 작업
