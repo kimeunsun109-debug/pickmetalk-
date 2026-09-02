@@ -20,7 +20,7 @@ export const ChatHeader = memo(function ChatHeader({
   conversationTitle,
 }: ChatHeaderProps) {
   const router = useRouter();
-  const { character, characterId, emotion, affection, relationshipLevel } =
+  const { character, characterId, conversationId, emotion, affection, relationshipLevel } =
     useChatMeta();
 
   const stage = getRelationshipStage(affection);
@@ -163,6 +163,17 @@ export const ChatHeader = memo(function ChatHeader({
               >
                 {creating ? "만드는 중…" : "새 대화 시작"}
               </button>
+              <Link
+                href={
+                  conversationId
+                    ? `/gifts?characterId=${characterId}&conversationId=${conversationId}`
+                    : "/gifts"
+                }
+                className="block px-4 py-2.5 text-sm text-gray-700 active:bg-gray-50"
+                onClick={() => setMenuOpen(false)}
+              >
+                선물하기
+              </Link>
               <Link
                 href="/settings"
                 className="block px-4 py-2.5 text-sm text-gray-700 active:bg-gray-50"

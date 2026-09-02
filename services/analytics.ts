@@ -5,6 +5,7 @@
  *   session_start          앱/채팅 화면 진입
  *   character_selected     캐릭터 선택
  *   message_sent           메시지 전송
+ *   gift_sent              선물 전송
  *   return_visit_tier1     24h 만의 재방문
  *   return_visit_tier2     3d 만의 재방문
  *   return_visit_tier3     7d 만의 재방문
@@ -19,6 +20,7 @@ export type AnalyticsEvent =
   | "session_start"
   | "character_selected"
   | "message_sent"
+  | "gift_sent"
   | "message_copy"
   | "message_share"
   | "message_like"
