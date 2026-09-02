@@ -31,7 +31,7 @@ export default async function CharactersPage() {
     : todaysPickIndex(characters.length);
 
   return (
-    <main className="min-h-[100dvh]">
+    <main>
       <CharacterMeetClient
         characters={characters}
         activeCharacterId={activeCharacterId}

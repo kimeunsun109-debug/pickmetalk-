@@ -142,7 +142,7 @@ export function CharacterMeetClient({
                 aria-hidden
               />
 
-              <div className="relative z-10 flex flex-1 items-center justify-center pt-14 pb-6">
+              <div className="relative z-10 flex h-full flex-col items-center justify-end pb-[17.5rem] pt-[max(3.25rem,env(safe-area-inset-top))]">
                 <CharacterPortrait
                   characterId={id}
                   size="meet"
@@ -188,27 +188,27 @@ export function CharacterMeetClient({
       </div>
 
       {current && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 px-6 pb-[max(1.75rem,env(safe-area-inset-bottom))]">
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 px-6 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
           <div className="pointer-events-auto animate-hero-rise">
             {error && (
-              <p className="mb-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              <p className="mb-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
                 {error}
               </p>
             )}
-            <div className="mb-4 h-px w-10 bg-rose-muted/80" aria-hidden />
-            <p className="text-[11px] tracking-[0.18em] text-rose-deep/80">
+            <div className="mb-2 h-px w-10 bg-rose-muted/80" aria-hidden />
+            <p className="text-[11px] tracking-[0.14em] text-rose-deep/80">
               {activeCharacterId === current.id ? "지금 함께" : "만나보기"}
             </p>
-            <h1 className="mt-2 font-display text-[2.15rem] leading-none text-ink">
+            <h1 className="mt-1 font-sans text-[1.625rem] font-bold leading-tight text-ink">
               {current.name}
             </h1>
-            <p className="mt-2.5 max-w-[20rem] text-[13.5px] leading-snug text-ink/55">
+            <p className="mt-1.5 max-w-[20rem] text-[13px] leading-snug text-ink/55">
               {current.tagline.includes("(")
                 ? current.tagline.slice(current.tagline.indexOf("(") + 1, -1)
                 : current.tagline}
             </p>
 
-            <div className="mt-5 flex items-center gap-1.5">
+            <div className="mt-3 flex items-center gap-1.5">
               {characters.map((c, i) => (
                 <button
                   key={c.id}
@@ -226,7 +226,7 @@ export function CharacterMeetClient({
               type="button"
               disabled={Boolean(loadingId)}
               onClick={() => current && selectCharacter(current)}
-              className="mt-6 w-full rounded-xl bg-rose-deep py-3.5 text-[13px] font-semibold tracking-wide text-paper disabled:opacity-60"
+              className="mt-4 w-full rounded-xl bg-rose-deep py-3 text-[13px] font-semibold tracking-wide text-paper disabled:opacity-60"
             >
               {loadingId === resolveCharacterId(current.id)
                 ? "들어가는 중…"
@@ -244,7 +244,7 @@ export function CharacterMeetClient({
           aria-label={`${pickerCharacter.name} 대화 선택`}
         >
           <div className="w-full max-w-md rounded-t-2xl border-t border-ink/10 bg-paper px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-5 sm:rounded-2xl sm:border sm:border-ink/10">
-            <h2 className="font-display text-2xl text-ink">
+            <h2 className="font-sans text-xl font-bold text-ink">
               {pickerCharacter.name}
             </h2>
             <p className="mt-1 text-[13px] text-ink/55">
