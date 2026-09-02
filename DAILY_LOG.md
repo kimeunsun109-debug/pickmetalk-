@@ -43,7 +43,7 @@ npm run lint                   → No ESLint warnings or errors
 - 5개 캐릭터가 같은 대화 상황에서도 서로 다른 감정 표현 빈도를 보이게 됨
 
 ### PR
-- (생성 예정)
+- https://github.com/kimeunsun109-debug/pickmetalk-/pull/28
 
 ### 남은 문제
 - returnVisit 오버레이에 캐릭터 hero 이미지 삽입 미완료
