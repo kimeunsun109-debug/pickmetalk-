@@ -118,16 +118,19 @@ test(
   "happy"
 );
 
-// ongoingSession = true, 호감도 증가
-test(
-  "온고잉 + affection → happy",
-  resolveCharacterEmotion(
+// ongoingSession = true, 호감도 증가 — #23 pickPositiveEmotion: happy or excited
+{
+  const ongoingAffection = resolveCharacterEmotion(
     { userMessage: "회사 끝나고 생각났어", lastChatAt: minutesAgo(3), lastSeenAt: minutesAgo(40), affectionWillIncrease: true },
     undefined,
     recentHistory
-  ),
-  "happy"
-);
+  );
+  test(
+    "온고잉 + affection → happy or excited",
+    ongoingAffection === "happy" || ongoingAffection === "excited",
+    true
+  );
+}
 
 // ─────────────────────────────────────────────
 // 4. resolveCharacterEmotion — 재접속 (비온고잉) + warm

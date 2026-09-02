@@ -615,7 +615,7 @@ export function getReturnVisitData(
 
 /**
  * 경과 시간(시간)으로 티어를 판별한다.
- * null 반환 = 이벤트 없음 (최 recent 접속 or 첫 접속)
+ * null 반환 = 이벤트 없음 (최근 접속 or 첫 접속)
  */
 export function getAbsenceTier(gapHours: number): AbsenceTier | null {
   if (gapHours >= 168) return "tier3";

@@ -104,6 +104,8 @@ export function ChatScreen({
     [sendMessage, characterId]
   );
 
+  const handleAbsenceDismiss = useCallback(() => setAbsenceDismissed(true), []);
+
   const showOnboarding = messages.length === 0;
 
   return (
@@ -151,7 +153,7 @@ export function ChatScreen({
         <AbsenceWelcome
           characterName={character.name}
           data={absenceEvent.data}
-          onDismiss={() => setAbsenceDismissed(true)}
+          onDismiss={handleAbsenceDismiss}
         />
       )}
     </div>

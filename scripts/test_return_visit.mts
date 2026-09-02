@@ -202,6 +202,41 @@ assert(
 );
 
 // ─────────────────────────────────────────────
+// 5. {nick} 닉네임 치환 (#24)
+// ─────────────────────────────────────────────
+
+console.log("\n── [5] {nick} 닉네임 치환 ──");
+
+const NICK = "민수";
+for (const char of CHARACTERS) {
+  for (const tier of TIERS) {
+    const data = getReturnVisitData(char, tier, NICK);
+    assert(
+      !data.message.includes("{nick}") && !data.subMessage.includes("{nick}"),
+      `${char}/${tier}: nickname=${NICK} → 미치환 {nick} 없음`
+    );
+  }
+}
+
+// nickname 없을 때 {nick} 풀 항목 제외
+for (let i = 0; i < 50; i++) {
+  const data = getReturnVisitData("yuna", "tier1");
+  assert(
+    !data.message.includes("{nick}") && !data.subMessage.includes("{nick}"),
+    `yuna/tier1 (no nick): 미치환 {nick} 노출 없음 (sample ${i + 1})`
+  );
+}
+
+const nickData = getReturnVisitData("yuna", "tier1", NICK);
+// 닉네임 제공 시 {nick} 풀에서 선택 가능 — 50회 중 최소 1회 닉네임 포함 기대
+let nickSeen = 0;
+for (let i = 0; i < 50; i++) {
+  const d = getReturnVisitData("yuna", "tier1", NICK);
+  if (d.message.includes(NICK) || d.subMessage.includes(NICK)) nickSeen++;
+}
+assert(nickSeen > 0, `yuna/tier1 + nick: 50회 중 닉네임 삽입 ${nickSeen}회 > 0`);
+
+// ─────────────────────────────────────────────
 // 결과
 // ─────────────────────────────────────────────
 

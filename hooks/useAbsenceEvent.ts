@@ -1,6 +1,7 @@
 "use client";
 
 import { getAbsenceTier, getReturnVisitData, type ReturnVisitData } from "@/lib/returnVisit";
+import { useMemo } from "react";
 
 export interface AbsenceEventResult {
   shouldShow: boolean;
@@ -20,20 +21,23 @@ export function useAbsenceEvent(
   characterId: string,
   nickname?: string | null
 ): AbsenceEventResult {
-  if (!lastChatAt) {
-    return { shouldShow: false, data: null, gapHours: 0 };
-  }
+  return useMemo(() => {
+    if (!lastChatAt) {
+      return { shouldShow: false, data: null, gapHours: 0 };
+    }
 
-  const gapHours = (Date.now() - new Date(lastChatAt).getTime()) / (1000 * 60 * 60);
-  const tier = getAbsenceTier(gapHours);
+    const gapHours =
+      (Date.now() - new Date(lastChatAt).getTime()) / (1000 * 60 * 60);
+    const tier = getAbsenceTier(gapHours);
 
-  if (!tier) {
-    return { shouldShow: false, data: null, gapHours };
-  }
+    if (!tier) {
+      return { shouldShow: false, data: null, gapHours };
+    }
 
-  return {
-    shouldShow: true,
-    data: getReturnVisitData(characterId, tier, nickname ?? undefined),
-    gapHours,
-  };
+    return {
+      shouldShow: true,
+      data: getReturnVisitData(characterId, tier, nickname ?? undefined),
+      gapHours,
+    };
+  }, [lastChatAt, characterId, nickname]);
 }
