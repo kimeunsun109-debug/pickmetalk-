@@ -13,6 +13,8 @@ export interface UserContextData {
   userInterests: string[];
   recentStressor?: string;
   recentSchedule?: string;
+  /** 반려동물 이름, 가족 이름 등 대화에서 언급한 개인 정보 */
+  personalFacts?: string[];
 }
 
 export interface YoonseoStats {
@@ -51,6 +53,7 @@ export function extractUserContext(
 ): UserContextData {
   const entities = parseStoredSummary(memorySummary);
 
+  const personalEntities = entities.filter((e) => e.category === "personal");
   const workFacts = entities
     .filter((e) => e.category === "work")
     .map((e) => e.fact);
@@ -68,6 +71,17 @@ export function extractUserContext(
   const recentStressor = workFacts[0];
   const recentSchedule = scheduleFacts[0];
 
+  // 대화에서 유저가 알려준 이름 (프로필 닉네임보다 낮은 우선순위)
+  const memoryUserName = personalEntities
+    .find((e) => e.fact.startsWith("유저 이름:"))
+    ?.fact.replace("유저 이름:", "")
+    .trim();
+
+  // 반려동물·가족 이름 등 (대화에 자연스럽게 활용할 개인 정보)
+  const personalFacts = personalEntities
+    .filter((e) => !e.fact.startsWith("유저 이름:"))
+    .map((e) => e.fact);
+
   const derivedAge = profileCtx.age
     ? profileCtx.age
     : (() => {
@@ -76,7 +90,7 @@ export function extractUserContext(
       })();
 
   return {
-    userName: profileCtx.nickname ?? profileCtx.name,
+    userName: profileCtx.nickname ?? profileCtx.name ?? memoryUserName,
     userAge: derivedAge,
     userJob: profileCtx.job,
     userInterests: [
@@ -88,6 +102,7 @@ export function extractUserContext(
     ],
     recentStressor,
     recentSchedule,
+    personalFacts: personalFacts.length > 0 ? personalFacts : undefined,
   };
 }
 
@@ -107,6 +122,10 @@ export function buildCommonContextBlock(ctx: UserContextData): string {
     lines.push(`- 최근 예정 일정: ${ctx.recentSchedule}`);
   if (ctx.userInterests.length > 0)
     lines.push(`- 관심사·취미: ${ctx.userInterests.join(", ")}`);
+  if (ctx.personalFacts && ctx.personalFacts.length > 0)
+    lines.push(
+      `- 유저가 알려준 정보: ${ctx.personalFacts.join(", ")} (자연스럽게 활용, 같은 질문 반복 금지)`
+    );
 
   if (lines.length === 0) return "";
 

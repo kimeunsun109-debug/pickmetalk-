@@ -150,31 +150,36 @@ export async function runDeferredChatSideEffects(options: {
 
           await expireShortTermMemories(supabase, userId, now).catch(() => {});
 
-          if (isShortTermCompletionMessage(userText)) {
+          // 완료 감지와 신규 추출을 동시에 처리한다.
+          // 예: "약 먹었어 그리고 내일 병원 가야 해" → 약 완료 + 병원 신규 생성
+          const isCompletion = isShortTermCompletionMessage(userText);
+          if (isCompletion) {
             await completeMostRelevantShortTermMemory(
               supabase,
               userId,
               userText,
               now
             );
-          } else {
-            const extractedShortTermMemory = extractShortTermMemory(
-              userText,
-              new Date(now)
-            );
-            if (extractedShortTermMemory) {
-              await createShortTermMemory(supabase, {
-                userId,
-                conversationId,
-                characterId,
-                memoryType: extractedShortTermMemory.memoryType,
-                content: extractedShortTermMemory.content,
-                dueDate: extractedShortTermMemory.dueDate,
-                expiresAt: extractedShortTermMemory.expiresAt,
-                priority: extractedShortTermMemory.priority,
-                sourceMessageId: userMessageId,
-              });
-            }
+          }
+
+          // 완료 메시지여도 미래 일정이 포함된 경우 새 단기기억을 추가한다.
+          // extractShortTermMemory 내부에서 '짧은 완료 메시지'는 자체 억제한다.
+          const extractedShortTermMemory = extractShortTermMemory(
+            userText,
+            new Date(now)
+          );
+          if (extractedShortTermMemory) {
+            await createShortTermMemory(supabase, {
+              userId,
+              conversationId,
+              characterId,
+              memoryType: extractedShortTermMemory.memoryType,
+              content: extractedShortTermMemory.content,
+              dueDate: extractedShortTermMemory.dueDate,
+              expiresAt: extractedShortTermMemory.expiresAt,
+              priority: extractedShortTermMemory.priority,
+              sourceMessageId: userMessageId,
+            });
           }
         } catch {
           /* 단기기억 비활성 */

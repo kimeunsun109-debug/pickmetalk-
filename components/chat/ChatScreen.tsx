@@ -6,7 +6,9 @@ import { ChatInput } from "@/components/chat/ChatInput";
 import { ChatOnboarding } from "@/components/chat/ChatOnboarding";
 import { MessageList } from "@/components/chat/MessageList";
 import { PremiumModal } from "@/components/chat/PremiumModal";
+import { AbsenceWelcome } from "@/components/events/AbsenceWelcome";
 import { useChat } from "@/contexts/ChatProvider";
+import { useAbsenceEvent } from "@/hooks/useAbsenceEvent";
 import { usePerfRenderCount } from "@/lib/perf/client";
 import { getAbsenceTier } from "@/lib/returnVisit";
 import { trackEvent } from "@/services/analytics";
@@ -46,8 +48,11 @@ export function ChatScreen({
     return () => cancelAnimationFrame(frame);
   }, [messages.length, isTyping, streamScrollBucket]);
   const [sendError, setSendError] = useState<string | null>(null);
+  const [absenceDismissed, setAbsenceDismissed] = useState(false);
   const returnVisitTrackedRef = useRef(false);
   const photoPushTrackedRef = useRef(false);
+
+  const absenceEvent = useAbsenceEvent(lastChatAt, characterId, userNickname);
 
   useEffect(() => {
     if (!photoPushDeliveryId || photoPushTrackedRef.current) return;
@@ -99,6 +104,8 @@ export function ChatScreen({
     [sendMessage, characterId]
   );
 
+  const handleAbsenceDismiss = useCallback(() => setAbsenceDismissed(true), []);
+
   const showOnboarding = messages.length === 0;
 
   return (
@@ -141,6 +148,14 @@ export function ChatScreen({
       />
 
       <PremiumModal />
+
+      {absenceEvent.shouldShow && !absenceDismissed && absenceEvent.data && (
+        <AbsenceWelcome
+          characterName={character.name}
+          data={absenceEvent.data}
+          onDismiss={handleAbsenceDismiss}
+        />
+      )}
     </div>
   );
 }

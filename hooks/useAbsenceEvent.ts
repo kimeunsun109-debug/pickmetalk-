@@ -1,6 +1,7 @@
 "use client";
 
 import { getAbsenceTier, getReturnVisitData, type ReturnVisitData } from "@/lib/returnVisit";
+import { useMemo } from "react";
 
 export interface AbsenceEventResult {
   shouldShow: boolean;
@@ -13,25 +14,30 @@ export interface AbsenceEventResult {
  *
  * @param lastChatAt  마지막 대화 시각 ISO string (null = 미대화)
  * @param characterId 캐릭터 ID (메시지 풀 선택용)
+ * @param nickname    유저 닉네임 — 메시지 내 `{nick}` 자리에 삽입됨
  */
 export function useAbsenceEvent(
   lastChatAt: string | null,
-  characterId: string
+  characterId: string,
+  nickname?: string | null
 ): AbsenceEventResult {
-  if (!lastChatAt) {
-    return { shouldShow: false, data: null, gapHours: 0 };
-  }
+  return useMemo(() => {
+    if (!lastChatAt) {
+      return { shouldShow: false, data: null, gapHours: 0 };
+    }
 
-  const gapHours = (Date.now() - new Date(lastChatAt).getTime()) / (1000 * 60 * 60);
-  const tier = getAbsenceTier(gapHours);
+    const gapHours =
+      (Date.now() - new Date(lastChatAt).getTime()) / (1000 * 60 * 60);
+    const tier = getAbsenceTier(gapHours);
 
-  if (!tier) {
-    return { shouldShow: false, data: null, gapHours };
-  }
+    if (!tier) {
+      return { shouldShow: false, data: null, gapHours };
+    }
 
-  return {
-    shouldShow: true,
-    data: getReturnVisitData(characterId, tier),
-    gapHours,
-  };
+    return {
+      shouldShow: true,
+      data: getReturnVisitData(characterId, tier, nickname ?? undefined),
+      gapHours,
+    };
+  }, [lastChatAt, characterId, nickname]);
 }
