@@ -7,11 +7,13 @@ export const ChatInput = memo(function ChatInput({
   disabled,
   isWaitingReply,
   onSend,
+  onOpenGifts,
 }: {
   disabled?: boolean;
   /** AI 답변 대기 중 — 말풍선 ... 대신 입력창 힌트만 */
   isWaitingReply?: boolean;
   onSend: (text: string) => void;
+  onOpenGifts?: () => void;
 }) {
   const [text, setText] = useState("");
 
@@ -31,6 +33,17 @@ export const ChatInput = memo(function ChatInput({
   return (
     <footer className="border-t border-gray-200/80 bg-white px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
       <form onSubmit={handleSubmit} className="flex items-end gap-2">
+        {onOpenGifts && (
+          <button
+            type="button"
+            onClick={onOpenGifts}
+            disabled={disabled}
+            aria-label="선물하기"
+            className="flex size-10 shrink-0 items-center justify-center rounded-full text-lg transition-colors active:bg-pink-50 disabled:opacity-50"
+          >
+            🎁
+          </button>
+        )}
         <input
           type="text"
           value={text}

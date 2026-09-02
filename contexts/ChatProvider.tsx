@@ -13,7 +13,7 @@ import { useRefreshOnVisible } from "@/hooks/useRefreshOnVisible";
 import { perfClientTrace, usePerfRenderCount } from "@/lib/perf/client";
 import { isPerfEnabled } from "@/lib/perf/trace";
 import type { EmotionState, PublicCharacter, RelationshipLevel } from "@/types";
-import type { ChatStreamChunk } from "@/types/api";
+import type { ChatStreamChunk, GiftSendResponse } from "@/types/api";
 import {
   createContext,
   useCallback,
@@ -49,6 +49,7 @@ interface ChatContextValue {
   /** 백그라운드 동기화 중 — UI 차단·전체 로딩 화면에 사용하지 않음 */
   isSyncingHistory: boolean;
   sendMessage: (text: string, options?: { resend?: boolean }) => Promise<void>;
+  sendGift: (giftId: string) => Promise<GiftSendResponse>;
   regenerateLastReply: () => Promise<void>;
   deleteMessage: (messageId: string) => Promise<void>;
   reload: () => Promise<void>;
@@ -663,6 +664,52 @@ export function ChatProvider({
   }, []);
   const dismissUsageBanner = useCallback(() => setUsageBannerMessage(null), []);
 
+  const sendGift = useCallback(
+    async (giftId: string) => {
+      if (!safeConversationId) {
+        throw new Error("대화방 정보가 없습니다.");
+      }
+      if (isTyping) {
+        throw new Error("답변 작성 중에는 선물을 보낼 수 없어요.");
+      }
+
+      const res = await fetch("/api/gifts/send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...deviceSessionHeaders(),
+        },
+        body: JSON.stringify({
+          characterId: safeCharacterId,
+          giftId,
+          conversationId: safeConversationId,
+        }),
+      });
+
+      const data = (await res.json()) as GiftSendResponse & { error?: string };
+      if (!res.ok) {
+        throw new Error(data.error ?? "선물 전송에 실패했습니다.");
+      }
+
+      setAffection(data.affection);
+      setRelationshipLevel(data.relationshipLevel as RelationshipLevel);
+      setEmotion(normalizeEmotion(data.emotion) as EmotionState);
+      setLastChatAt(data.assistantCreatedAt);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: data.messageId,
+          role: "assistant",
+          content: data.reaction.message,
+          createdAt: data.assistantCreatedAt,
+        },
+      ]);
+
+      return data;
+    },
+    [safeConversationId, safeCharacterId, isTyping]
+  );
+
   const contextValue = useMemo<ChatContextValue>(
     () => ({
       character: resolvedCharacter,
@@ -677,6 +724,7 @@ export function ChatProvider({
       isTyping,
       isSyncingHistory,
       sendMessage,
+      sendGift,
       regenerateLastReply,
       deleteMessage,
       reload: syncHistoryInBackground,
@@ -700,6 +748,7 @@ export function ChatProvider({
       isTyping,
       isSyncingHistory,
       sendMessage,
+      sendGift,
       regenerateLastReply,
       deleteMessage,
       syncHistoryInBackground,

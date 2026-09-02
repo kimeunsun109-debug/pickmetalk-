@@ -37,6 +37,26 @@ export interface ChatStreamChunk {
 export interface GiftSendBody {
   characterId: string;
   giftId: string;
+  conversationId: string;
+}
+
+export interface GiftSendResponse {
+  gift: {
+    id: string;
+    name: string;
+    emoji: string;
+    affectionBonus: number;
+  };
+  reaction: {
+    message: string;
+    emotion: string;
+    affectionBonus: number;
+  };
+  affection: number;
+  relationshipLevel: number;
+  emotion: string;
+  messageId: string;
+  assistantCreatedAt: string;
 }
 
 export interface AbsenceEventResponse {

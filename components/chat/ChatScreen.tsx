@@ -6,12 +6,14 @@ import { ChatInput } from "@/components/chat/ChatInput";
 import { ChatOnboarding } from "@/components/chat/ChatOnboarding";
 import { MessageList } from "@/components/chat/MessageList";
 import { PremiumModal } from "@/components/chat/PremiumModal";
+import { GiftPickerSheet } from "@/components/gifts/GiftPickerSheet";
 import { AbsenceWelcome } from "@/components/events/AbsenceWelcome";
 import { useChat } from "@/contexts/ChatProvider";
 import { useAbsenceEvent } from "@/hooks/useAbsenceEvent";
 import { usePerfRenderCount } from "@/lib/perf/client";
 import { getAbsenceTier } from "@/lib/returnVisit";
 import { trackEvent } from "@/services/analytics";
+import type { Gift } from "@/types";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 export function ChatScreen({
@@ -31,6 +33,7 @@ export function ChatScreen({
     isTyping,
     lastChatAt,
     sendMessage,
+    sendGift,
     usageBannerMessage,
     dismissUsageBanner,
   } = useChat();
@@ -40,6 +43,8 @@ export function ChatScreen({
   const streamScrollBucket = isTyping
     ? Math.floor((lastMsg?.content?.length ?? 0) / 48)
     : 0;
+  const [giftPickerOpen, setGiftPickerOpen] = useState(false);
+  const [sendingGiftId, setSendingGiftId] = useState<string | null>(null);
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
@@ -106,6 +111,19 @@ export function ChatScreen({
 
   const handleAbsenceDismiss = useCallback(() => setAbsenceDismissed(true), []);
 
+  const handleSelectGift = useCallback(
+    async (gift: Gift) => {
+      setSendingGiftId(gift.id);
+      try {
+        await sendGift(gift.id);
+        trackEvent("gift_sent", characterId, { giftId: gift.id });
+      } finally {
+        setSendingGiftId(null);
+      }
+    },
+    [sendGift, characterId]
+  );
+
   const showOnboarding = messages.length === 0;
 
   return (
@@ -145,6 +163,15 @@ export function ChatScreen({
         disabled={isTyping}
         isWaitingReply={isTyping}
         onSend={handleSend}
+        onOpenGifts={() => setGiftPickerOpen(true)}
+      />
+
+      <GiftPickerSheet
+        open={giftPickerOpen}
+        characterName={character.name}
+        sendingGiftId={sendingGiftId}
+        onClose={() => setGiftPickerOpen(false)}
+        onSelectGift={handleSelectGift}
       />
 
       <PremiumModal />
