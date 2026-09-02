@@ -4,8 +4,8 @@ import Image from "next/image";
 type PortraitSize = "hero" | "meet";
 
 const SIZE_CLASS: Record<PortraitSize, string> = {
-  hero: "aspect-[3/4] w-full max-w-[240px]",
-  meet: "aspect-[3/4] w-full max-w-[260px]",
+  hero: "aspect-[3/4] w-full max-w-[220px]",
+  meet: "aspect-[3/4] w-full max-w-[230px]",
 };
 
 interface CharacterPortraitProps {

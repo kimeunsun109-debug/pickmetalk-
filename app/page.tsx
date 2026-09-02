@@ -19,7 +19,7 @@ export default async function HomePage() {
   const pick = characters[todaysPickIndex(characters.length)] ?? characters[0];
 
   return (
-    <main className="min-h-[100dvh]">
+    <main>
       <HomeHero character={pick} loggedIn={Boolean(user)} />
     </main>
   );
