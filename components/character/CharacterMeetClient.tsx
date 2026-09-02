@@ -1,15 +1,14 @@
 "use client";
 
+import { CharacterPortrait } from "@/components/character/CharacterPortrait";
 import { characterChatHref, goToCharacterChat } from "@/lib/navigateChat";
 import { resolveCharacterId } from "@/lib/chatRoute";
-import { characterHeroSrc } from "@/lib/characters/images";
 import type { Conversation, PublicCharacter } from "@/types";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-/** Full-bleed character meet carousel — faces first, not a card dashboard. */
+/** Character meet carousel — compact portraits on a light paper canvas. */
 export function CharacterMeetClient({
   characters,
   activeCharacterId,
@@ -124,7 +123,7 @@ export function CharacterMeetClient({
   }
 
   return (
-    <div className="relative min-h-[100dvh] bg-night">
+    <div className="relative min-h-[100dvh] bg-paper">
       <div
         ref={scrollerRef}
         onScroll={onScroll}
@@ -136,27 +135,21 @@ export function CharacterMeetClient({
           return (
             <article
               key={c.id}
-              className="relative h-[100dvh] w-full shrink-0 snap-center snap-always"
+              className="relative flex h-[100dvh] w-full shrink-0 snap-center snap-always flex-col bg-paper px-6"
             >
               <div
-                className={`absolute inset-0 transition-transform duration-[2.8s] ease-out ${
-                  i === index ? "animate-hero-breath" : "scale-105"
-                }`}
-              >
-                <Image
-                  src={characterHeroSrc(id)}
-                  alt=""
-                  fill
-                  priority={i === initialIndex}
-                  sizes="(max-width: 448px) 100vw, 448px"
-                  className="object-cover object-[center_18%]"
-                />
-              </div>
-              <div
-                className="absolute inset-0 bg-gradient-to-b from-night/65 via-transparent to-night/90"
+                className="pointer-events-none absolute inset-x-0 top-0 h-48 bg-gradient-to-b from-pink-soft/25 to-transparent"
                 aria-hidden
               />
-              <div className="absolute inset-0 film-grain opacity-[0.28]" aria-hidden />
+
+              <div className="relative z-10 flex flex-1 items-center justify-center pt-14 pb-6">
+                <CharacterPortrait
+                  characterId={id}
+                  size="meet"
+                  priority={i === initialIndex}
+                  animate={i === index}
+                />
+              </div>
 
               <button
                 type="button"
@@ -174,7 +167,7 @@ export function CharacterMeetClient({
         <div className="pointer-events-auto flex items-center gap-2">
           <Link
             href="/"
-            className="border border-paper/20 bg-night/35 p-2 text-paper/90 backdrop-blur-sm"
+            className="rounded-full border border-ink/10 bg-white/85 p-2 text-ink/75 shadow-sm backdrop-blur-sm"
             aria-label="홈으로"
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="size-5">
@@ -187,7 +180,7 @@ export function CharacterMeetClient({
           </Link>
           <Link
             href="/conversations"
-            className="border border-paper/20 bg-night/35 px-3 py-2 text-[11px] tracking-wide text-paper/90 backdrop-blur-sm"
+            className="rounded-full border border-ink/10 bg-white/85 px-3 py-2 text-[11px] tracking-wide text-ink/75 shadow-sm backdrop-blur-sm"
           >
             대화 목록
           </Link>
@@ -198,18 +191,18 @@ export function CharacterMeetClient({
         <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 px-6 pb-[max(1.75rem,env(safe-area-inset-bottom))]">
           <div className="pointer-events-auto animate-hero-rise">
             {error && (
-              <p className="mb-3 bg-red-700/90 px-3 py-2 text-sm text-paper">
+              <p className="mb-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
                 {error}
               </p>
             )}
             <div className="mb-4 h-px w-10 bg-rose-muted/80" aria-hidden />
-            <p className="text-[11px] tracking-[0.18em] text-rose-muted">
+            <p className="text-[11px] tracking-[0.18em] text-rose-deep/80">
               {activeCharacterId === current.id ? "지금 함께" : "만나보기"}
             </p>
-            <h1 className="mt-2 font-display text-[2.45rem] leading-none text-paper">
+            <h1 className="mt-2 font-display text-[2.15rem] leading-none text-ink">
               {current.name}
             </h1>
-            <p className="mt-2.5 max-w-[20rem] text-[13.5px] leading-snug text-paper/68">
+            <p className="mt-2.5 max-w-[20rem] text-[13.5px] leading-snug text-ink/55">
               {current.tagline.includes("(")
                 ? current.tagline.slice(current.tagline.indexOf("(") + 1, -1)
                 : current.tagline}
@@ -223,7 +216,7 @@ export function CharacterMeetClient({
                   aria-label={`${c.name} 보기`}
                   onClick={() => scrollToIndex(i)}
                   className={`h-[2px] transition-all ${
-                    i === index ? "w-8 bg-rose-deep" : "w-3 bg-paper/30"
+                    i === index ? "w-8 bg-rose-deep" : "w-3 bg-ink/15"
                   }`}
                 />
               ))}
@@ -233,7 +226,7 @@ export function CharacterMeetClient({
               type="button"
               disabled={Boolean(loadingId)}
               onClick={() => current && selectCharacter(current)}
-              className="mt-6 w-full bg-rose-deep py-3.5 text-[13px] font-semibold tracking-wide text-paper disabled:opacity-60"
+              className="mt-6 w-full rounded-xl bg-rose-deep py-3.5 text-[13px] font-semibold tracking-wide text-paper disabled:opacity-60"
             >
               {loadingId === resolveCharacterId(current.id)
                 ? "들어가는 중…"
@@ -245,12 +238,12 @@ export function CharacterMeetClient({
 
       {pickerCharacter && (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-night/55 p-0 sm:items-center sm:p-4"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-ink/20 p-0 backdrop-blur-[2px] sm:items-center sm:p-4"
           role="dialog"
           aria-modal
           aria-label={`${pickerCharacter.name} 대화 선택`}
         >
-          <div className="w-full max-w-md border-t border-ink/10 bg-paper px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-5 sm:border sm:border-ink/10">
+          <div className="w-full max-w-md rounded-t-2xl border-t border-ink/10 bg-paper px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-5 sm:rounded-2xl sm:border sm:border-ink/10">
             <h2 className="font-display text-2xl text-ink">
               {pickerCharacter.name}
             </h2>
@@ -265,7 +258,7 @@ export function CharacterMeetClient({
                 onClick={() =>
                   continueConversation(pickerCharacter.id, conversations[0].id)
                 }
-                className="mt-5 w-full border border-ink/10 bg-white px-4 py-3.5 text-left text-sm disabled:opacity-50"
+                className="mt-5 w-full rounded-xl border border-ink/10 bg-white px-4 py-3.5 text-left text-sm disabled:opacity-50"
               >
                 <span className="text-[11px] tracking-wide text-rose-deep">최근 대화</span>
                 <span className="mt-0.5 block font-medium text-ink">
@@ -284,7 +277,7 @@ export function CharacterMeetClient({
                       onClick={() =>
                         continueConversation(pickerCharacter.id, conv.id)
                       }
-                      className="w-full border border-transparent px-4 py-3 text-left text-sm hover:border-ink/10 hover:bg-white disabled:opacity-50"
+                      className="w-full rounded-xl border border-transparent px-4 py-3 text-left text-sm hover:border-ink/10 hover:bg-white disabled:opacity-50"
                     >
                       <span className="font-medium text-ink">{conv.title}</span>
                       <span className="mt-0.5 block text-[11px] text-ink/40">
@@ -300,13 +293,13 @@ export function CharacterMeetClient({
               type="button"
               disabled={pickerLoading}
               onClick={() => startNewConversation(pickerCharacter.id)}
-              className="mt-4 w-full bg-rose-deep py-3 text-[13px] font-semibold tracking-wide text-paper disabled:opacity-50"
+              className="mt-4 w-full rounded-xl bg-rose-deep py-3 text-[13px] font-semibold tracking-wide text-paper disabled:opacity-50"
             >
               {pickerLoading ? "처리 중..." : "새 대화 시작하기"}
             </button>
             <button
               type="button"
-              className="mt-2 w-full py-2.5 text-[13px] text-ink/45"
+              className="mt-2 w-full rounded-xl py-2.5 text-[13px] text-ink/45"
               onClick={() => setPickerCharacter(null)}
             >
               닫기
