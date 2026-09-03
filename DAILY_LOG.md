@@ -277,3 +277,60 @@ AbsenceWelcome 오버레이 UI 연동 + returnVisit 메시지 닉네임 개인�
 - AbsenceWelcome 오버레이 Vercel preview QA 및 스크린샷 확인
 - excited 확률 캐릭터별 config 분리 (지유 높음, 은하 낮음)
 - returnVisit 오버레이에 캐릭터 이미지(hero) 삽입으로 몰입감 강화
+
+---
+
+## 2026-09-03
+
+### 선택한 작업
+hurt/pouty 감정 지속 + 캐릭터별 자동 회복 임계값 분리
+
+### 선택 이유
+- 기존 `resolveCharacterEmotion`은 ongoing session에서 중립 메시지 하나만 와도 hurt/pouty → happy로 즉시 전환
+- 프롬프트(buildEmotionArcRules)는 "2~3턴 유지"를 지시하나 emotion state가 이미 happy가 되어 불일치
+- 감정 arc의 현실감·몰입감 저하 → 관계 연속성 우선순위 4번에 직접 해당
+
+### 구현 내용
+1. **`services/emotion.ts`**
+   - `EmotionResolveContext`에 `characterId?: string` 추가
+   - `HURT_RECOVERY_TURNS` 캐릭터별 임계값: jiyu=2, yuna=3, narin=4, eunha=5, yoonseo=5
+   - `APOLOGY_RECOVERY_PATTERN`: /미안|죄송|잘못했|용서|화\s?풀|달래|삐쳤|삐졌/i
+   - `countPreviousHurtStreak()` 헬퍼 (history에서 이전 연속 hurt/pouty 턴 수)
+   - `resolveCharacterEmotion()` 개선:
+     - hurt/pouty 상태 + 중립 메시지 → streak 체크 → 임계값 미달이면 현재 감정 유지
+     - 임계값 이상이면 자동 happy 회복
+     - 사과·달래기 메시지 → 즉시 회복
+     - 애정·칭찬(AFFECTION/PRAISE 패턴) → 즉시 회복
+   - `pickPositiveEmotion` export + `characterId` 파라미터 추가
+2. **`app/api/chat/route.ts`**
+   - `resolveCharacterEmotion` 호출에 `characterId` 추가
+3. **`scripts/test_emotion.mts`**
+   - 9번 섹션 신규 10개 케이스: hurt 유지, pouty 유지, jiyu 자동 회복, yoonseo 미회복, eunha 5턴 회복, 사과 즉시 회복, 애정 즉시 회복, 냉담 재유발
+
+### 해결한 버그
+- ongoing session에서 hurt/pouty가 다음 중립 메시지에 즉시 happy로 전환되던 문제 수정
+- 감정 arc 프롬프트와 실제 emotion state 불일치 해소
+
+### 실행 및 테스트
+- `npx tsx scripts/test_emotion.mts` → 55/55 통과
+- `npx tsc --noEmit` → 오류 0
+- `npm run lint` → 경고·오류 0
+
+### 사용자에게 달라지는 점
+- 캐릭터가 서운하거나 삐진 상태에서 중립 메시지를 받아도 감정을 유지 — 더 사실적인 대화 arc
+- "미안해", "잘못했어" 등 사과 메시지를 보내면 즉시 회복 — 자연스러운 화해 흐름
+- 지유는 2턴 만에 빨리 풀리고, 은하·윤서는 5턴이 지나야 자동 회복 — 캐릭터 개성 강화
+
+### PR
+- (생성 예정)
+
+### 남은 문제
+- PR #28 (excited 확률 per-character)과 같은 파일을 수정 — 머지 시 conflict 가능성 있음
+  → 머지 순서: #28 먼저 → 이번 PR 순으로 권장
+- hurt/pouty 중 BORED 메시지('뭐해')는 BORED_PATTERN → bored로 처리됨
+  현재 hurt/pouty arc 중 bored 메시지를 받으면 bored로 전환 (추후 논의 필요)
+
+### 다음 추천 작업
+- P3: returnVisit 오버레이에 캐릭터 hero 이미지 삽입 (몰입감 강화)
+- P5: hurt/pouty 중 'bored' 메시지 처리 정책 확립
+- P0: AbsenceWelcome Vercel preview QA 및 스크린샷
