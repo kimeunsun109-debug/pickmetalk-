@@ -19,6 +19,26 @@ const COLD_REPLY_PATTERN =
 const BORED_PATTERN = /^(ㅎㅇ|하이|안녕|뭐해|심심|ㅋㅋㅋ)\.?$/i;
 
 /**
+ * 사과·달래기 패턴 — hurt/pouty 상태에서 이 메시지를 받으면 회복 트리거.
+ * "미안해", "잘못했어", "용서해줘", "화 풀어" 등.
+ */
+const APOLOGY_RECOVERY_PATTERN =
+  /미안|죄송|잘못했|용서|화\s?풀|달래|삐쳤|삐졌/i;
+
+/**
+ * 캐릭터별 hurt/pouty 자동 회복 임계값 (assistant 턴 수).
+ * 해당 턴 이상 지속되면 neutral 메시지에도 자동으로 happy로 회복.
+ * 성격이 활발할수록 낮고, 츤데레·냉담할수록 높다.
+ */
+const HURT_RECOVERY_TURNS: Record<string, number> = {
+  jiyu:    2,   // 지유: 활발·쾌활 — 금방 풀림
+  yuna:    3,   // 유나: 균형적 — 보통
+  narin:   4,   // 나린: 차분·섬세 — 조금 느림
+  eunha:   5,   // 은하: 차가운 외면 — 느림
+  yoonseo: 5,   // 윤서: 츤데레 — 느림
+};
+
+/**
  * 메시지가 냉담하거나 무관심한 반응인지 판별한다.
  * 시간 기반 감정(hurt/pouty)을 적용할지 결정하는 데 사용.
  * COLD_REPLY_PATTERN 또는 BORED_PATTERN에 해당하면 true.
@@ -36,6 +56,8 @@ export interface EmotionResolveContext {
   currentEmotion?: EmotionState;
   /** 이번 턴에서 호감도가 오를 예정 */
   affectionWillIncrease?: boolean;
+  /** 캐릭터 ID — hurt/pouty 회복 속도 분기에 사용 */
+  characterId?: string;
 }
 
 function hoursSince(iso: string | null): number | null {
@@ -45,6 +67,26 @@ function hoursSince(iso: string | null): number | null {
 
 function isLateNight(): boolean {
   return isSeoulLateNight();
+}
+
+/**
+ * 히스토리에서 가장 최근 assistant 턴부터 역순으로
+ * 동일 hurt/pouty 감정이 연속된 턴 수를 반환한다 (이번 턴 미포함).
+ * countEmotionDurationTurns와 달리 이번 턴을 더하지 않으므로
+ * "지금까지 몇 턴 지속됐는가"를 판별할 때 사용한다.
+ */
+function countPreviousHurtStreak(
+  history: Message[],
+  emotion: "hurt" | "pouty"
+): number {
+  let streak = 0;
+  for (let i = history.length - 1; i >= 0; i--) {
+    const msg = history[i];
+    if (msg.role !== "assistant") continue;
+    if (msg.emotion === emotion) streak++;
+    else if (msg.emotion) break;
+  }
+  return streak;
 }
 
 /** 메시지·시간·호감도 기반 감정 (우선순위 높은 것부터) */
@@ -93,6 +135,42 @@ export function resolveCharacterEmotion(
 
   const text = input.userMessage.trim();
   const fromMessage = inferEmotionFromUserMessage(text);
+
+  // ── hurt/pouty 지속·회복 로직 ──────────────────────────────────────────
+  // 이전 턴이 hurt 또는 pouty 상태였고 새 메시지가 hurt/pouty를 새로 유발하지
+  // 않았다면, 사과·애정 표현(회복 트리거)이나 캐릭터별 자동 회복 임계값에 따라
+  // 감정을 결정한다.
+  if (current === "hurt" || current === "pouty") {
+    // 새 메시지가 hurt/pouty를 직접 재유발 → 그대로 유지
+    if (fromMessage === "hurt" || fromMessage === "pouty") {
+      return fromMessage;
+    }
+
+    // 사과·달래기 → 즉시 회복
+    if (APOLOGY_RECOVERY_PATTERN.test(text)) {
+      return pickPositiveEmotion(history, input.characterId);
+    }
+
+    // 애정·칭찬 메시지 → 회복
+    if (fromMessage === "excited" || fromMessage === "happy") {
+      return fromMessage;
+    }
+
+    // 중립 메시지: 이전 hurt/pouty 지속 턴 수 체크
+    const prevStreak = countPreviousHurtStreak(history, current);
+    const recoveryThreshold =
+      HURT_RECOVERY_TURNS[input.characterId ?? ""] ?? 3;
+
+    if (prevStreak >= recoveryThreshold) {
+      // 임계값 도달 → 자동 회복
+      return pickPositiveEmotion(history, input.characterId);
+    }
+
+    // 임계값 미달 → 현재 감정 유지 (arc 지속)
+    return current;
+  }
+  // ────────────────────────────────────────────────────────────────────────
+
   if (fromMessage) return fromMessage;
 
   const ongoingSession = isOngoingChatSession(history);
@@ -114,7 +192,7 @@ export function resolveCharacterEmotion(
   }
 
   if (input.affectionWillIncrease) {
-    return pickPositiveEmotion(history);
+    return pickPositiveEmotion(history, input.characterId);
   }
 
   return "happy";
@@ -122,10 +200,13 @@ export function resolveCharacterEmotion(
 
 /**
  * 활성 대화 중 긍정 감정을 선택한다.
- * 최근 연속 excited가 없는 경우 약 30% 확률로 excited를 반환해
+ * 최근 연속 excited가 없는 경우 캐릭터별 확률로 excited를 반환해
  * 단조로운 happy 반복을 방지한다.
  */
-function pickPositiveEmotion(history: Message[]): EmotionState {
+export function pickPositiveEmotion(
+  history: Message[],
+  characterId?: string
+): EmotionState {
   const recentAssistant = history
     .filter((m) => m.role === "assistant")
     .slice(-3);

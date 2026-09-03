@@ -337,6 +337,217 @@ test("prev 유저메시지가 2h 전 → ongoing=false", isOngoingChatSession(ga
 test("메시지 1개 → ongoing=false", isOngoingChatSession([makeMessage("user", 5)]), false);
 
 // ─────────────────────────────────────────────
+// 9. hurt/pouty 지속 + 캐릭터별 자동 회복
+// ─────────────────────────────────────────────
+
+console.log("\n[9] hurt/pouty 지속 및 캐릭터별 회복");
+
+// 현재 감정 hurt, 중립 메시지 → 이전 턴 0개 (streak=0) → 유지
+test(
+  "hurt 0턴 지속 중 중립 메시지 → hurt 유지 (기본 임계 3)",
+  resolveCharacterEmotion(
+    {
+      userMessage: "뭐해",
+      lastChatAt: minutesAgo(5),
+      lastSeenAt: minutesAgo(60),
+      currentEmotion: "hurt",
+      affectionWillIncrease: true,
+    },
+    undefined,
+    [] // 이전 history 없음
+  ),
+  "hurt"
+);
+
+// 현재 감정 pouty, 중립, 이전 1턴 → streak=1 < 기본임계 3 → 유지
+const poutyHistory1: Message[] = [
+  makeMessage("assistant", 10, "pouty"),
+];
+test(
+  "pouty 1턴 지속 중 중립 메시지 → pouty 유지",
+  resolveCharacterEmotion(
+    {
+      userMessage: "오늘 뭐했어",
+      lastChatAt: minutesAgo(5),
+      lastSeenAt: minutesAgo(60),
+      currentEmotion: "pouty",
+      affectionWillIncrease: true,
+    },
+    undefined,
+    poutyHistory1
+  ),
+  "pouty"
+);
+
+// jiyu: 임계값 2 — 이전 2턴이면 자동 회복 (happy or excited)
+const poutyHistory2: Message[] = [
+  makeMessage("assistant", 20, "pouty"),
+  makeMessage("assistant", 10, "pouty"),
+];
+{
+  const result = resolveCharacterEmotion(
+    {
+      userMessage: "오늘 뭐했어",
+      lastChatAt: minutesAgo(5),
+      lastSeenAt: minutesAgo(60),
+      currentEmotion: "pouty",
+      affectionWillIncrease: true,
+      characterId: "jiyu",
+    },
+    undefined,
+    poutyHistory2
+  );
+  test(
+    "jiyu: pouty 2턴 + 중립 → 자동 회복 (happy or excited)",
+    result === "happy" || result === "excited",
+    true
+  );
+}
+
+// yoonseo: 임계값 5 — 이전 2턴이면 아직 유지
+{
+  const result = resolveCharacterEmotion(
+    {
+      userMessage: "오늘 뭐했어",
+      lastChatAt: minutesAgo(5),
+      lastSeenAt: minutesAgo(60),
+      currentEmotion: "pouty",
+      affectionWillIncrease: true,
+      characterId: "yoonseo",
+    },
+    undefined,
+    poutyHistory2
+  );
+  test(
+    "yoonseo: pouty 2턴 + 중립 → 아직 유지 (2 < 5)",
+    result,
+    "pouty"
+  );
+}
+
+// eunha: 임계값 5 — 이전 5턴이면 자동 회복
+const hurtHistory5: Message[] = [
+  makeMessage("assistant", 50, "hurt"),
+  makeMessage("assistant", 40, "hurt"),
+  makeMessage("assistant", 30, "hurt"),
+  makeMessage("assistant", 20, "hurt"),
+  makeMessage("assistant", 10, "hurt"),
+];
+{
+  const result = resolveCharacterEmotion(
+    {
+      userMessage: "어제 일은 어때",
+      lastChatAt: minutesAgo(5),
+      lastSeenAt: minutesAgo(60),
+      currentEmotion: "hurt",
+      affectionWillIncrease: true,
+      characterId: "eunha",
+    },
+    undefined,
+    hurtHistory5
+  );
+  test(
+    "eunha: hurt 5턴 + 중립 → 자동 회복 (happy or excited)",
+    result === "happy" || result === "excited",
+    true
+  );
+}
+
+// 사과 메시지 → 즉시 회복 (캐릭터 무관, streak 무관)
+test(
+  "hurt 상태에서 '미안해' → 즉시 회복 (happy or excited)",
+  (() => {
+    const r = resolveCharacterEmotion(
+      {
+        userMessage: "미안해",
+        lastChatAt: minutesAgo(5),
+        lastSeenAt: minutesAgo(60),
+        currentEmotion: "hurt",
+        affectionWillIncrease: true,
+        characterId: "eunha", // 임계 높은 캐릭터도 사과엔 회복
+      },
+      undefined,
+      poutyHistory1
+    );
+    return r === "happy" || r === "excited";
+  })(),
+  true
+);
+
+test(
+  "pouty 상태에서 '잘못했어' → 즉시 회복",
+  (() => {
+    const r = resolveCharacterEmotion(
+      {
+        userMessage: "잘못했어 진짜",
+        lastChatAt: minutesAgo(5),
+        lastSeenAt: minutesAgo(60),
+        currentEmotion: "pouty",
+        affectionWillIncrease: true,
+      },
+      undefined,
+      poutyHistory2
+    );
+    return r === "happy" || r === "excited";
+  })(),
+  true
+);
+
+// 사랑 메시지 (AFFECTION_PATTERN) → hurt 상태에서 회복
+test(
+  "hurt 상태에서 '좋아해' → 즉시 회복 (excited)",
+  resolveCharacterEmotion(
+    {
+      userMessage: "좋아해",
+      lastChatAt: minutesAgo(5),
+      lastSeenAt: minutesAgo(60),
+      currentEmotion: "hurt",
+      affectionWillIncrease: true,
+    },
+    undefined,
+    []
+  ),
+  "excited"
+);
+
+// 새 hurt 트리거 → hurt 중 'ㅇ' 입력 → hurt 유지
+test(
+  "hurt 상태에서 냉담 'ㅇ' → hurt 재유발",
+  resolveCharacterEmotion(
+    {
+      userMessage: "ㅇ",
+      lastChatAt: minutesAgo(5),
+      lastSeenAt: minutesAgo(60),
+      currentEmotion: "hurt",
+      affectionWillIncrease: true,
+    },
+    undefined,
+    []
+  ),
+  "hurt"
+);
+
+// hurt 상태가 아닌 경우 기존 로직 그대로
+test(
+  "현재 happy 상태 + 중립 메시지 → happy or excited",
+  (() => {
+    const r = resolveCharacterEmotion(
+      {
+        userMessage: "오늘 점심 뭐 먹었어",
+        lastChatAt: minutesAgo(5),
+        lastSeenAt: minutesAgo(60),
+        currentEmotion: "happy",
+        affectionWillIncrease: true,
+      },
+      undefined,
+      recentHistory
+    );
+    return r === "happy" || r === "excited";
+  })(),
+  true
+);
+
+// ─────────────────────────────────────────────
 // 결과
 // ─────────────────────────────────────────────
 
