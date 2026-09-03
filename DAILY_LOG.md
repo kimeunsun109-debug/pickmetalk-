@@ -322,7 +322,7 @@ hurt/pouty 감정 지속 + 캐릭터별 자동 회복 임계값 분리
 - 지유는 2턴 만에 빨리 풀리고, 은하·윤서는 5턴이 지나야 자동 회복 — 캐릭터 개성 강화
 
 ### PR
-- (생성 예정)
+- https://github.com/kimeunsun109-debug/pickmetalk-/pull/29
 
 ### 남은 문제
 - PR #28 (excited 확률 per-character)과 같은 파일을 수정 — 머지 시 conflict 가능성 있음
