@@ -330,7 +330,7 @@ npm run lint                              → No ESLint warnings or errors
 - 이전에는 이 패턴들이 모두 hobby/fallback 카테고리로 잘못 분류되거나 누락됨
 
 ### PR
-- (생성 예정)
+- https://github.com/kimeunsun109-debug/pickmetalk-/pull/30
 
 ### 남은 문제
 - PR #28 (excited 확률 캐릭터별 분리)과 PR #29 (hurt/pouty 임계값)은 아직 미병합
