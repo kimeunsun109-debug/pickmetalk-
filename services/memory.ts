@@ -116,7 +116,32 @@ const FAMILY_RELATIONS = [
   "동생",
   "할머니",
   "할아버지",
+  "사촌",
 ] as const;
+
+/** 친구·지인 관계 레이블 */
+const FRIEND_RELATIONS = ["친구", "베프", "절친", "동생뻘", "선배", "후배"] as const;
+
+/** 연인·파트너 관계 레이블 */
+const PARTNER_RELATIONS = [
+  "남자친구",
+  "남친",
+  "여자친구",
+  "여친",
+  "애인",
+  "연인",
+] as const;
+
+/**
+ * 모든 사람 관계 (가족 + 친구 + 연인).
+ * 긴 문자열이 먼저 시도되도록 내림차순 정렬 — "친구"가 "남자친구" 안에서 먼저
+ * 매칭되는 부분 문자열 충돌을 방지한다.
+ */
+const ALL_RELATIONS = [
+  ...PARTNER_RELATIONS,
+  ...FAMILY_RELATIONS,
+  ...FRIEND_RELATIONS,
+].sort((a, b) => b.length - a.length);
 
 const OCCUPATION_WORDS = new Set([
   "학생",
@@ -207,20 +232,75 @@ function extractPersonalEntity(
     };
   }
 
-  // 가족 이름: "{relation} 이름이 {name}야"
-  for (const relation of FAMILY_RELATIONS) {
-    const m = text.match(
+  // 모든 관계 패턴 (가족 + 친구 + 연인) ────────────────────────────
+
+  /**
+   * 한국어 이름 접미사(`야`·`이야`·`이에요`·`이고`·`인데`)를 제거.
+   * `[가-힣]` 캡처 그룹이 이 접미사들을 삼키는 문제를 방지한다.
+   */
+  function stripNameSuffix(raw: string): string {
+    return raw.replace(/(?:이에요|이야|이고|인데|야)$/, "");
+  }
+
+  for (const relation of ALL_RELATIONS) {
+    // 패턴 1: "{relation} 이름이/은/가 {name}야/이야/이에요"
+    const m1 = text.match(
       new RegExp(
-        `${relation}\\s*이름(?:이|은|가)?\\s*([가-힣]{1,6})(?:야|이야|이에요)?`,
+        `${relation}\\s*이름(?:이|은|가)?\\s*([가-힣]{1,6})(?:야|이야|이에요|이고)?`,
         "u"
       )
     );
-    if (m?.[1]) {
-      return {
-        fact: `${relation} 이름: ${m[1]}`,
-        category: "personal",
-        timestamp,
-      };
+    if (m1?.[1]) {
+      const name = stripNameSuffix(m1[1]);
+      if (isLikelyKoreanName(name)) {
+        return { fact: `${relation} 이름: ${name}`, category: "personal", timestamp };
+      }
+    }
+
+    // 패턴 2: "{name}라는/이라는 {relation}" — "준호라는 친구야", "수지라는 누나"
+    const m2 = text.match(
+      new RegExp(
+        `([가-힣]{1,5})(?:라는|이라는)\\s*${relation}`,
+        "u"
+      )
+    );
+    if (m2?.[1]) {
+      const name = stripNameSuffix(m2[1]);
+      if (isLikelyKoreanName(name)) {
+        return { fact: `${relation} 이름: ${name}`, category: "personal", timestamp };
+      }
+    }
+
+    // 패턴 3: "내 {relation}이/가 {name}야/인데/이야" — "내 친구가 민지야"
+    const m3 = text.match(
+      new RegExp(
+        `내\\s*${relation}(?:이|가)?\\s*([가-힣]{1,5})(?:야|이야|인데|이고)?`,
+        "u"
+      )
+    );
+    if (m3?.[1]) {
+      const name = stripNameSuffix(m3[1]);
+      if (isLikelyKoreanName(name)) {
+        return { fact: `${relation} 이름: ${name}`, category: "personal", timestamp };
+      }
+    }
+
+    // 패턴 4: "{relation}이/가 {name}야/인데" — "형이 준호야", "친구가 민지야"
+    // 짧은 단일 관계어에서만 사용 (남자친구/여자친구는 이름 혼동 가능)
+    const isShortRelation = relation.length <= 3;
+    if (isShortRelation) {
+      const m4 = text.match(
+        new RegExp(
+          `(?:^|[\\s,])${relation}(?:이|가)\\s*([가-힣]{2,5})(?:야|이야|인데|이고)`,
+          "u"
+        )
+      );
+      if (m4?.[1]) {
+        const name = stripNameSuffix(m4[1]);
+        if (isLikelyKoreanName(name)) {
+          return { fact: `${relation} 이름: ${name}`, category: "personal", timestamp };
+        }
+      }
     }
   }
 

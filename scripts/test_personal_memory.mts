@@ -153,6 +153,99 @@ test("동생 이름 추출", () => {
   expect(entities[0].fact).toContain("동생");
 });
 
+// ─── Family direct-identification patterns ───────────────────
+
+test("형 직접 이름 식별 (형이 준호야)", () => {
+  const entities = extractKeyMemories("형이 준호야");
+  expect(entities.length).toBe(1);
+  expect(entities[0].category).toBe("personal");
+  expect(entities[0].fact).toContain("형");
+  expect(entities[0].fact).toContain("준호");
+});
+
+test("언니 직접 이름 식별 (수지라는 언니야)", () => {
+  const entities = extractKeyMemories("수지라는 언니야");
+  expect(entities.length).toBe(1);
+  expect(entities[0].category).toBe("personal");
+  expect(entities[0].fact).toContain("언니");
+  expect(entities[0].fact).toContain("수지");
+});
+
+test("내 동생 직접 이름 식별 (내 동생이 지은이야)", () => {
+  const entities = extractKeyMemories("내 동생이 지은이야");
+  expect(entities.length).toBe(1);
+  expect(entities[0].category).toBe("personal");
+  expect(entities[0].fact).toContain("동생");
+});
+
+// ─── Friend name extraction ───────────────────────────────────
+
+test("친구 이름 추출 (친구 이름이 민지야)", () => {
+  const entities = extractKeyMemories("친구 이름이 민지야");
+  expect(entities.length).toBe(1);
+  expect(entities[0].category).toBe("personal");
+  expect(entities[0].fact).toContain("친구");
+  expect(entities[0].fact).toContain("민지");
+});
+
+test("친구 이름 추출 (민지라는 친구야)", () => {
+  const entities = extractKeyMemories("민지라는 친구야");
+  expect(entities.length).toBe(1);
+  expect(entities[0].category).toBe("personal");
+  expect(entities[0].fact).toContain("친구");
+  expect(entities[0].fact).toContain("민지");
+});
+
+test("친구 이름 추출 (친구가 수진이야)", () => {
+  const entities = extractKeyMemories("친구가 수진이야");
+  expect(entities.length).toBe(1);
+  expect(entities[0].category).toBe("personal");
+  expect(entities[0].fact).toContain("친구");
+  expect(entities[0].fact).toContain("수진");
+});
+
+test("내 친구 이름 추출 (내 친구가 영수야)", () => {
+  const entities = extractKeyMemories("내 친구가 영수야");
+  expect(entities.length).toBe(1);
+  expect(entities[0].category).toBe("personal");
+  expect(entities[0].fact).toContain("친구");
+  expect(entities[0].fact).toContain("영수");
+});
+
+// ─── Partner name extraction ──────────────────────────────────
+
+test("남자친구 이름 추출 (남자친구 이름이 준서야)", () => {
+  const entities = extractKeyMemories("남자친구 이름이 준서야");
+  expect(entities.length).toBe(1);
+  expect(entities[0].category).toBe("personal");
+  expect(entities[0].fact).toContain("남자친구");
+  expect(entities[0].fact).toContain("준서");
+});
+
+test("남친 이름 추출 (남친 이름이 현우야)", () => {
+  const entities = extractKeyMemories("남친 이름이 현우야");
+  expect(entities.length).toBe(1);
+  expect(entities[0].category).toBe("personal");
+  expect(entities[0].fact).toContain("남친");
+  expect(entities[0].fact).toContain("현우");
+});
+
+test("여자친구 이름 추출 (현우라는 남자친구가 있어)", () => {
+  const entities = extractKeyMemories("현우라는 남자친구가 있어");
+  expect(entities.length).toBe(1);
+  expect(entities[0].category).toBe("personal");
+  expect(entities[0].fact).toContain("남자친구");
+  expect(entities[0].fact).toContain("현우");
+});
+
+test("애인 이름 추출 (애인 이름이 태희야)", () => {
+  const entities = extractKeyMemories("애인 이름이 태희야");
+  expect(entities.length).toBe(1);
+  expect(entities[0].category).toBe("personal");
+  expect(entities[0].fact).toContain("애인");
+  expect(entities[0].fact).toContain("태희");
+});
+
 // ─── Negative tests (should NOT extract personal) ────────────
 
 test("직업 추출 안 함 (나는 학생이야)", () => {
@@ -170,6 +263,18 @@ test("직업 추출 안 함 (나는 의사야)", () => {
 test("짧은 메시지 추출 안 함", () => {
   const entities = extractKeyMemories("응");
   expect(entities.length).toBe(0);
+});
+
+test("부정형 관계 추출 안 함 (친구가 없어)", () => {
+  const entities = extractKeyMemories("친구가 없어");
+  const personal = entities.filter((e) => e.category === "personal");
+  expect(personal.length).toBe(0);
+});
+
+test("부정형 관계 추출 안 함 (형이 많아)", () => {
+  const entities = extractKeyMemories("형이 많아");
+  const personal = entities.filter((e) => e.category === "personal");
+  expect(personal.length).toBe(0);
 });
 
 // ─── Memory summary persistence ──────────────────────────────

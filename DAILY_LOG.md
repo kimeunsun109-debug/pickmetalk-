@@ -277,3 +277,67 @@ AbsenceWelcome 오버레이 UI 연동 + returnVisit 메시지 닉네임 개인�
 - AbsenceWelcome 오버레이 Vercel preview QA 및 스크린샷 확인
 - excited 확률 캐릭터별 config 분리 (지유 높음, 은하 낮음)
 - returnVisit 오버레이에 캐릭터 이미지(hero) 삽입으로 몰입감 강화
+
+---
+
+## 2026-09-04
+
+### 선택한 작업
+- Memory: 친구·연인 관계 이름 추출 + 가족 직접 식별 패턴 확장
+
+### 선택 이유
+- 현재 메모리 시스템은 `{relation} 이름이 {name}야` 패턴만 지원
+- 실제 대화에서는 `형이 준호야`, `민지라는 친구야`, `남자친구 이름이 준서야` 같은 패턴이 훨씬 자주 쓰임
+- 사용자의 핵심 인물(친구·연인·가족)을 기억해야 AI가 "이 사람을 알고 있다"는 느낌을 줄 수 있음
+- Memory 우선순위 3번 — 기억의 정확성이 관계 몰입도의 핵심
+
+### 구현 내용
+1. **`services/memory.ts`**
+   - `FRIEND_RELATIONS` 추가: 친구, 베프, 절친, 동생뻘, 선배, 후배
+   - `PARTNER_RELATIONS` 추가: 남자친구, 남친, 여자친구, 여친, 애인, 연인
+   - `ALL_RELATIONS` 합성 (길이 내림차순 정렬 — 부분 문자열 충돌 방지)
+   - `stripNameSuffix()` 헬퍼: `야`·`이야`·`이에요`·`이고`·`인데` 접미사를 가진 이름 포함 방지
+   - 가족 확장: `사촌` 추가
+   - **패턴 1** (기존 확장): `{relation} 이름이/은/가 {name}야/이야/이에요` → 모든 관계에 적용
+   - **패턴 2** (신규): `{name}라는/이라는 {relation}` → "준호라는 친구야"
+   - **패턴 3** (신규): `내 {relation}이/가 {name}야/인데` → "내 친구가 민지야"
+   - **패턴 4** (신규): `{relation}이/가 {name}야/인데` (짧은 관계어 전용) → "형이 준호야", "친구가 수진이야"
+
+2. **`scripts/test_personal_memory.mts`**
+   - 테스트 22개 → 35개 (+13개)
+   - 가족 직접 식별 3개, 친구 이름 4개, 연인 이름 4개, 부정형 2개
+
+### 해결한 버그
+- `남자친구` 안에서 `친구` 패턴이 먼저 매칭되는 부분 문자열 충돌 (ALL_RELATIONS 길이 내림차순 정렬으로 해결)
+- `준서야` → `야` 접미사가 이름에 포함되는 캡처 버그 (`stripNameSuffix` 후처리로 해결)
+
+### 실행 및 테스트
+```
+npx tsx scripts/test_personal_memory.mts  → 35/35 passed
+npx tsx scripts/test_emotion.mts          → 45/45 passed
+npx tsx scripts/test_short_term_memory.mts→ 41/41 passed
+npx tsc --noEmit                          → 0 errors
+npm run lint                              → No ESLint warnings or errors
+```
+
+### 사용자에게 달라지는 점
+- "형이 준호야" → AI가 형의 이름을 기억
+- "민지라는 친구야" → 친구 이름 기억
+- "내 친구가 영수야" → 친구 이름 기억
+- "남자친구 이름이 준서야" → 연인 이름 기억
+- "애인 이름이 태희야" → 연인 이름 기억
+- AI가 이름을 알고 있을 때 더 자연스럽게 대화 속에서 회상 가능
+- 이전에는 이 패턴들이 모두 hobby/fallback 카테고리로 잘못 분류되거나 누락됨
+
+### PR
+- (생성 예정)
+
+### 남은 문제
+- PR #28 (excited 확률 캐릭터별 분리)과 PR #29 (hurt/pouty 임계값)은 아직 미병합
+- emotion.ts 관련 두 PR 머지 시 충돌 주의 (#28 먼저 권장)
+- AbsenceWelcome Vercel 환경 QA 미완
+
+### 다음 추천 작업
+- 메모리 회상 시 이름을 더 자연스럽게 사용하는 프롬프트 보강
+- 가족/친구 이름이 있을 때 contextMemoryPrompt에 반영되도록 개선
+- PR #28/#29 병합 후 감정 시스템 통합 검증
