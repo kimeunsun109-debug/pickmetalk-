@@ -2,6 +2,47 @@ import { normalizeEmotion } from "@/lib/emotions";
 import { isSeoulLateNight } from "@/services/timeContext";
 import type { EmotionState, Message } from "@/types";
 
+/**
+ * 캐릭터별 hurt/pouty 자동 회복 임계값 (턴 수).
+ * 이 턴 수 이상 지속되면 "서서히 회복" 아크로 전환.
+ * 값이 작을수록 빠르게 풀리는 성격.
+ */
+const HURT_RECOVERY_TURNS: Record<string, number> = {
+  jiyu: 2,    // 밝고 활발 — 금방 풀림
+  yuna: 3,    // 기본
+  narin: 4,   // 쿨한 편 — 조금 더 오래
+  eunha: 5,   // 자존심 강함 — 오래 삐짐
+  yoonseo: 5, // 감수성 깊음 — 오래 삐짐
+};
+
+/**
+ * 캐릭터별 excited 감정 선택 확률 (0~1).
+ * affectionWillIncrease 시 happy 대신 excited가 나올 확률.
+ */
+const EXCITED_PROBABILITY: Record<string, number> = {
+  jiyu: 0.40,    // 활발한 성격 — 설렘 자주
+  yuna: 0.30,    // 기본
+  narin: 0.20,   // 쿨한 성격 — 덜 설렘
+  eunha: 0.20,   // 차가운 성격 — 덜 설렘
+  yoonseo: 0.40, // 감수성 풍부 — 설렘 자주
+};
+
+/** 캐릭터의 hurt/pouty 자동 회복 임계값을 반환 */
+export function getHurtRecoveryTurns(characterId?: string): number {
+  if (characterId && characterId in HURT_RECOVERY_TURNS) {
+    return HURT_RECOVERY_TURNS[characterId];
+  }
+  return 3; // 기본값
+}
+
+/** 캐릭터의 excited 선택 확률을 반환 */
+export function getExcitedProbability(characterId?: string): number {
+  if (characterId && characterId in EXCITED_PROBABILITY) {
+    return EXCITED_PROBABILITY[characterId];
+  }
+  return 0.30; // 기본값
+}
+
 const PRAISE_PATTERN =
   /예쁘|멋|최고|고마워|잘했|칭찬|대단|훌륭|잘한다|대박|짱|최고야/i;
 
@@ -36,6 +77,8 @@ export interface EmotionResolveContext {
   currentEmotion?: EmotionState;
   /** 이번 턴에서 호감도가 오를 예정 */
   affectionWillIncrease?: boolean;
+  /** 캐릭터 ID — per-character 확률 분기에 사용 */
+  characterId?: string;
 }
 
 function hoursSince(iso: string | null): number | null {
@@ -114,7 +157,7 @@ export function resolveCharacterEmotion(
   }
 
   if (input.affectionWillIncrease) {
-    return pickPositiveEmotion(history);
+    return pickPositiveEmotion(history, input.characterId);
   }
 
   return "happy";
@@ -122,15 +165,16 @@ export function resolveCharacterEmotion(
 
 /**
  * 활성 대화 중 긍정 감정을 선택한다.
- * 최근 연속 excited가 없는 경우 약 30% 확률로 excited를 반환해
+ * 최근 연속 excited가 없는 경우 캐릭터별 확률로 excited를 반환해
  * 단조로운 happy 반복을 방지한다.
  */
-function pickPositiveEmotion(history: Message[]): EmotionState {
+function pickPositiveEmotion(history: Message[], characterId?: string): EmotionState {
   const recentAssistant = history
     .filter((m) => m.role === "assistant")
     .slice(-3);
   const recentExcited = recentAssistant.some((m) => m.emotion === "excited");
-  if (!recentExcited && Math.random() < 0.30) return "excited";
+  const prob = getExcitedProbability(characterId);
+  if (!recentExcited && Math.random() < prob) return "excited";
   return "happy";
 }
 
