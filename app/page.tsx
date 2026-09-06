@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-/** Landing entry — full-bleed character face + brand. */
+/** Landing entry — brand + compact character portrait. */
 export default async function HomePage() {
   const trace = new ServerPerfTrace("Home Load");
   const supabase = await createClient();
@@ -19,7 +19,7 @@ export default async function HomePage() {
   const pick = characters[todaysPickIndex(characters.length)] ?? characters[0];
 
   return (
-    <main className="min-h-[100dvh]">
+    <main>
       <HomeHero character={pick} loggedIn={Boolean(user)} />
     </main>
   );

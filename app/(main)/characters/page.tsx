@@ -8,7 +8,7 @@ import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
-/** Character meet — full-bleed faces, swipe to choose. */
+/** Character meet — swipe portraits on a light canvas. */
 export default async function CharactersPage() {
   const supabase = await createClient();
   const {
@@ -31,7 +31,7 @@ export default async function CharactersPage() {
     : todaysPickIndex(characters.length);
 
   return (
-    <main className="min-h-[100dvh]">
+    <main>
       <CharacterMeetClient
         characters={characters}
         activeCharacterId={activeCharacterId}

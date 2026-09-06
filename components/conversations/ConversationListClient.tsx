@@ -197,14 +197,14 @@ export function ConversationListClient({
                   deletingId === conv.id ? "opacity-50" : ""
                 }`}
               >
-                <div className="relative size-12 shrink-0 overflow-hidden bg-ink/10 text-base font-bold text-ink/40">
+                <div className="relative size-12 shrink-0 overflow-hidden rounded-full bg-pink-soft/35 ring-1 ring-pink-soft/55 text-base font-bold text-ink/40">
                   {meta?.avatar ? (
                     <Image
                       src={meta.avatar}
                       alt={meta.name}
                       width={48}
                       height={48}
-                      className="size-12 object-cover"
+                      className="size-12 scale-110 rounded-full object-cover object-[center_20%]"
                     />
                   ) : (
                     <span className="flex size-12 items-center justify-center">

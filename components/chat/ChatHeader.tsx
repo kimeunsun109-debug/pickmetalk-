@@ -104,14 +104,14 @@ export const ChatHeader = memo(function ChatHeader({
           </svg>
         </Link>
 
-        <div className="relative shrink-0">
+        <div className="relative shrink-0 rounded-full bg-pink-soft/35 p-0.5 ring-1 ring-pink-soft/55">
           {!imgError ? (
             <Image
               src={fallbackSrc ?? avatarSrc}
               alt={character.name}
               width={40}
               height={40}
-              className="size-10 rounded-full object-cover"
+              className="size-10 scale-110 rounded-full object-cover object-[center_20%]"
               onError={() => {
                 if (!fallbackSrc) {
                   setFallbackSrc(characterAvatarSrc(characterId));
