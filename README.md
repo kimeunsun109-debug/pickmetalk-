@@ -41,11 +41,12 @@ npm install
 1. [Supabase](https://supabase.com)에서 프로젝트 생성
 2. SQL Editor에서 `supabase/schema.sql` 실행
 3. Authentication → Providers에서 **Email** 활성화
-4. Authentication → **URL Configuration**에서 아래를 설정:
+4. (소셜 로그인) Providers에서 **Google** / **Kakao** 활성화 — Client ID·Secret은 Dashboard에만 입력 (앱 `.env`에 넣지 않음). 상세: `docs/AUTH_OAUTH.md`
+5. Authentication → **URL Configuration**에서 아래를 설정:
    - **Site URL:** `https://pickmetalk.com` (로컬만 쓸 때는 `http://localhost:3000`)
-   - **Redirect URLs:** `http://localhost:3000/**`, `https://pickmetalk.com/**`
+   - **Redirect URLs:** `http://localhost:3000/**`, `https://pickmetalk.com/**` (OAuth 콜백 `/api/auth/callback` 포함)
    - 또는 `npx supabase config push`로 `supabase/config.toml` 반영
-5. (선택) 이메일 확인 없이 바로 로그인하려면: Authentication → Settings에서 **Confirm email** 비활성화
+6. (선택) 이메일 확인 없이 바로 로그인하려면: Authentication → Settings에서 **Confirm email** 비활성화
 
 ### 4. 개발 서버
 
@@ -64,7 +65,7 @@ npm start
 
 ## 사용 흐름 (MVP)
 
-1. **시작하기** → `/login` 이메일 회원가입/로그인
+1. **시작하기** → `/login` 이메일 또는 Google/카카오 회원가입/로그인
 2. **`/characters`** — 유나·나린·윤서·은하·지유 중 선택
 3. **`/chat`** — 메시지 전송 → DeepSeek 스트리밍 응답
 4. 새로고침해도 Supabase `messages`에서 최근 30개 대화 복원

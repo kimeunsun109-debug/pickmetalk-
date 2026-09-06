@@ -1,5 +1,6 @@
 "use client";
 
+import { SocialLoginButtons } from "@/components/auth/SocialLoginButtons";
 import { Footer } from "@/components/layout/Footer";
 import { buildAuthCallbackUrl } from "@/lib/appUrl";
 import { markBrowserSessionActive } from "@/lib/auth/clearClientSession";
@@ -56,6 +57,17 @@ function LoginForm() {
   useEffect(() => {
     setMode(initialMode);
   }, [initialMode]);
+
+  useEffect(() => {
+    const oauthErr = searchParams.get("error");
+    const message = searchParams.get("message");
+    if (oauthErr === "oauth" || oauthErr === "auth") {
+      setError(
+        message?.trim() ||
+          "소셜 로그인에 실패했습니다. 잠시 후 다시 시도해주세요."
+      );
+    }
+  }, [searchParams]);
 
   async function registerDeviceSession() {
     const sessionId = ensureDeviceSessionId();
@@ -364,6 +376,29 @@ function LoginForm() {
           {loading ? "처리 중..." : mode === "signup" ? "회원가입" : "로그인"}
         </button>
       </form>
+
+      <div className="mt-6 flex items-center gap-3">
+        <div className="h-px flex-1 bg-gray-200" />
+        <span className="text-xs text-gray-400">또는</span>
+        <div className="h-px flex-1 bg-gray-200" />
+      </div>
+
+      <div className="mt-4">
+        <SocialLoginButtons
+          disabled={loading || !supabase}
+          nextPath="/characters"
+          beforeStart={() => {
+            if (mode === "signup" && (!privacyConsent || !termsConsent)) {
+              return "소셜 가입 전에 개인정보처리방침과 이용약관에 동의해 주세요.";
+            }
+            return true;
+          }}
+          onError={(message) => {
+            if (message) setError(message);
+            else setError(null);
+          }}
+        />
+      </div>
 
       {mode === "signup" ? (
         <button
