@@ -1,4 +1,5 @@
 import { getEmotionMeta } from "@/lib/emotions";
+import { getHurtRecoveryTurns } from "@/services/emotion";
 import { CHAT_CONTEXT_TURNS } from "@/lib/constants";
 import type { EmotionState, RelationshipLevel } from "@/types";
 
@@ -166,14 +167,17 @@ function buildCharacterMomentumMixRules(characterId: string): string {
 
 function buildEmotionArcRules(
   emotion: EmotionState,
-  durationInState: number
+  durationInState: number,
+  characterId?: string
 ): string {
   if (emotion !== "hurt" && emotion !== "pouty") return "";
 
-  if (durationInState < 3) {
+  const recoveryThreshold = getHurtRecoveryTurns(characterId);
+
+  if (durationInState < recoveryThreshold) {
     return [
       "[감정 ARC — 서운·삐짐 유지]",
-      `- 현재 ${getEmotionMeta(emotion).label} 상태. 유지 턴: ${durationInState} (최소 2~3턴).`,
+      `- 현재 ${getEmotionMeta(emotion).label} 상태. 유지 턴: ${durationInState} (최소 ${recoveryThreshold - 1}~${recoveryThreshold}턴).`,
       "- 유저가 달래거나 장난쳐도 쉽게 풀리지 말고 툴툴·서운함을 유지해라.",
       '- 한 턴 만에 "풀렸어!" "괜찮아!"처럼 감정이 급변하면 몰입이 깨진다.',
     ].join("\n");
@@ -316,7 +320,7 @@ export function generateBaseSystemPrompt(ctx: BasePromptContext): string {
     buildQuestionBotRules(),
     buildParentheticalInnerThoughtBanRules(),
     buildCharacterMomentumMixRules(ctx.characterId),
-    buildEmotionArcRules(ctx.emotion, ctx.emotionDurationTurns),
+    buildEmotionArcRules(ctx.emotion, ctx.emotionDurationTurns, ctx.characterId),
     buildGenerationBridgeRules(ctx.relationshipLevel),
   ]
     .filter(Boolean)
