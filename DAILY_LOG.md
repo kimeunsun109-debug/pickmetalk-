@@ -2,6 +2,60 @@
 
 ---
 
+## 2026-09-07
+
+### 선택한 작업
+`getContextMemoryPrompt()` 회상 힌트를 채팅 라우트 동적 컨텍스트 블록에 연결
+
+### 선택 이유
+- `services/memory.ts`에 `getContextMemoryPrompt()` 함수가 존재하지만 **어디에서도 호출되지 않음** (dead code)
+- 이 함수는 work/hobby/schedule/finance/emotion 팩트를 LLM이 대화에 자연스럽게 활용할 수 있도록 특화된 회상 힌트를 생성함
+- 연결하지 않으면 캐릭터가 과거에 유저가 언급한 야근·일정·취미를 "기억하는 척"할 수 없음
+- 관계 경험 핵심: "이 사람이 나를 기억한다"는 느낌 → Memory 우선순위 P3
+
+### 구현 내용
+1. **`app/api/chat/route.ts`**
+   - `getContextMemoryPrompt` import 추가
+   - `memoryRecallBlock = getContextMemoryPrompt(updatedMemory, { userMessageCount, emotion, emotionDurationTurns, ongoingSession })` 호출
+   - `dynamicContextBlock`에 `memoryRecallBlock` 추가 (commonCtxBlock 뒤, characterCtxBlock 앞)
+   - 기존 `memorySummary`(raw 팩트 목록)와 별개: 이건 "어떻게 활용할지" 지침 레이어
+   - ongoingSession=true 이거나 hurt 초반 arc(3턴 미만)이면 자동 생략 — 중복 리콜 방지
+
+2. **`scripts/test_personal_memory.mts`**
+   - `getContextMemoryPrompt` import 추가
+   - 테스트 22개 → 34개 (+12개): work/hobby/schedule/finance/emotion 팩트 힌트, personal 제외, ongoingSession/hurt arc 스킵, 빈 summary, 최대 2개 제한
+   - expect 함수에 `notToContain`, `toBeGreaterThan`, `toBeLessThanOrEqual` matcher 추가
+
+### 해결한 버그
+- `getContextMemoryPrompt()`가 정의되었으나 호출되지 않아 회상 힌트가 전혀 시스템 프롬프트에 주입되지 않던 문제
+
+### 실행 및 테스트
+- `npx tsx scripts/test_personal_memory.mts` → **34/34 pass** (+12개)
+- `npx tsx scripts/test_emotion.mts` → 45/45 pass (기존 테스트 이상 없음)
+- `npx tsc --noEmit` → 오류 0
+- `npm run lint` → 경고·오류 0
+
+### 사용자에게 달라지는 점
+- 캐릭터가 새 세션 시작 시 (30분+ 공백 후) 유저가 이전에 언급한 일(야근·일정·취미·감정 등)을 자연스럽게 먼저 언급할 수 있게 됨
+- "지난번에 야근 힘들다고 했는데 오늘은 좀 어때?" 같은 맥락 기반 회상 가능
+- 즉각적인 배포 없이 코드 변경만으로 효과 발생 (서버 재시작 필요 없음)
+
+### PR
+- 생성 예정
+
+### 남은 문제
+- PR #31 (친구·연인 이름 추출) DRAFT — 미머지, 병합 후 회상 힌트에 친구/연인 이름도 추가됨
+- PR #34 (캐릭터별 emotion config) DRAFT — 미머지
+- `getContextMemoryPrompt`의 최대 2개 제한이 너무 보수적일 수 있음 — 추후 3개로 조정 고려
+- ongoingSession 중 회상 힌트 생략이 적절한지 장기 관찰 필요
+
+### 다음 추천 작업
+- P0: 친구·연인 이름 추출 PR #31 머지 → 회상 힌트에 지인 이름 자동 포함
+- P1: 회상 힌트 상한을 2→3으로 확대 (fact 많을 때 활용 범위 넓힘)
+- P1: 캐릭터 프로필·홈 UI Vercel 검수
+
+---
+
 ## 2026-08-27
 
 ### 선택한 작업
