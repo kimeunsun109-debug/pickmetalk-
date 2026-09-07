@@ -17,6 +17,7 @@ import {
   pickMessagesForContext,
   updateMemorySummary,
   removeCompletedScheduleFromSummary,
+  getContextMemoryPrompt,
 } from "@/services/memory";
 import { isShortTermCompletionMessage } from "@/services/shortTermMemory";
 import {
@@ -425,10 +426,18 @@ export async function POST(request: Request) {
           characterCtxBlock = buildYoonseoStatsBlock(yoonseoStats);
         }
 
+        const memoryRecallBlock = getContextMemoryPrompt(updatedMemory, {
+          userMessageCount: userContents.length,
+          emotion: newEmotion,
+          emotionDurationTurns,
+          ongoingSession,
+        });
+
         const dynamicContextBlock = [
           timeContextBlock,
           shortTermMemoryBlock,
           commonCtxBlock,
+          memoryRecallBlock,
           characterCtxBlock,
         ]
           .filter(Boolean)

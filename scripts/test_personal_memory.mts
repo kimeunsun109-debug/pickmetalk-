@@ -7,6 +7,7 @@ import {
   extractKeyMemories,
   updateMemorySummary,
   parseStoredSummary,
+  getContextMemoryPrompt,
 } from "../services/memory.js";
 import { extractUserContext, buildCommonContextBlock } from "../services/context.js";
 
@@ -42,6 +43,11 @@ function expect(actual: unknown) {
         throw new Error(`Expected "${actual}" to contain "${expected}"`);
       }
     },
+    notToContain(expected: string) {
+      if (typeof actual === "string" && actual.includes(expected)) {
+        throw new Error(`Expected "${actual}" NOT to contain "${expected}"`);
+      }
+    },
     toBeNull() {
       if (actual !== null) {
         throw new Error(`Expected null, got ${JSON.stringify(actual)}`);
@@ -58,6 +64,18 @@ function expect(actual: unknown) {
         throw new Error(
           `Expected length ${n}, got ${Array.isArray(arr) ? arr.length : "not an array"}: ${JSON.stringify(arr)}`
         );
+      }
+    },
+    toBeGreaterThan(n: number) {
+      const num = actual as number;
+      if (num <= n) {
+        throw new Error(`Expected ${num} to be greater than ${n}`);
+      }
+    },
+    toBeLessThanOrEqual(n: number) {
+      const num = actual as number;
+      if (num > n) {
+        throw new Error(`Expected ${num} to be <= ${n}`);
       }
     },
   };
@@ -236,6 +254,100 @@ test("반려동물 이름이 personalFacts에 있고 userName에는 없음", () 
   const facts = ctx.personalFacts!;
   expect(facts.length).toBe(1);
   expect(facts[0]).toContain("망고");
+});
+
+// ─── getContextMemoryPrompt ──────────────────────────────────
+
+test("work 팩트 있으면 회상 힌트 반환", () => {
+  const summary = "- [work] 야근이 많음";
+  const result = getContextMemoryPrompt(summary, { userMessageCount: 5 });
+  expect(result.length).toBeGreaterThan(0);
+  expect(result).toContain("야근이 많음");
+  expect(result).toContain("기억 활용 지침");
+});
+
+test("hobby 팩트 회상 힌트 포함", () => {
+  const summary = "- [hobby] 야구 좋아함";
+  const result = getContextMemoryPrompt(summary, { userMessageCount: 3 });
+  expect(result).toContain("야구 좋아함");
+});
+
+test("schedule 팩트 회상 힌트 포함", () => {
+  const summary = "- [schedule] 다음 주 제주도 여행";
+  const result = getContextMemoryPrompt(summary, { userMessageCount: 1 });
+  expect(result).toContain("제주도 여행");
+});
+
+test("finance 팩트 회상 힌트 포함", () => {
+  const summary = "- [finance] 주식 투자 관심";
+  const result = getContextMemoryPrompt(summary, { userMessageCount: 2 });
+  expect(result).toContain("주식 투자 관심");
+});
+
+test("emotion 팩트 회상 힌트 포함", () => {
+  const summary = "- [emotion] 회사 스트레스 많이 받음";
+  const result = getContextMemoryPrompt(summary, { userMessageCount: 4 });
+  expect(result).toContain("회사 스트레스 많이 받음");
+});
+
+test("personal 팩트는 회상 힌트에서 제외 (buildCommonContextBlock에서 처리)", () => {
+  const summary = "- [personal] 반려동물: 망고 (강아지)";
+  const result = getContextMemoryPrompt(summary, { userMessageCount: 5 });
+  expect(result).toBe("");
+});
+
+test("ongoingSession=true 이면 빈 문자열 반환", () => {
+  const summary = "- [work] 야근이 많음\n- [hobby] 야구 좋아함";
+  const result = getContextMemoryPrompt(summary, {
+    userMessageCount: 10,
+    ongoingSession: true,
+  });
+  expect(result).toBe("");
+});
+
+test("hurt 초반 arc 중이면 빈 문자열 반환", () => {
+  const summary = "- [work] 야근이 많음";
+  const result = getContextMemoryPrompt(summary, {
+    userMessageCount: 5,
+    emotion: "hurt",
+    emotionDurationTurns: 1,
+  });
+  expect(result).toBe("");
+});
+
+test("hurt 3턴 이후에는 회상 힌트 반환", () => {
+  const summary = "- [hobby] 등산 즐겨 함";
+  const result = getContextMemoryPrompt(summary, {
+    userMessageCount: 5,
+    emotion: "hurt",
+    emotionDurationTurns: 3,
+  });
+  expect(result).toContain("등산 즐겨 함");
+});
+
+test("빈 summary 이면 빈 문자열 반환", () => {
+  const result = getContextMemoryPrompt(null, { userMessageCount: 5 });
+  expect(result).toBe("");
+});
+
+test("최대 2개 팩트만 힌트에 포함", () => {
+  const summary = [
+    "- [work] 야근이 많음",
+    "- [hobby] 야구 좋아함",
+    "- [schedule] 제주도 여행",
+    "- [finance] 주식 투자",
+  ].join("\n");
+  const result = getContextMemoryPrompt(summary, { userMessageCount: 5 });
+  // 최대 2개 — 제목 줄 포함 3줄 이하
+  const lines = result.split("\n").filter((l) => l.startsWith("-"));
+  expect(lines.length).toBeLessThanOrEqual(2);
+});
+
+test("personal+work 혼합: work 힌트는 포함, personal은 제외", () => {
+  const summary = "- [personal] 반려동물: 망고\n- [work] 야근 중";
+  const result = getContextMemoryPrompt(summary, { userMessageCount: 5 });
+  expect(result).toContain("야근 중");
+  expect(result).notToContain("망고");
 });
 
 // ─── Summary ────────────────────────────────────────────────
