@@ -46,7 +46,7 @@ npx tsx scripts/test_emotion.mts → 54 passed / 0 failed (+9 새 케이스)
 - 3턴 이상 hurt/pouty 지속 후에는 자연 회복 (대화가 너무 오래 어색하지 않도록)
 
 ### PR
-- (커밋 후 생성 예정)
+- https://github.com/kimeunsun109-debug/pickmetalk-/pull/36
 
 ### 남은 문제
 - `HURT_ARC_RECOVERY_TURNS`가 전역 상수 — PR #34(DRAFT)에서 캐릭터별 분리 계획
