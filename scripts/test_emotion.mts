@@ -10,6 +10,7 @@ import {
   inferEmotionFromUserMessage,
   isOngoingChatSession,
   countEmotionDurationTurns,
+  HURT_ARC_RECOVERY_TURNS,
 } from "../services/emotion";
 import type { EmotionState, Message } from "../types";
 
@@ -335,6 +336,145 @@ const gapHist: Message[] = [
 test("prev 유저메시지가 30분 전 → ongoing=true", isOngoingChatSession(ongoingHist), true);
 test("prev 유저메시지가 2h 전 → ongoing=false", isOngoingChatSession(gapHist), false);
 test("메시지 1개 → ongoing=false", isOngoingChatSession([makeMessage("user", 5)]), false);
+
+// ─────────────────────────────────────────────
+// 9. hurt/pouty arc — bored 메시지 불(不)덮어쓰기
+// ─────────────────────────────────────────────
+
+console.log("\n[9] hurt/pouty arc — bored 메시지 감정 유지");
+
+// 온고잉 세션에서 캐릭터가 hurt 상태 → 유저가 '뭐해' 보내도 hurt 유지
+const hurtOngoing: Message[] = [
+  makeMessage("user", 30),   // prev user msg
+  makeMessage("assistant", 28, "hurt"),
+  makeMessage("user", 5),    // 최근 user msg (ongoing session)
+];
+
+test(
+  "[hurt arc] 온고잉 + hurt 1턴 + '뭐해' → hurt 유지",
+  resolveCharacterEmotion(
+    { userMessage: "뭐해", lastChatAt: minutesAgo(5), lastSeenAt: minutesAgo(60), currentEmotion: "hurt" },
+    undefined,
+    hurtOngoing
+  ),
+  "hurt"
+);
+
+test(
+  "[hurt arc] 온고잉 + hurt 1턴 + 'ㅎㅇ' → hurt 유지",
+  resolveCharacterEmotion(
+    { userMessage: "ㅎㅇ", lastChatAt: minutesAgo(5), lastSeenAt: minutesAgo(60), currentEmotion: "hurt" },
+    undefined,
+    hurtOngoing
+  ),
+  "hurt"
+);
+
+test(
+  "[hurt arc] 온고잉 + hurt 1턴 + '심심' → hurt 유지",
+  resolveCharacterEmotion(
+    { userMessage: "심심", lastChatAt: minutesAgo(5), lastSeenAt: minutesAgo(60), currentEmotion: "hurt" },
+    undefined,
+    hurtOngoing
+  ),
+  "hurt"
+);
+
+// pouty 상태에서도 동일
+const poutyOngoing: Message[] = [
+  makeMessage("user", 30),
+  makeMessage("assistant", 28, "pouty"),
+  makeMessage("user", 5),
+];
+
+test(
+  "[hurt arc] 온고잉 + pouty 1턴 + '뭐해' → pouty 유지",
+  resolveCharacterEmotion(
+    { userMessage: "뭐해", lastChatAt: minutesAgo(5), lastSeenAt: minutesAgo(60), currentEmotion: "pouty" },
+    undefined,
+    poutyOngoing
+  ),
+  "pouty"
+);
+
+// 애정 표현이 오면 hurt 상태라도 복구 허용
+test(
+  "[hurt arc] 온고잉 + hurt 1턴 + '좋아해' → excited (패턴 우선, 복구)",
+  resolveCharacterEmotion(
+    { userMessage: "좋아해", lastChatAt: minutesAgo(5), lastSeenAt: minutesAgo(60), currentEmotion: "hurt" },
+    undefined,
+    hurtOngoing
+  ),
+  "excited"
+);
+
+test(
+  "[hurt arc] 온고잉 + hurt 1턴 + affectionWillIncrease → happy/excited",
+  (() => {
+    const r = resolveCharacterEmotion(
+      { userMessage: "오늘 많이 생각났어", lastChatAt: minutesAgo(5), lastSeenAt: minutesAgo(60), currentEmotion: "hurt", affectionWillIncrease: true },
+      undefined,
+      hurtOngoing
+    );
+    return r === "happy" || r === "excited";
+  })(),
+  true
+);
+
+// 복구 임계값 초과 후에는 bored로 전환 가능 (happy로 귀결)
+const longHurtHistory: Message[] = (() => {
+  const msgs: Message[] = [];
+  for (let i = 0; i < HURT_ARC_RECOVERY_TURNS; i++) {
+    const minsAgo = (HURT_ARC_RECOVERY_TURNS - i) * 10;
+    msgs.push(makeMessage("user", minsAgo + 5));
+    msgs.push(makeMessage("assistant", minsAgo, "hurt"));
+  }
+  // Ensure ongoing session (last user msg within 45min)
+  msgs.push(makeMessage("user", 3));
+  return msgs;
+})();
+
+test(
+  `[hurt arc] 온고잉 + hurt ${HURT_ARC_RECOVERY_TURNS}턴 이상 → bored/'뭐해'로 happy 전환 가능`,
+  (() => {
+    const r = resolveCharacterEmotion(
+      { userMessage: "뭐해", lastChatAt: minutesAgo(3), lastSeenAt: minutesAgo(60), currentEmotion: "hurt" },
+      undefined,
+      longHurtHistory
+    );
+    // 임계값 초과 후 neutral message → happy (not hurt)
+    return r === "happy" || r === "bored";
+  })(),
+  true
+);
+
+// ─────────────────────────────────────────────
+// 10. hurt arc — 비온고잉(재접속) 시 bored 메시지
+// ─────────────────────────────────────────────
+
+console.log("\n[10] hurt arc — 재접속 + bored 메시지 (시간 기반 감정 우선)");
+
+// 3h 이상 갭으로 재접속 + bored → pouty (isNegativeOrColdMessage=true → cold return)
+test(
+  "[hurt arc] 재접속 3h 갭 + '뭐해' + currentEmotion=hurt → pouty (cold return)",
+  resolveCharacterEmotion(
+    { userMessage: "뭐해", lastChatAt: hoursAgo(3.5), lastSeenAt: hoursAgo(4), currentEmotion: "hurt" },
+    undefined,
+    noHistory
+  ),
+  "pouty"
+);
+
+// 1~3h 갭 + bored → hurt (cold return)
+test(
+  "[hurt arc] 재접속 1.5h 갭 + 'ㅎㅇ' + currentEmotion=hurt → hurt (cold return)",
+  resolveCharacterEmotion(
+    { userMessage: "ㅎㅇ", lastChatAt: hoursAgo(1.5), lastSeenAt: hoursAgo(2), currentEmotion: "hurt" },
+    undefined,
+    noHistory
+  ),
+  "hurt"
+);
 
 // ─────────────────────────────────────────────
 // 결과
