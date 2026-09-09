@@ -53,6 +53,11 @@ import type { ChatRequestBody } from "@/types/api";
 import type { Message, UserCharacterState } from "@/types";
 import { ageFromBirthDate } from "@/lib/userAge";
 import { markPhotoDeliveryReplied } from "@/services/photoPush/followup";
+import { getDailyPatternsForUser } from "@/lib/db/dailyPatterns";
+import {
+  buildDailyPatternPromptBlock,
+  minuteFromDateInKst,
+} from "@/prompts/patternNudges";
 import type {
   PostgrestResponse,
   PostgrestSingleResponse,
@@ -223,11 +228,13 @@ export async function POST(request: Request) {
           historyResult,
           ucsResult,
           shortTermMemoryBlock,
+          dailyPatternBlock,
         ] = await trace.span<
           [
             PostgrestSingleResponse<Record<string, unknown>>,
             PostgrestResponse<Record<string, unknown>>,
             PostgrestSingleResponse<Record<string, unknown>>,
+            string,
             string,
           ]
         >("Parallel DB — context load", async () => {
@@ -244,6 +251,20 @@ export async function POST(request: Request) {
                 now
               );
               return buildShortTermMemoryContextBlock(activeShortTermMemories);
+            } catch {
+              return "";
+            }
+          })();
+
+          const dailyPatternPromise = (async (): Promise<string> => {
+            try {
+              const patterns = await getDailyPatternsForUser(
+                supabase,
+                userId,
+                60
+              );
+              const nowKST = minuteFromDateInKst(new Date(now));
+              return buildDailyPatternPromptBlock(patterns, nowKST);
             } catch {
               return "";
             }
@@ -269,6 +290,7 @@ export async function POST(request: Request) {
               .eq("character_id", characterId)
               .maybeSingle(),
             shortTermPromise,
+            dailyPatternPromise,
           ]);
         });
 
@@ -428,6 +450,7 @@ export async function POST(request: Request) {
         const dynamicContextBlock = [
           timeContextBlock,
           shortTermMemoryBlock,
+          dailyPatternBlock,
           commonCtxBlock,
           characterCtxBlock,
         ]
