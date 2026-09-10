@@ -2,6 +2,57 @@
 
 ---
 
+## 2026-09-10
+
+### 선택한 작업
+`buildKickLineHint` 킥 문장 힌트 — dead code → 실제 시스템 프롬프트 반영
+
+### 선택 이유
+- `prompts/kickLines.ts`에 킥 문장 선택 로직 전체가 구현되어 있었으나 `grep buildKickLineHint` 결과 어디에도 호출하지 않는 dead code 상태
+- 킥 문장은 대화 품질(우선순위 2번)에 직접 기여: 캐릭터가 적절한 순간에 기억에 남는 한마디를 던지는 경험
+- 데이터(master.json + 카테고리별 pack)·로직(closing 감지, 모멘텀 턴, 캐릭터별 확률) 모두 완성 상태라 wire만 하면 즉시 효과
+
+### 구현 내용
+1. **`prompts/natural.ts`**
+   - `NaturalPromptOptions`에 `userMessage?: string`, `turnCount?: number` 추가
+   - `buildNaturalSystemPrompt` 마지막 블록에 `buildKickLineHint(...)` 호출 결과 삽입
+2. **`app/api/chat/route.ts`**
+   - `buildSystemPrompt` 호출 시 `userMessage: userText`, `turnCount: userContents.length` 전달
+3. **`scripts/test_kickline_prompt.mts`** (신규)
+   - 17개 테스트: closing 감지, 모멘텀 턴, 5 캐릭터 검증, edge case
+
+### 해결한 버그
+- `buildKickLineHint` dead code 문제 — 킥 문장이 실제 AI 응답에 전혀 영향을 주지 못하던 문제 해결
+
+### 실행 및 테스트
+- `npx tsc --noEmit` → 오류 0
+- `npm run lint` → 경고·오류 0
+- `npx tsx scripts/test_kickline_prompt.mts` → 17/17 통과
+
+### 사용자에게 달라지는 점
+| 상황 | 동작 |
+|---|---|
+| 종료 메시지 (잘 자, 나갈게, 굿나잇 등) | 항상 closing 킥 문장 힌트 주입 |
+| 30번째 턴 | touching 킥 문장 힌트 (깊은 감동 계열) |
+| 6번째 배수 턴 (모멘텀) | comfort/flutter/joke/wit 중 랜덤 (캐릭터별 확률) |
+| 드물게 (~2-4%) | touching/loving_nag 킥 문장 |
+
+캐릭터가 `"잘 자"` 메시지에 단순한 밤 인사 대신 기억에 남는 한마디를 건네거나, 긴 대화 중 갑자기 따뜻한 위로 한 줄을 건네는 경험이 생깁니다.
+
+### PR
+- https://github.com/kimeunsun109-debug/pickmetalk-/pull/39
+
+### 남은 문제
+- PR #31, #34, #35, #36, #37 DRAFT — 머지 필요
+- 킥 문장 실제 효과 A/B 관측 필요 (로그 없음)
+
+### 다음 추천 작업
+- `getContextMemoryPrompt` main 연결 (PR #35 DRAFT 머지 또는 재구현)
+- `getDailyPatternsForUser` chat route 연결 (PR #37 DRAFT 머지 또는 재구현)
+- hurt arc 비온고잉 warm 메시지 → miss_you 복귀 경로 보완
+
+---
+
 ## 2026-08-27
 
 ### 선택한 작업
