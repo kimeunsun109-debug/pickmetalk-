@@ -39,3 +39,4 @@ Future locales: add `messages/en.json`, extend `lib/i18n/config.ts`.
 - `FREE_DAILY_MESSAGE_LIMIT = 50` (KST reset)
 - Regenerate (`resend`) does **not** count
 - Warn banners at 10 and 5 remaining
+- Owner/tester bypass (no Stripe): `CHAT_UNLIMITED_USER_IDS` / `CHAT_UNLIMITED_EMAILS` — see [CHAT_UNLIMITED_WHITELIST.md](./CHAT_UNLIMITED_WHITELIST.md)

@@ -1,6 +1,7 @@
 import { mapUserProfile } from "@/lib/db/mappers";
 import { createClient } from "@/lib/supabase/server";
 import { FREE_DAILY_MESSAGE_LIMIT } from "@/lib/constants";
+import { hasUnlimitedChatAccess } from "@/services/chatPremiumAccess";
 import {
   ensureDailyUsageFresh,
   normalizeDailyUsage,
@@ -32,15 +33,20 @@ export async function GET() {
   const profile = mapUserProfile(row);
   const { count, needsReset, usageDay } = normalizeDailyUsage(profile);
   let used = count;
-  let isPremium = profile.isPremium;
+  let isPremium = hasUnlimitedChatAccess(profile, user.email);
 
   if (needsReset) {
-    const fresh = await ensureDailyUsageFresh(supabase, user.id, profile);
+    const fresh = await ensureDailyUsageFresh(
+      supabase,
+      user.id,
+      profile,
+      user.email
+    );
     used = fresh.count;
     isPremium = fresh.isPremium;
   }
 
-  const remaining = remainingFreeMessages({ ...profile, isPremium }, used);
+  const remaining = remainingFreeMessages(profile, used, user.email);
 
   return NextResponse.json({
     isPremium,

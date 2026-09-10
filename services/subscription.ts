@@ -6,15 +6,20 @@ import {
   remainingFreeMessages,
 } from "./dailyMessageLimit";
 
-export function canSendMessage(profile: UserProfile): boolean {
-  if (profile.isPremium) return true;
+export function canSendMessage(
+  profile: UserProfile,
+  emailOverride?: string | null
+): boolean {
   const { count } = normalizeDailyUsage(profile);
-  return canSendChatMessage(profile, count);
+  return canSendChatMessage(profile, count, emailOverride);
 }
 
-export function freeMessagesRemaining(profile: UserProfile): number {
+export function freeMessagesRemaining(
+  profile: UserProfile,
+  emailOverride?: string | null
+): number {
   const { count } = normalizeDailyUsage(profile);
-  return remainingFreeMessages(profile, count);
+  return remainingFreeMessages(profile, count, emailOverride);
 }
 
 export { FREE_DAILY_MESSAGE_LIMIT };

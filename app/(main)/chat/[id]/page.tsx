@@ -20,6 +20,7 @@ import {
 import { normalizeEmotion } from "@/lib/emotions";
 import { ServerPerfTrace } from "@/lib/perf/trace";
 import { createClient } from "@/lib/supabase/server";
+import { isWhitelistedUnlimitedChat } from "@/lib/chatUnlimitedWhitelist";
 import type { Conversation, EmotionState, RelationshipLevel } from "@/types";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -162,7 +163,9 @@ export default async function ChatPage({
     }
   }
 
-  const isPremiumUser = profileRow?.is_premium ?? false;
+  const isPremiumUser =
+    (profileRow?.is_premium ?? false) ||
+    isWhitelistedUnlimitedChat(user.id, user.email);
   trace.end(`${initialMessages.length} messages hydrated`);
 
   return (
