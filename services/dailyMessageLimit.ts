@@ -1,6 +1,7 @@
 import { FREE_DAILY_MESSAGE_LIMIT } from "@/lib/constants";
 import type { UserProfile } from "@/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { hasUnlimitedChatAccess } from "./chatPremiumAccess";
 
 const USAGE_TIMEZONE = "Asia/Seoul";
 
@@ -32,25 +33,29 @@ export function normalizeDailyUsage(profile: UserProfile): {
 
 export function canSendChatMessage(
   profile: UserProfile,
-  countAfterReset: number
+  countAfterReset: number,
+  emailOverride?: string | null
 ): boolean {
-  if (profile.isPremium) return true;
+  if (hasUnlimitedChatAccess(profile, emailOverride)) return true;
   return countAfterReset < FREE_DAILY_MESSAGE_LIMIT;
 }
 
 export function remainingFreeMessages(
   profile: UserProfile,
-  countAfterReset: number
+  countAfterReset: number,
+  emailOverride?: string | null
 ): number {
-  if (profile.isPremium) return Infinity;
+  if (hasUnlimitedChatAccess(profile, emailOverride)) return Infinity;
   return Math.max(0, FREE_DAILY_MESSAGE_LIMIT - countAfterReset);
 }
 
 export async function ensureDailyUsageFresh(
   supabase: SupabaseClient,
   userId: string,
-  profile: UserProfile
+  profile: UserProfile,
+  emailOverride?: string | null
 ): Promise<{ count: number; isPremium: boolean }> {
+  const unlimited = hasUnlimitedChatAccess(profile, emailOverride);
   const { count, needsReset } = normalizeDailyUsage(profile);
 
   if (needsReset) {
@@ -62,10 +67,10 @@ export async function ensureDailyUsageFresh(
         daily_message_reset_at: now,
       })
       .eq("id", userId);
-    return { count: 0, isPremium: profile.isPremium };
+    return { count: 0, isPremium: unlimited };
   }
 
-  return { count, isPremium: profile.isPremium };
+  return { count, isPremium: unlimited };
 }
 
 /** Reserve one slot before persisting user message (resend skips this). */

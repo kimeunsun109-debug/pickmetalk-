@@ -4,6 +4,7 @@ import {
   ensureDailyUsageFresh,
   normalizeDailyUsage,
 } from "@/services/dailyMessageLimit";
+import { hasUnlimitedChatAccess } from "@/services/chatPremiumAccess";
 import { redirect } from "next/navigation";
 import { SettingsClient } from "./SettingsClient";
 
@@ -46,12 +47,17 @@ export default async function SettingsPage() {
     const mapped = mapUserProfile(profile);
     const { count, needsReset } = normalizeDailyUsage(mapped);
     if (needsReset) {
-      const fresh = await ensureDailyUsageFresh(supabase, user.id, mapped);
+      const fresh = await ensureDailyUsageFresh(
+        supabase,
+        user.id,
+        mapped,
+        user.email
+      );
       todayMsgCount = fresh.count;
       isPremium = fresh.isPremium;
     } else {
       todayMsgCount = count;
-      isPremium = mapped.isPremium;
+      isPremium = hasUnlimitedChatAccess(mapped, user.email);
     }
   }
 

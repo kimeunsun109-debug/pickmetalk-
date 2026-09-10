@@ -108,13 +108,16 @@ export async function POST(request: Request) {
     }
 
     const profile = mapUserProfile(profileRow);
+    const authEmail =
+      (claimsData?.claims?.email as string | undefined) ?? profile.email;
     const { count, isPremium } = await ensureDailyUsageFresh(
       supabase,
       userId,
-      profile
+      profile,
+      authEmail
     );
     if (!isPremium) {
-      if (!canSendChatMessage(profile, count)) {
+      if (!canSendChatMessage(profile, count, authEmail)) {
         return NextResponse.json(
           {
             error: "오늘 무료 대화를 모두 사용했어요.",
