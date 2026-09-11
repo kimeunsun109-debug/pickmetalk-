@@ -4,8 +4,10 @@ import {
   deleteAllUserConversations,
   touchCharacterSelection,
 } from "@/lib/db/conversations";
+import { updateConversationLastMessage } from "@/lib/db/updateConversationPreview";
 import { mapConversation } from "@/lib/db/mappers";
 import { createClient } from "@/lib/supabase/server";
+import { generateNewConversationGreeting } from "@/services/newConversationGreeting";
 import type { CreateConversationBody } from "@/types/api";
 import { NextResponse } from "next/server";
 
@@ -80,6 +82,38 @@ export async function POST(request: Request) {
       characterId,
       title?.trim() || "새 대화"
     );
+
+    // 캐릭터가 먼저 인사를 건넨다 (Proactive Behavior).
+    // 이전 대화 기억이 있으면 LLM으로 맞춤 인사, 없으면 캐릭터 기본 인사(즉시 반환).
+    try {
+      const { message: greetMsg, emotion: greetEmotion } =
+        await generateNewConversationGreeting(
+          supabase,
+          user.id,
+          characterId,
+          conversation.id
+        );
+      const now = new Date().toISOString();
+      await supabase.from("messages").insert({
+        user_id: user.id,
+        character_id: characterId,
+        conversation_id: conversation.id,
+        role: "assistant",
+        content: greetMsg,
+        emotion: greetEmotion,
+      });
+      await updateConversationLastMessage(
+        supabase,
+        conversation.id,
+        user.id,
+        greetMsg,
+        "assistant",
+        now
+      );
+    } catch {
+      // 인사 생성 실패해도 대화방은 정상 동작
+    }
+
     return NextResponse.json({ conversation });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "대화방 생성 실패";
