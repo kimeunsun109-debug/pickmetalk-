@@ -11,6 +11,7 @@ import {
   touchCharacterSelection,
 } from "@/lib/db/conversations";
 import { fetchConversationMessages } from "@/lib/db/messages";
+import { updateConversationLastMessage } from "@/lib/db/updateConversationPreview";
 import {
   characterChatPath,
   isCharacterId,
@@ -137,6 +138,61 @@ export default async function ChatPage({
       mediaUrl: m.mediaUrl,
       photoDeliveryId: m.photoDeliveryId,
     }));
+
+    // 새 대화방이고 메시지가 없으면 캐릭터가 먼저 인사를 건넨다.
+    // 이 경로는 첫 방문 사용자(이전 대화 없음)가 주로 해당하므로
+    // LLM 없이 즉시 캐릭터 기본 인사를 반환한다.
+    if (initialMessages.length === 0 && !conversation.lastMessageAt) {
+      try {
+        const { generateNewConversationGreeting } = await import(
+          "@/services/newConversationGreeting"
+        );
+        const { message: greetMsg, emotion: greetEmotion } =
+          await generateNewConversationGreeting(
+            supabase,
+            user.id,
+            characterId,
+            conversation.id
+          );
+        const now = new Date().toISOString();
+        const { data: msgRow } = await supabase
+          .from("messages")
+          .insert({
+            user_id: user.id,
+            character_id: characterId,
+            conversation_id: conversation.id,
+            role: "assistant",
+            content: greetMsg,
+            emotion: greetEmotion,
+          })
+          .select("id, created_at")
+          .single();
+        if (msgRow) {
+          initialMessages = [
+            {
+              id: msgRow.id,
+              role: "assistant",
+              content: greetMsg,
+              createdAt: msgRow.created_at,
+              mediaType: null,
+              mediaUrl: null,
+              photoDeliveryId: null,
+            },
+          ];
+          // 대화방 목록에 인사 미리보기가 표시되도록 preview 갱신
+          await updateConversationLastMessage(
+            supabase,
+            conversation.id,
+            user.id,
+            greetMsg,
+            "assistant",
+            now
+          );
+        }
+      } catch {
+        // 인사 생성 실패해도 빈 대화방으로 정상 진입
+      }
+    }
   } catch {
     try {
       conversation = await createConversation(supabase, user.id, characterId);
