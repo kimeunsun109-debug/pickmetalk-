@@ -277,3 +277,56 @@ AbsenceWelcome 오버레이 UI 연동 + returnVisit 메시지 닉네임 개인�
 - AbsenceWelcome 오버레이 Vercel preview QA 및 스크린샷 확인
 - excited 확률 캐릭터별 config 분리 (지유 높음, 은하 낮음)
 - returnVisit 오버레이에 캐릭터 이미지(hero) 삽입으로 몰입감 강화
+
+---
+
+## 2026-09-11
+
+### 선택한 작업
+캐릭터 신규 대화방 첫 인사 기능 연결 (Proactive Behavior, 우선순위 8)
+
+### 선택 이유
+`services/newConversationGreeting.ts`가 완전히 구현되어 있었으나 어디에도 호출되지 않는
+dead code 상태였다. 새 대화방을 열면 항상 빈 채팅창이 나타나 사용자가 먼저 말을 걸어야 했다.
+캐릭터가 먼저 인사를 건네는 것은 관계의 연속성과 '실제 사람과 대화하는 느낌'에 직접적으로
+기여하는 핵심 UX 개선이다.
+
+### 구현 내용
+- `app/api/conversations/route.ts`: 새 대화방 생성 후 `generateNewConversationGreeting` 호출.
+  이전 대화 기억 있으면 LLM 맞춤 인사(최대 8초 timeout), 없으면 캐릭터 기본 인사 즉시 반환.
+  인사 메시지 DB insert + 대화방 preview 갱신.
+- `app/(main)/chat/[id]/page.tsx`: SSR에서 `history.length === 0 && !conversation.lastMessageAt`
+  조건 감지 시 캐릭터 기본 인사 생성(첫 방문 사용자는 LLM 없이 즉시 반환).
+  `initialMessages`에 포함하여 페이지 로드 시 바로 표시. 대화방 목록 preview 갱신.
+- `data/characters.json`: 5개 캐릭터 `firstGreeting`을 성격에 맞게 재작성
+  (유나 친근 반말, 나린 소프트 츤데레, 윤서 데이터 기반 냉정, 은하 감성적 짧은 질문, 지유 활기찬 이모지)
+- `scripts/test_new_conversation_greeting.mts`: 신규 테스트 69개
+
+### 해결한 버그
+- `generateNewConversationGreeting` dead code 상태 → 실제 대화방 생성 흐름에 연결
+
+### 실행 및 테스트
+- `npx tsx scripts/test_new_conversation_greeting.mts` → 69/69 pass
+- `npx tsx scripts/test_emotion.mts` → 45/45 pass
+- `npx tsx scripts/test_return_visit.mts` → 169/169 pass
+- `npx tsc --noEmit` → 오류 0
+- `npm run lint` → 경고·오류 0
+
+### 사용자에게 달라지는 점
+- 새 대화방을 열면 캐릭터가 먼저 인사를 건넨다 (빈 채팅창 → 캐릭터 첫 메시지)
+- 첫 방문: 캐릭터별 고유한 인사 (지연 없음)
+- 재방문 새 대화: 이전 기억 기반 맞춤 인사 ("저번에 얘기하던 그 프로젝트 어떻게 됐어?")
+- 대화방 목록에 인사 메시지가 preview로 표시됨
+
+### PR
+- https://github.com/kimeunsun109-debug/pickmetalk-/pull/40
+
+### 남은 문제
+- API route 경로에서 LLM 인사 생성 중 로딩 UX 없음 (1-3초 대기 무응답 상태)
+- 인사 생성 중 오류 시 빈 대화방으로 진입 (silent failure, 허용 가능)
+- 재방문 LLM 인사 품질은 `generateNewConversationGreeting` 프롬프트 품질에 의존
+
+### 다음 추천 작업
+- POST /api/conversations 로딩 UI 개선 (인사 생성 중 스피너/스켈레톤)
+- returnVisit 오버레이에 캐릭터 hero 이미지 삽입 (몰입감 강화)
+- P0 PR #39/#36/#35 등 미머지 PR 검토·병합 요청
