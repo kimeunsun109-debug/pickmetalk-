@@ -277,3 +277,65 @@ AbsenceWelcome 오버레이 UI 연동 + returnVisit 메시지 닉네임 개인�
 - AbsenceWelcome 오버레이 Vercel preview QA 및 스크린샷 확인
 - excited 확률 캐릭터별 config 분리 (지유 높음, 은하 낮음)
 - returnVisit 오버레이에 캐릭터 이미지(hero) 삽입으로 몰입감 강화
+
+---
+
+## 2026-09-12
+
+### 선택한 작업
+관계 레벨업 모멘트 (Relationship Level-Up Milestone)
+
+### 선택 이유
+- 현재 main에서 호감도(affection)가 Lv1→Lv2 같은 관계 임계값을 넘어도 아무 반응 없음
+- 관계 진전이 체감되지 않아 "계속 대화하고 싶다"는 동기 부여가 없었음
+- 우선순위 4번(Relationship) — 관계의 연속성과 진전을 사용자가 느끼게 하는 것이 핵심
+
+### 구현 내용
+1. **`app/api/chat/route.ts`**
+   - `oldLevel = affectionToLevel(conversation.affection)` 계산
+   - `didLevelUp = newLevelPreview > oldLevelPreview` 감지
+   - 레벨업 시 `dynamicContextBlock`에 힌트 주입: "방금 막 관계가 한 단계 깊어졌어. 자연스럽게 조금 더 가까워진 것처럼 대화해."
+   - SSE `done` 이벤트에 `levelUp: { from, to }` 포함
+
+2. **`types/api.ts`**
+   - `ChatStreamChunk.levelUp?: { from: number; to: number }` 필드 추가
+
+3. **`contexts/ChatProvider.tsx`**
+   - `levelUpEvent` 상태 + `clearLevelUpEvent()` 추가
+   - SSE done 청크에서 `levelUp` 감지 → 상태 업데이트
+
+4. **`components/events/RelationshipLevelUp.tsx`** (신규)
+   - 채팅 하단 토스트 UI (fixed, slide-up 애니메이션)
+   - 새 레벨 이름 + 레벨별 이모지 + 맥락 문구 표시
+   - 4초 자동 dismiss / 탭 즉시 닫기
+
+5. **`components/chat/ChatScreen.tsx`**
+   - `levelUpEvent`, `clearLevelUpEvent` 구독 + 렌더링
+
+6. **`tailwind.config.ts`**
+   - `slide-up` 키프레임 애니메이션 추가 (cubic-bezier 스프링)
+
+### 해결한 버그
+- 관계 레벨 변화가 silent하게 지나치던 문제 해결
+
+### 실행 및 테스트
+- `npx tsc --noEmit` → 오류 0
+- `npm run lint` → 경고·오류 0
+- 레벨업 감지 로직 6/6 케이스 검증 (임계값 20→21, 40→41, 70→71, 90→91 + 비레벨업 2건)
+
+### 사용자에게 달라지는 점
+- 호감도가 레벨 임계값을 넘으면 캐릭터 응답이 자연스럽게 조금 더 가까워진 온도로 변화
+- 채팅 하단에 "Lv2 달성 · 유나 — 친해지는 중" 토스트가 슬라이드 인 → 4초 자동 소멸
+- 관계 진전이 시각적으로 체감되어 지속 대화 동기 강화
+
+### PR
+- https://github.com/kimeunsun109-debug/pickmetalk-/pull/41
+
+### 남은 문제
+- 레벨업 토스트에 캐릭터 얼굴 아이콘 삽입 시 더욱 몰입감 강화 가능
+- 레벨업 시 특별 선물/포토 언락 연동 고려 가능
+
+### 다음 추천 작업
+- 레벨업 토스트에 캐릭터 미니 아이콘 추가
+- 비진행 hurt arc + warm 메시지 → miss_you 복귀 경로 보완 (P1 백로그)
+- returnVisit 오버레이에 캐릭터 hero 이미지 삽입

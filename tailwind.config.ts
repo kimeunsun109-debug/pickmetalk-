@@ -30,6 +30,7 @@ const config: Config = {
         "heart-float": "heart-float 1.5s ease-out forwards",
         "typing-dot": "typing-dot 1.4s infinite ease-in-out both",
         "fadeIn": "fade-in 0.25s ease-out both",
+        "slide-up": "slide-up 0.35s cubic-bezier(0.34,1.56,0.64,1) both",
       },
       keyframes: {
         "pulse-soft": {
@@ -47,6 +48,10 @@ const config: Config = {
         "fade-in": {
           "0%": { opacity: "0", transform: "translateY(-4px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        "slide-up": {
+          "0%": { opacity: "0", transform: "translate(-50%, 24px) scale(0.96)" },
+          "100%": { opacity: "1", transform: "translate(-50%, 0) scale(1)" },
         },
       },
     },

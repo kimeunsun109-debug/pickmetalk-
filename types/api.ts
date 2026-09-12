@@ -32,6 +32,8 @@ export interface ChatStreamChunk {
   assistantCreatedAt?: string;
   affection?: number;
   relationshipLevel?: number;
+  /** 관계 레벨이 올랐을 때만 포함 */
+  levelUp?: { from: number; to: number };
 }
 
 export interface GiftSendBody {
