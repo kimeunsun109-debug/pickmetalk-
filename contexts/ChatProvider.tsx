@@ -59,6 +59,9 @@ interface ChatContextValue {
   dismissUsageBanner: () => void;
   openPremiumModal: (reason?: "daily_limit" | "content") => void;
   closePremiumModal: () => void;
+  /** 관계 레벨업 이벤트 — 레벨이 오른 직후에만 set, 확인 후 clearLevelUpEvent() */
+  levelUpEvent: { from: RelationshipLevel; to: RelationshipLevel } | null;
+  clearLevelUpEvent: () => void;
 }
 
 const ChatContext = createContext<ChatContextValue | null>(null);
@@ -173,6 +176,10 @@ export function ChatProvider({
   );
   const [lastChatAt, setLastChatAt] = useState<string | null>(initialLastChatAt);
   const [showPremiumModal, setShowPremiumModal] = useState(false);
+  const [levelUpEvent, setLevelUpEvent] = useState<{
+    from: RelationshipLevel;
+    to: RelationshipLevel;
+  } | null>(null);
   const [premiumModalReason, setPremiumModalReason] = useState<
     "daily_limit" | "content" | null
   >(null);
@@ -557,6 +564,12 @@ export function ChatProvider({
                 setRelationshipLevel(
                   chunk.relationshipLevel as RelationshipLevel
                 );
+              if (chunk.levelUp) {
+                setLevelUpEvent({
+                  from: chunk.levelUp.from as RelationshipLevel,
+                  to: chunk.levelUp.to as RelationshipLevel,
+                });
+              }
               if (chunk.emotion) setEmotion(normalizeEmotion(chunk.emotion));
               if (!resend) {
                 void refreshUsage();
@@ -663,6 +676,7 @@ export function ChatProvider({
     setPremiumModalReason(null);
   }, []);
   const dismissUsageBanner = useCallback(() => setUsageBannerMessage(null), []);
+  const clearLevelUpEvent = useCallback(() => setLevelUpEvent(null), []);
 
   const sendGift = useCallback(
     async (giftId: string) => {
@@ -734,6 +748,8 @@ export function ChatProvider({
       dismissUsageBanner,
       openPremiumModal,
       closePremiumModal,
+      levelUpEvent,
+      clearLevelUpEvent,
     }),
     [
       resolvedCharacter,
@@ -758,6 +774,8 @@ export function ChatProvider({
       dismissUsageBanner,
       openPremiumModal,
       closePremiumModal,
+      levelUpEvent,
+      clearLevelUpEvent,
     ]
   );
 
