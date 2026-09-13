@@ -123,11 +123,11 @@ export function CharacterMeetClient({
   }
 
   return (
-    <div className="relative min-h-[100dvh] bg-paper">
+    <div className="relative min-h-[calc(100dvh-4.5rem-env(safe-area-inset-bottom,0px))] bg-paper">
       <div
         ref={scrollerRef}
         onScroll={onScroll}
-        className="flex h-[100dvh] snap-x snap-mandatory overflow-x-auto scroll-ios"
+        className="flex h-[calc(100dvh-4.5rem-env(safe-area-inset-bottom,0px))] snap-x snap-mandatory overflow-x-auto scroll-ios"
       >
         {characters.map((c, i) => {
           const id = resolveCharacterId(c.id);
@@ -135,14 +135,14 @@ export function CharacterMeetClient({
           return (
             <article
               key={c.id}
-              className="relative flex h-[100dvh] w-full shrink-0 snap-center snap-always flex-col bg-paper px-6"
+              className="relative flex h-[calc(100dvh-4.5rem-env(safe-area-inset-bottom,0px))] w-full shrink-0 snap-center snap-always flex-col bg-paper px-6"
             >
               <div
                 className="pointer-events-none absolute inset-x-0 top-0 h-48 bg-gradient-to-b from-pink-soft/25 to-transparent"
                 aria-hidden
               />
 
-              <div className="relative z-10 flex h-full flex-col items-center justify-end pb-[17.5rem] pt-[max(3.25rem,env(safe-area-inset-top))]">
+              <div className="relative z-10 flex h-full flex-col items-center justify-end pb-[15.5rem] pt-[max(3.25rem,env(safe-area-inset-top))]">
                 <CharacterPortrait
                   characterId={id}
                   size="meet"
@@ -188,13 +188,25 @@ export function CharacterMeetClient({
       </div>
 
       {current && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 px-6 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+        <div className="pointer-events-none absolute inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] z-20 px-6">
           <div className="pointer-events-auto animate-hero-rise">
             {error && (
               <p className="mb-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
                 {error}
               </p>
             )}
+
+            <button
+              type="button"
+              disabled={Boolean(loadingId)}
+              onClick={() => current && selectCharacter(current)}
+              className="mb-4 w-full rounded-xl bg-rose-deep py-3 text-[13px] font-semibold tracking-wide text-paper shadow-[0_4px_14px_rgba(184,106,122,0.25)] disabled:opacity-60"
+            >
+              {loadingId === resolveCharacterId(current.id)
+                ? "들어가는 중…"
+                : `${current.name}와 대화하기`}
+            </button>
+
             <div className="mb-2 h-px w-10 bg-rose-muted/80" aria-hidden />
             <p className="text-[11px] tracking-[0.14em] text-rose-deep/80">
               {activeCharacterId === current.id ? "지금 함께" : "만나보기"}
@@ -221,17 +233,6 @@ export function CharacterMeetClient({
                 />
               ))}
             </div>
-
-            <button
-              type="button"
-              disabled={Boolean(loadingId)}
-              onClick={() => current && selectCharacter(current)}
-              className="mt-4 w-full rounded-xl bg-rose-deep py-3 text-[13px] font-semibold tracking-wide text-paper disabled:opacity-60"
-            >
-              {loadingId === resolveCharacterId(current.id)
-                ? "들어가는 중…"
-                : `${current.name}와 대화하기`}
-            </button>
           </div>
         </div>
       )}
