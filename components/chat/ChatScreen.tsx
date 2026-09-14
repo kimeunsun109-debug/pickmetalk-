@@ -31,6 +31,7 @@ export function ChatScreen({
     characterId,
     messages,
     isTyping,
+    isProactiveLoading,
     lastChatAt,
     sendMessage,
     sendGift,
@@ -124,7 +125,8 @@ export function ChatScreen({
     [sendGift, characterId]
   );
 
-  const showOnboarding = messages.length === 0;
+  // 선제 인사 로딩 중에는 온보딩 대신 타이핑 버블을 보여준다
+  const showOnboarding = messages.length === 0 && !isProactiveLoading;
 
   return (
     <div className="flex min-h-[100dvh] flex-col bg-paper">
@@ -147,6 +149,7 @@ export function ChatScreen({
             characterName={character.name}
             characterId={characterId}
             isTyping={isTyping}
+            isProactiveLoading={isProactiveLoading}
           />
         )}
 
