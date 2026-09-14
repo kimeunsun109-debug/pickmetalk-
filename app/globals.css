@@ -21,6 +21,8 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
+  /* BottomNav: py-2.5 + icon + label + border (~60px) */
+  --bottom-nav-height: 3.75rem;
 }
 
 html,

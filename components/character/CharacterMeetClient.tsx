@@ -8,7 +8,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-/** Character meet carousel — compact portraits on a light paper canvas. */
+/** Viewport height minus fixed bottom tab bar (see BottomNav + --bottom-nav-height). */
+const MEET_SHEET_HEIGHT =
+  "calc(100dvh - var(--bottom-nav-height) - env(safe-area-inset-bottom, 0px))";
+
+/** Character meet carousel — portrait, CTA, then meet info; tabs stay clear. */
 export function CharacterMeetClient({
   characters,
   activeCharacterId,
@@ -30,8 +34,6 @@ export function CharacterMeetClient({
   );
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [pickerLoading, setPickerLoading] = useState(false);
-
-  const current = characters[index] ?? characters[0];
 
   useEffect(() => {
     const el = scrollerRef.current;
@@ -123,26 +125,34 @@ export function CharacterMeetClient({
   }
 
   return (
-    <div className="relative min-h-[calc(100dvh-4.5rem-env(safe-area-inset-bottom,0px))] bg-paper">
+    <div
+      className="relative overflow-hidden bg-paper"
+      style={{ height: MEET_SHEET_HEIGHT }}
+    >
       <div
         ref={scrollerRef}
         onScroll={onScroll}
-        className="flex h-[calc(100dvh-4.5rem-env(safe-area-inset-bottom,0px))] snap-x snap-mandatory overflow-x-auto scroll-ios"
+        className="flex h-full snap-x snap-mandatory overflow-x-auto scroll-ios"
       >
         {characters.map((c, i) => {
           const id = resolveCharacterId(c.id);
           const busy = loadingId === id;
+          const tagline = c.tagline.includes("(")
+            ? c.tagline.slice(c.tagline.indexOf("(") + 1, -1)
+            : c.tagline;
+
           return (
             <article
               key={c.id}
-              className="relative flex h-[calc(100dvh-4.5rem-env(safe-area-inset-bottom,0px))] w-full shrink-0 snap-center snap-always flex-col bg-paper px-6"
+              className="relative flex h-full w-full shrink-0 snap-center snap-always flex-col bg-paper px-6"
             >
               <div
-                className="pointer-events-none absolute inset-x-0 top-0 h-48 bg-gradient-to-b from-pink-soft/25 to-transparent"
+                className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-pink-soft/25 to-transparent"
                 aria-hidden
               />
 
-              <div className="relative z-10 flex h-full flex-col items-center justify-end pb-[15.5rem] pt-[max(3.25rem,env(safe-area-inset-top))]">
+              {/* 1) Portrait — fills upper band */}
+              <div className="relative z-10 flex min-h-0 flex-1 flex-col items-center justify-center pt-[max(3.25rem,env(safe-area-inset-top))]">
                 <CharacterPortrait
                   characterId={id}
                   size="meet"
@@ -151,19 +161,55 @@ export function CharacterMeetClient({
                 />
               </div>
 
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => selectCharacter(c)}
-                className="absolute inset-0 z-10"
-                aria-label={`${c.name}와 대화 시작`}
-              />
+              {/* 2) CTA — directly under portrait, in-flow (never over tabs) */}
+              <div className="relative z-20 shrink-0 pb-2 pt-1">
+                {i === index && error && (
+                  <p className="mb-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                    {error}
+                  </p>
+                )}
+                <button
+                  type="button"
+                  disabled={busy || Boolean(loadingId && loadingId !== id)}
+                  onClick={() => selectCharacter(c)}
+                  className="w-full rounded-xl bg-rose-deep py-3 text-[13px] font-semibold tracking-wide text-paper shadow-[0_4px_14px_rgba(184,106,122,0.2)] disabled:opacity-60"
+                >
+                  {busy ? "들어가는 중…" : `${c.name}와 대화하기`}
+                </button>
+              </div>
+
+              {/* 3) Meet info — compact strip above tab bar gap */}
+              <div className="relative z-20 shrink-0 pb-3 pt-1">
+                <div className="mb-2 h-px w-10 bg-rose-muted/80" aria-hidden />
+                <p className="text-[11px] tracking-[0.14em] text-rose-deep/80">
+                  {activeCharacterId === c.id ? "지금 함께" : "만나보기"}
+                </p>
+                <h1 className="mt-1 font-sans text-[1.625rem] font-bold leading-tight text-ink">
+                  {c.name}
+                </h1>
+                <p className="mt-1 max-w-[20rem] text-[13px] leading-snug text-ink/55">
+                  {tagline}
+                </p>
+                <div className="mt-2.5 flex items-center gap-1.5">
+                  {characters.map((dot, dotIndex) => (
+                    <button
+                      key={dot.id}
+                      type="button"
+                      aria-label={`${dot.name} 보기`}
+                      onClick={() => scrollToIndex(dotIndex)}
+                      className={`h-[2px] transition-all ${
+                        dotIndex === index ? "w-8 bg-rose-deep" : "w-3 bg-ink/15"
+                      }`}
+                    />
+                  ))}
+                </div>
+              </div>
             </article>
           );
         })}
       </div>
 
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 px-5 pt-[max(1rem,env(safe-area-inset-top))]">
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-30 px-5 pt-[max(1rem,env(safe-area-inset-top))]">
         <div className="pointer-events-auto flex items-center gap-2">
           <Link
             href="/"
@@ -186,56 +232,6 @@ export function CharacterMeetClient({
           </Link>
         </div>
       </div>
-
-      {current && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] z-20 px-6">
-          <div className="pointer-events-auto animate-hero-rise">
-            {error && (
-              <p className="mb-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                {error}
-              </p>
-            )}
-
-            <button
-              type="button"
-              disabled={Boolean(loadingId)}
-              onClick={() => current && selectCharacter(current)}
-              className="mb-4 w-full rounded-xl bg-rose-deep py-3 text-[13px] font-semibold tracking-wide text-paper shadow-[0_4px_14px_rgba(184,106,122,0.25)] disabled:opacity-60"
-            >
-              {loadingId === resolveCharacterId(current.id)
-                ? "들어가는 중…"
-                : `${current.name}와 대화하기`}
-            </button>
-
-            <div className="mb-2 h-px w-10 bg-rose-muted/80" aria-hidden />
-            <p className="text-[11px] tracking-[0.14em] text-rose-deep/80">
-              {activeCharacterId === current.id ? "지금 함께" : "만나보기"}
-            </p>
-            <h1 className="mt-1 font-sans text-[1.625rem] font-bold leading-tight text-ink">
-              {current.name}
-            </h1>
-            <p className="mt-1.5 max-w-[20rem] text-[13px] leading-snug text-ink/55">
-              {current.tagline.includes("(")
-                ? current.tagline.slice(current.tagline.indexOf("(") + 1, -1)
-                : current.tagline}
-            </p>
-
-            <div className="mt-3 flex items-center gap-1.5">
-              {characters.map((c, i) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  aria-label={`${c.name} 보기`}
-                  onClick={() => scrollToIndex(i)}
-                  className={`h-[2px] transition-all ${
-                    i === index ? "w-8 bg-rose-deep" : "w-3 bg-ink/15"
-                  }`}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
 
       {pickerCharacter && (
         <div
