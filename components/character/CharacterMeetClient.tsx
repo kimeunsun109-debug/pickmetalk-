@@ -151,18 +151,19 @@ export function CharacterMeetClient({
                 aria-hidden
               />
 
-              {/* 1) Portrait — fills upper band */}
-              <div className="relative z-10 flex min-h-0 flex-1 flex-col items-center justify-center pt-[max(3.25rem,env(safe-area-inset-top))]">
+              {/* 1) Portrait — natural height at top (no flex-1; avoids pushing CTA to bottom) */}
+              <div className="relative z-10 shrink-0 pt-[max(3.25rem,env(safe-area-inset-top))]">
                 <CharacterPortrait
                   characterId={id}
                   size="meet"
                   priority={i === initialIndex}
                   animate={i === index}
+                  className="mx-auto"
                 />
               </div>
 
-              {/* 2) CTA — directly under portrait, in-flow (never over tabs) */}
-              <div className="relative z-20 shrink-0 pb-2 pt-1">
+              {/* 2) CTA — white band directly under photo, normal flow */}
+              <div className="relative z-20 shrink-0 py-3">
                 {i === index && error && (
                   <p className="mb-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
                     {error}
@@ -178,8 +179,8 @@ export function CharacterMeetClient({
                 </button>
               </div>
 
-              {/* 3) Meet info — compact strip above tab bar gap */}
-              <div className="relative z-20 shrink-0 pb-3 pt-1">
+              {/* 3) Meet info — below CTA */}
+              <div className="relative z-20 shrink-0 pb-2">
                 <div className="mb-2 h-px w-10 bg-rose-muted/80" aria-hidden />
                 <p className="text-[11px] tracking-[0.14em] text-rose-deep/80">
                   {activeCharacterId === c.id ? "지금 함께" : "만나보기"}
@@ -204,6 +205,9 @@ export function CharacterMeetClient({
                   ))}
                 </div>
               </div>
+
+              {/* absorbs leftover space so CTA stays under portrait, not pinned to tabs */}
+              <div className="min-h-0 flex-1" aria-hidden />
             </article>
           );
         })}
