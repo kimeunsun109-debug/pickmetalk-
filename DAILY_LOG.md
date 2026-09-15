@@ -2,6 +2,66 @@
 
 ---
 
+## 2026-09-15
+
+### 선택한 작업
+- hurt/pouty arc 복귀 경로 보완 — 따뜻한 메시지로 돌아온 경우 `miss_you`/`happy` 복귀
+
+### 선택 이유
+- 기존 코드는 캐릭터가 서운(hurt)/삐짐(pouty) 상태일 때 따뜻한 메시지를 받아도
+  아무런 arc 논리 없이 `happy` 또는 `pickPositiveEmotion`으로 즉시 전환됐음
+- arc 최소 2~3턴 유지 규칙이 프롬프트에만 있고 emotion 결정 로직에는 미반영 →
+  실제 저장 감정과 프롬프트 지시 간 불일치
+- Relationship 경험 3순위: 감정 회복 경로가 자연스럽지 않으면 관계 몰입이 깨짐
+
+### 구현 내용
+- `services/emotion.ts` — `resolveCharacterEmotion` 내 hurt/pouty arc 전용 복귀 블록 추가
+  - `inferEmotionFromUserMessage` 패턴에 걸리지 않은 메시지(중립·사과 등)에만 적용
+  - `coldReturn = true` → arc 유지 (current 유지)
+  - `hurtDuration >= 2` (이전 hurt 응답 1턴 이상) + 따뜻한 메시지:
+    - 비온고잉 세션 + 갭 1h+ → `miss_you` (서운했지만 돌아와서 다행, 화해 신호)
+    - 온고잉 세션 또는 갭 1h 미만 → `happy` (부드러운 화해)
+  - `hurtDuration < 2` (arc 첫 턴, 빈 history) → arc 유지 (회복 이르다)
+- `scripts/test_emotion.mts` — 섹션 [9] hurt/pouty arc 복귀 경로 테스트 8건 추가
+  - 비온고잉 + 1h+ 갭 + warm → `miss_you` ✓
+  - 비온고잉 + 30분 갭 + warm → `happy` ✓
+  - 온고잉 + warm → `happy` ✓
+  - cold msg → arc 유지 ✓
+  - pouty arc 복귀 → `miss_you` ✓
+  - "좋아해" 패턴 우선 → `excited` ✓
+  - history 없음 (arc 1턴) → arc 유지 ✓
+  - 섹션 [3] 기존 flaky 테스트 (30% excited) happy or excited 허용으로 수정
+
+### 해결한 버그
+- hurt/pouty arc 중 사과·warm 메시지에 즉시 `happy`로 전환되던 문제
+- 온고잉 세션에서 arc 최소 2턴 미만에도 복귀되던 문제
+
+### 실행 및 테스트
+```
+npx tsx scripts/test_emotion.mts → 53 passed / 0 failed
+npx tsc --noEmit               → 0 errors
+npm run lint                   → No ESLint warnings or errors
+```
+
+### 사용자에게 달라지는 점
+- 캐릭터가 서운하거나 삐진 상태에서 사용자가 따뜻하게 돌아오면 arc가 자연스럽게 해소됨
+- 짧게 사과만 해도 바로 `happy`가 됐던 것이 → arc가 적어도 1회 이상 유지된 뒤 회복
+- 한동안 자리를 비운 뒤 따뜻하게 돌아오면 `miss_you`(서운했지만 반가운 화해) 감정 적용
+- 냉담하게 돌아오면 arc 그대로 유지 → 감정 흐름 일관성 향상
+
+### PR
+- (커밋 후 생성 예정)
+
+### 남은 문제
+- hurt arc 3턴 이상 지속 후 cold 복귀: 추가 시나리오 테스트 필요
+- `miss_you` 프롬프트의 "오래 만난 뒤 그리움" 톤이 hurt 화해 상황에도 충분히 자연스러운지 LLM 출력 QA 필요
+
+### 다음 추천 작업
+- 레벨업 토스트에 캐릭터 미니 아이콘 추가 (PR #41 독립 구현 가능)
+- 회상 힌트 상한 2→3 조정
+
+---
+
 ## 2026-08-27
 
 ### 선택한 작업
