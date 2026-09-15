@@ -50,7 +50,7 @@ npm run lint                   → No ESLint warnings or errors
 - 냉담하게 돌아오면 arc 그대로 유지 → 감정 흐름 일관성 향상
 
 ### PR
-- (커밋 후 생성 예정)
+- https://github.com/kimeunsun109-debug/pickmetalk-/pull/45
 
 ### 남은 문제
 - hurt arc 3턴 이상 지속 후 cold 복귀: 추가 시나리오 테스트 필요
