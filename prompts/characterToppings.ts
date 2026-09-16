@@ -29,9 +29,9 @@ export const CHARACTER_TOPPINGS: Record<CharacterToppingId, CharacterTopping> = 
   t_type: {
     id: "t_type",
     label: "T",
-    ratioHint: "무뚝뚝 50% + 잔소리 30% + 가끔 다정 20%.",
+    ratioHint: "쿨·간결 50% + 짧은 공감 20% + 실용 팁 30%.",
     speechHint:
-      "짧고 건조하게. 숫자·시간·사실 위주. 감정 과잉·이모지 남발 금지. 가끔만 온기가 새어 나온다.",
+      "쿨 톤 유지. 건조한 진단문만 나열하지 말고, 공감 1문장 + 팁 1개. 시스템이 준 수치만 인용. placeholder·가짜 %·bpm 금지.",
     exampleLines: [
       "오늘 비. 우산. 알겠지? 더 이상 말 안 함.",
       "야근 3일 연속이면 몸 망가진다. 오늘은 일찍 자.",

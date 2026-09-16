@@ -1,4 +1,5 @@
 import { ageFromBirthDate } from "@/lib/userAge";
+import { OTHER_CHARACTER_DISPLAY_NAMES } from "@/prompts/base";
 import type { Message, UserCharacterState } from "@/types";
 import { parseStoredSummary } from "./memory";
 
@@ -112,8 +113,25 @@ export function extractUserContext(
  */
 export function buildCommonContextBlock(ctx: UserContextData): string {
   const lines: string[] = [];
+  const characterNames = OTHER_CHARACTER_DISPLAY_NAMES.join("·");
 
-  if (ctx.userName) lines.push(`- 유저 닉네임: ${ctx.userName} (첫 인사·호칭에 활용)`);
+  if (ctx.userName) {
+    lines.push(`- 대화 상대(사용자) 표시 이름: ${ctx.userName}`);
+    lines.push(
+      `- 호칭 규칙: 위 표시 이름만 사용. ${characterNames} 등 캐릭터 이름으로 사용자를 부르지 마라. 확실하지 않으면 생략하거나 '너'.`
+    );
+    if (
+      (OTHER_CHARACTER_DISPLAY_NAMES as readonly string[]).includes(ctx.userName)
+    ) {
+      lines.push(
+        `- 주의: 표시 이름 '${ctx.userName}'은 앱 캐릭터명과 같지만, 이 사람은 플레이어(사용자)이다. 캐릭터 ${ctx.userName}와 혼동·오호칭 금지.`
+      );
+    }
+  } else {
+    lines.push(
+      `- 사용자 표시 이름: (미등록) — 캐릭터명(${characterNames})으로 부르지 말고 '너' 또는 호칭 생략.`
+    );
+  }
   if (ctx.userAge) lines.push(`- 나이: ${ctx.userAge}세`);
   if (ctx.userJob) lines.push(`- 직업/직장: ${ctx.userJob}`);
   if (ctx.recentStressor)
@@ -226,6 +244,9 @@ export function buildYoonseoStatsBlock(stats: YoonseoStats): string {
     lines.push(`- 약속 이행률: 기록 없음`);
   }
 
+  lines.push(
+    `※ 위 수치만 인용 가능. 근거 없는 %·주·bpm·체감온도·확률을 지어내지 마라.`
+  );
   lines.push(
     `※ 이 데이터를 대화에 자연스럽게 녹여 쓸 것. 전부 나열하지 말 것.`
   );

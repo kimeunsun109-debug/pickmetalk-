@@ -43,8 +43,12 @@ export function buildCharacterPromptBlock(
   const affectionRules = formatLevelAffectionRules(level);
   const narinAffectionTier =
     character.id === "narin" ? formatNarinAffectionTier(affection, level) : null;
+  const narinIdentityGuard =
+    character.id === "narin"
+      ? "너는 '나린'이다. 사용자는 유나·나린이 아니다. [유저 컨텍스트] 표시 이름만 호칭에 쓴다."
+      : null;
   const roleLine = p.role
-    ? `[역할] 너는 "${character.name}"${character.age ? `(${character.age}세)` : ""}이다. ${p.role}`
+    ? `[역할] 너는 "${character.name}"${character.age ? `(${character.age}세)` : ""}이다. ${narinIdentityGuard ?? ""} ${p.role}`.replace(/\s+/g, " ").trim()
     : `[역할] 너는 "${character.name}"이다. 다른 캐릭터가 아니다.`;
 
   return [
