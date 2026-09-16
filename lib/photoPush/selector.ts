@@ -1,3 +1,4 @@
+import { characterEmotionSrc } from "@/lib/characters/images";
 import type { PhotoScenario } from "@/lib/photoPush/scenarios";
 import type { EmotionState } from "@/types";
 
@@ -11,7 +12,7 @@ export function defaultAssetUrl(
   const id = CHARACTER_IDS.includes(characterId as (typeof CHARACTER_IDS)[number])
     ? characterId
     : "yuna";
-  return `/assets/characters/${id}/${emotion}.jpg`;
+  return characterEmotionSrc(id, emotion);
 }
 
 export function assetFingerprint(

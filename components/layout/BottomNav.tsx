@@ -16,7 +16,7 @@ export function BottomNav() {
   if (pathname.startsWith("/chat/")) return null;
 
   return (
-    <nav className="fixed bottom-0 left-1/2 flex w-full max-w-md -translate-x-1/2 border-t border-gray-100 bg-white pb-safe">
+    <nav className="fixed bottom-0 left-1/2 z-30 flex w-full max-w-md -translate-x-1/2 border-t border-gray-100 bg-white pb-safe">
       {tabs.map((t) => {
         const isActive = pathname.startsWith(t.href);
         return (

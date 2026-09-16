@@ -1,7 +1,10 @@
 "use client";
 
 import { useChatMeta } from "@/contexts/ChatProvider";
-import { characterAvatarSrc } from "@/lib/characters/images";
+import {
+  characterAvatarSrc,
+  characterEmotionSrc,
+} from "@/lib/characters/images";
 import { goToCharacterChat } from "@/lib/navigateChat";
 import {
   affectionProgressBlocks,
@@ -26,7 +29,7 @@ export const ChatHeader = memo(function ChatHeader({
   const stage = getRelationshipStage(affection);
   const { filled, total, percent } = affectionProgressBlocks(affection);
 
-  const avatarSrc = `/assets/characters/${characterId}/${emotion}.jpg`;
+  const avatarSrc = characterEmotionSrc(characterId, emotion);
   const [imgError, setImgError] = useState(false);
   const [fallbackSrc, setFallbackSrc] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);

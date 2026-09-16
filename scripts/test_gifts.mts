@@ -9,6 +9,7 @@ import {
   buildGiftReaction,
   getGiftById,
   getGiftCatalog,
+  getGiftCategory,
 } from "../services/gifts";
 
 let passed = 0;
@@ -90,9 +91,39 @@ if (necklace) {
   );
 }
 
-console.log("\n[5] deterministic reaction");
+console.log("\n[5] gift category reactions");
+
+function assertNoDrinkVerb(message: string, desc: string) {
+  assert(!message.includes("마실"), `${desc}: no drink verb (마실)`);
+}
+
+for (const giftId of ["dessert", "perfume"] as const) {
+  const gift = getGiftById(giftId);
+  if (!gift) continue;
+  for (const characterId of ["yuna", "narin", "yoonseo", "eunha", "jiyu"]) {
+    const reaction = buildGiftReaction(characterId, gift);
+    assertNoDrinkVerb(
+      reaction.message,
+      `${characterId}+${giftId}`
+    );
+  }
+}
 
 const coffee = getGiftById("coffee");
+if (coffee) {
+  const coffeeReaction = buildGiftReaction("yuna", coffee);
+  assert(
+    coffeeReaction.message.includes("마실"),
+    "yuna+coffee: drink closing uses 마실"
+  );
+}
+
+test("dessert category", getGiftCategory("dessert"), "food");
+test("perfume category", getGiftCategory("perfume"), "perfume");
+test("coffee category", getGiftCategory("coffee"), "drink");
+
+console.log("\n[6] deterministic reaction");
+
 if (coffee) {
   const first = buildGiftReaction("yuna", coffee);
   const second = buildGiftReaction("yuna", coffee);
