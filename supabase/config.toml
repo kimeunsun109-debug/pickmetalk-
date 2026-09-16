@@ -3,10 +3,15 @@
 
 [auth]
 site_url = "https://pickmetalk.com"
+# Include app OAuth/email callback (/api/auth/callback). Provider consoles use
+# https://<project-ref>.supabase.co/auth/v1/callback — see docs/AUTH_OAUTH.md.
 additional_redirect_urls = [
   "http://localhost:3000/**",
+  "http://localhost:3000/api/auth/callback",
   "https://pickmetalk.com/**",
+  "https://pickmetalk.com/api/auth/callback",
   "https://www.pickmetalk.com/**",
+  "https://www.pickmetalk.com/api/auth/callback",
   "https://*.vercel.app/**",
 ]
 
