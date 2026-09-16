@@ -152,7 +152,7 @@ export function CharacterMeetClient({
               />
 
               {/* One in-flow block: safe header clearance, then portrait → CTA → info. */}
-              <div className="relative z-10 flex flex-col pt-[max(clamp(6rem,14dvh,7.5rem),calc(env(safe-area-inset-top)+4rem))]">
+              <div className="relative z-10 flex flex-col pt-[max(clamp(6rem,18dvh,9.5rem),calc(env(safe-area-inset-top)+4rem))]">
                 {/* 1) Portrait */}
                 <div className="shrink-0">
                   <CharacterPortrait
