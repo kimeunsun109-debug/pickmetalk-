@@ -144,70 +144,70 @@ export function CharacterMeetClient({
           return (
             <article
               key={c.id}
-              className="relative flex h-full w-full shrink-0 snap-center snap-always flex-col bg-paper px-6"
+              className="relative h-full w-full shrink-0 snap-center snap-always bg-paper px-6"
             >
               <div
                 className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-pink-soft/25 to-transparent"
                 aria-hidden
               />
 
-              {/* 1) Portrait — natural height at top (no flex-1; avoids pushing CTA to bottom) */}
-              <div className="relative z-10 shrink-0 pt-[max(3.25rem,env(safe-area-inset-top))]">
-                <CharacterPortrait
-                  characterId={id}
-                  size="meet"
-                  priority={i === initialIndex}
-                  animate={i === index}
-                  className="mx-auto"
-                />
-              </div>
+              {/* One in-flow block: safe header clearance, then portrait → CTA → info. */}
+              <div className="relative z-10 flex flex-col pt-[max(clamp(4rem,9.5dvh,5rem),calc(env(safe-area-inset-top)+4rem))]">
+                {/* 1) Portrait */}
+                <div className="shrink-0">
+                  <CharacterPortrait
+                    characterId={id}
+                    size="meet"
+                    priority={i === initialIndex}
+                    animate={i === index}
+                    className="mx-auto"
+                  />
+                </div>
 
-              {/* 2) CTA — white band directly under photo, normal flow */}
-              <div className="relative z-20 shrink-0 py-3">
-                {i === index && error && (
-                  <p className="mb-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                    {error}
+                {/* 2) CTA — directly under the photo, never bottom-positioned */}
+                <div className="shrink-0 py-3">
+                  {i === index && error && (
+                    <p className="mb-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                      {error}
+                    </p>
+                  )}
+                  <button
+                    type="button"
+                    disabled={busy || Boolean(loadingId && loadingId !== id)}
+                    onClick={() => selectCharacter(c)}
+                    className="w-full rounded-xl bg-rose-deep py-3 text-[13px] font-semibold tracking-wide text-paper shadow-[0_4px_14px_rgba(184,106,122,0.2)] disabled:opacity-60"
+                  >
+                    {busy ? "들어가는 중…" : `${c.name}와 대화하기`}
+                  </button>
+                </div>
+
+                {/* 3) Meet info */}
+                <div className="shrink-0 pb-2">
+                  <div className="mb-2 h-px w-10 bg-rose-muted/80" aria-hidden />
+                  <p className="text-[11px] tracking-[0.14em] text-rose-deep/80">
+                    {activeCharacterId === c.id ? "지금 함께" : "만나보기"}
                   </p>
-                )}
-                <button
-                  type="button"
-                  disabled={busy || Boolean(loadingId && loadingId !== id)}
-                  onClick={() => selectCharacter(c)}
-                  className="w-full rounded-xl bg-rose-deep py-3 text-[13px] font-semibold tracking-wide text-paper shadow-[0_4px_14px_rgba(184,106,122,0.2)] disabled:opacity-60"
-                >
-                  {busy ? "들어가는 중…" : `${c.name}와 대화하기`}
-                </button>
-              </div>
-
-              {/* 3) Meet info — below CTA */}
-              <div className="relative z-20 shrink-0 pb-2">
-                <div className="mb-2 h-px w-10 bg-rose-muted/80" aria-hidden />
-                <p className="text-[11px] tracking-[0.14em] text-rose-deep/80">
-                  {activeCharacterId === c.id ? "지금 함께" : "만나보기"}
-                </p>
-                <h1 className="mt-1 font-sans text-[1.625rem] font-bold leading-tight text-ink">
-                  {c.name}
-                </h1>
-                <p className="mt-1 max-w-[20rem] text-[13px] leading-snug text-ink/55">
-                  {tagline}
-                </p>
-                <div className="mt-2.5 flex items-center gap-1.5">
-                  {characters.map((dot, dotIndex) => (
-                    <button
-                      key={dot.id}
-                      type="button"
-                      aria-label={`${dot.name} 보기`}
-                      onClick={() => scrollToIndex(dotIndex)}
-                      className={`h-[2px] transition-all ${
-                        dotIndex === index ? "w-8 bg-rose-deep" : "w-3 bg-ink/15"
-                      }`}
-                    />
-                  ))}
+                  <h1 className="mt-1 font-sans text-[1.625rem] font-bold leading-tight text-ink">
+                    {c.name}
+                  </h1>
+                  <p className="mt-1 max-w-[20rem] text-[13px] leading-snug text-ink/55">
+                    {tagline}
+                  </p>
+                  <div className="mt-2.5 flex items-center gap-1.5">
+                    {characters.map((dot, dotIndex) => (
+                      <button
+                        key={dot.id}
+                        type="button"
+                        aria-label={`${dot.name} 보기`}
+                        onClick={() => scrollToIndex(dotIndex)}
+                        className={`h-[2px] transition-all ${
+                          dotIndex === index ? "w-8 bg-rose-deep" : "w-3 bg-ink/15"
+                        }`}
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
-
-              {/* absorbs leftover space so CTA stays under portrait, not pinned to tabs */}
-              <div className="min-h-0 flex-1" aria-hidden />
             </article>
           );
         })}
