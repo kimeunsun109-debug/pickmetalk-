@@ -2,6 +2,55 @@
 
 ---
 
+## 2026-09-16
+
+### 선택한 작업
+- 회원가입 시 입력한 성별·MBTI·이상형을 시스템 프롬프트 컨텍스트 블록에 반영
+
+### 선택 이유
+- 사용자가 가입 시 성별(필수), MBTI(선택), 이상형(선택)을 입력하지만 `extractUserContext`에서 해당 필드가 `UserContextData`로 전달되지 않아 캐릭터가 이 정보를 전혀 활용하지 못함
+- 성별: 캐릭터의 호칭·어조 조정에 즉시 활용 가능
+- MBTI: 대화 리듬·공감 방식 미세 조정 (E/I, T/F 등)
+- 이상형 키워드: 사용자가 원하는 파트너 스타일을 캐릭터가 은근하게 반영
+- 대화 품질·적응형 성격 우선순위 직결
+
+### 구현 내용
+1. **`services/context.ts`**
+   - `UserContextData`에 `userGender?`, `userMbti?`, `idealType?` 필드 추가
+   - `extractUserContext`: `profileCtx.gender`, `profileCtx.mbti`, `profileCtx.idealType` → 빈 문자열이면 `undefined` 처리
+   - `buildCommonContextBlock`: 성별은 `male→남성 / female→여성` 매핑 출력, MBTI는 "참고용 — 분석 투 직접 언급 금지" 주석 포함, 이상형은 "은근하게 반영, 과하게 내세우지 않기" 주석 포함
+2. **`scripts/test_personal_memory.mts`**
+   - 10개 테스트 케이스 추가: MBTI 추출·블록 포함, 빈 MBTI undefined 처리, gender male/female/미입력, idealType 추출·블록 포함·빈 문자열, 동시 주입 통합 테스트
+
+### 해결한 버그
+- 가입 시 MBTI/이상형 입력해도 캐릭터 대화에 반영 안 되던 문제 (silent drop)
+
+### 실행 및 테스트
+```
+npx tsx scripts/test_personal_memory.mts → 32 passed / 0 failed
+npx tsc --noEmit                          → 0 errors
+npm run lint                              → No ESLint warnings or errors
+```
+
+### 사용자에게 달라지는 점
+- MBTI를 입력한 사용자에게 캐릭터가 E/I·T/F 성향에 맞게 반응 온도를 미세 조정
+- 이상형 키워드("다정하고 유머 있는" 등)를 입력했다면 캐릭터가 해당 스타일을 은근히 반영
+- 성별 정보로 캐릭터가 적절한 호칭·어조 선택 가능
+
+### PR
+- https://github.com/kimeunsun109-debug/pickmetalk-/pull/47
+
+### 남은 문제
+- MBTI 분석에 기반한 더 구체적인 프롬프트 힌트 확장 가능 (현재는 "참고용" 수준)
+- idealType 자유 입력이라 LLM이 어떻게 해석하는지 실사용 QA 필요
+
+### 다음 추천 작업
+- P1: 레벨업 토스트에 캐릭터 미니 아이콘 추가 (PR #41 독립)
+- P1: 회상 힌트 상한 2→3 조정 (PR #35 기반)
+- P1: 이상형 키워드 기반 캐릭터 반응 QA
+
+---
+
 ## 2026-08-27
 
 ### 선택한 작업

@@ -10,12 +10,18 @@ import { parseStoredSummary } from "./memory";
 export interface UserContextData {
   userName?: string;
   userAge?: string;
+  /** 회원가입 시 입력한 성별 (male | female | 기타) */
+  userGender?: string;
   userJob?: string;
   userInterests: string[];
   recentStressor?: string;
   recentSchedule?: string;
   /** 반려동물 이름, 가족 이름 등 대화에서 언급한 개인 정보 */
   personalFacts?: string[];
+  /** 회원가입 시 입력한 MBTI (예: ENFP) */
+  userMbti?: string;
+  /** 회원가입 시 입력한 이상형 키워드 */
+  idealType?: string;
 }
 
 export interface YoonseoStats {
@@ -93,6 +99,7 @@ export function extractUserContext(
   return {
     userName: profileCtx.nickname ?? profileCtx.name ?? memoryUserName,
     userAge: derivedAge,
+    userGender: profileCtx.gender || undefined,
     userJob: profileCtx.job,
     userInterests: [
       ...new Set([
@@ -104,6 +111,8 @@ export function extractUserContext(
     recentStressor,
     recentSchedule,
     personalFacts: personalFacts.length > 0 ? personalFacts : undefined,
+    userMbti: profileCtx.mbti || undefined,
+    idealType: profileCtx.idealType || undefined,
   };
 }
 
@@ -133,6 +142,10 @@ export function buildCommonContextBlock(ctx: UserContextData): string {
     );
   }
   if (ctx.userAge) lines.push(`- 나이: ${ctx.userAge}세`);
+  const GENDER_LABEL: Record<string, string> = { male: "남성", female: "여성" };
+  if (ctx.userGender) {
+    lines.push(`- 성별: ${GENDER_LABEL[ctx.userGender] ?? ctx.userGender}`);
+  }
   if (ctx.userJob) lines.push(`- 직업/직장: ${ctx.userJob}`);
   if (ctx.recentStressor)
     lines.push(`- 최근 스트레스 요인: ${ctx.recentStressor}`);
@@ -144,6 +157,16 @@ export function buildCommonContextBlock(ctx: UserContextData): string {
     lines.push(
       `- 유저가 알려준 정보: ${ctx.personalFacts.join(", ")} (자연스럽게 활용, 같은 질문 반복 금지)`
     );
+  if (ctx.userMbti) {
+    lines.push(
+      `- MBTI: ${ctx.userMbti} (참고용 — 대화 흐름 우선, MBTI 분석 투로 직접 언급 금지)`
+    );
+  }
+  if (ctx.idealType) {
+    lines.push(
+      `- 사용자가 선호하는 파트너 스타일: "${ctx.idealType}" (은근하게 반영, 과하게 내세우지 않기)`
+    );
+  }
 
   if (lines.length === 0) return "";
 

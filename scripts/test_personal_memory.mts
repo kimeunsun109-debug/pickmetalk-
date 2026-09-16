@@ -238,6 +238,74 @@ test("반려동물 이름이 personalFacts에 있고 userName에는 없음", () 
   expect(facts[0]).toContain("망고");
 });
 
+// ─── Profile: MBTI / gender / idealType ─────────────────────
+
+test("MBTI가 extractUserContext에 반영됨", () => {
+  const ctx = extractUserContext(null, { mbti: "ENFP" });
+  expect(ctx.userMbti).toBe("ENFP");
+});
+
+test("MBTI가 buildCommonContextBlock에 포함됨", () => {
+  const ctx = extractUserContext(null, { mbti: "INTJ" });
+  const block = buildCommonContextBlock(ctx);
+  expect(block).toContain("INTJ");
+});
+
+test("빈 MBTI는 undefined 처리됨", () => {
+  const ctx = extractUserContext(null, { mbti: "" });
+  expect(ctx.userMbti).toBe(undefined);
+});
+
+test("gender male → 남성 표기", () => {
+  const ctx = extractUserContext(null, { gender: "male" });
+  const block = buildCommonContextBlock(ctx);
+  expect(block).toContain("남성");
+});
+
+test("gender female → 여성 표기", () => {
+  const ctx = extractUserContext(null, { gender: "female" });
+  const block = buildCommonContextBlock(ctx);
+  expect(block).toContain("여성");
+});
+
+test("gender가 없으면 성별 줄 없음", () => {
+  const ctx = extractUserContext(null, {});
+  const block = buildCommonContextBlock(ctx);
+  const hasGender = block.includes("성별");
+  if (hasGender) throw new Error("성별 줄이 없어야 함");
+});
+
+test("idealType이 extractUserContext에 반영됨", () => {
+  const ctx = extractUserContext(null, { idealType: "다정하고 따뜻한" });
+  expect(ctx.idealType).toBe("다정하고 따뜻한");
+});
+
+test("idealType이 buildCommonContextBlock에 포함됨", () => {
+  const ctx = extractUserContext(null, { idealType: "유머 있는" });
+  const block = buildCommonContextBlock(ctx);
+  expect(block).toContain("유머 있는");
+});
+
+test("빈 idealType은 undefined 처리됨", () => {
+  const ctx = extractUserContext(null, { idealType: "" });
+  expect(ctx.idealType).toBe(undefined);
+});
+
+test("MBTI·gender·idealType 동시 주입", () => {
+  const ctx = extractUserContext("- [work] 야근 힘들다", {
+    nickname: "재훈",
+    gender: "male",
+    mbti: "ISFJ",
+    idealType: "배려심 있는",
+  });
+  const block = buildCommonContextBlock(ctx);
+  expect(block).toContain("재훈");
+  expect(block).toContain("남성");
+  expect(block).toContain("ISFJ");
+  expect(block).toContain("배려심 있는");
+  expect(block).toContain("야근");
+});
+
 // ─── Summary ────────────────────────────────────────────────
 
 console.log(`\n${BOLD}Results: ${passed} passed, ${failed} failed${RESET}\n`);
