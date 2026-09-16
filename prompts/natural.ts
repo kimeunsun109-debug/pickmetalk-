@@ -1,6 +1,7 @@
 import { getCharacterById } from "@/lib/characters/full";
 import { getEmotionMeta } from "@/lib/emotions";
 import { getRelationshipStage } from "@/lib/relationship";
+import { buildMediaRecommendationRules } from "@/prompts/mediaGuard";
 import { buildSpeechStylePromptBlock } from "@/services/speechStyle";
 import type { UserSpeechProfile } from "@/services/speechStyle";
 import type { EmotionState, RelationshipLevel } from "@/types";
@@ -123,6 +124,7 @@ export function buildNaturalSystemPrompt(o: NaturalPromptOptions): string {
     buildIdentityBlock(o.characterId),
     buildBeingBlock(),
     buildMannersBlock(),
+    buildMediaRecommendationRules(o.characterId),
     situation,
     o.dynamicContextBlock?.trim() ?? "",
     buildMemoryBlock(o.memorySummary ?? null),

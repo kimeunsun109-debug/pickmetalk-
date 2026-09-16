@@ -5,7 +5,7 @@ type PortraitSize = "hero" | "meet";
 
 const SIZE_CLASS: Record<PortraitSize, string> = {
   hero: "aspect-[3/4] w-full max-w-[220px]",
-  meet: "aspect-[3/4] w-full max-w-[230px]",
+  meet: "aspect-[3/4] w-full max-w-[clamp(230px,32dvh,270px)]",
 };
 
 interface CharacterPortraitProps {
