@@ -38,7 +38,7 @@ npm run lint                              → No ESLint warnings or errors
 - 성별 정보로 캐릭터가 적절한 호칭·어조 선택 가능
 
 ### PR
-- (PR 번호 — 하단에 생성 예정)
+- https://github.com/kimeunsun109-debug/pickmetalk-/pull/47
 
 ### 남은 문제
 - MBTI 분석에 기반한 더 구체적인 프롬프트 힌트 확장 가능 (현재는 "참고용" 수준)
