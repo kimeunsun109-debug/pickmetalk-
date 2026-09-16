@@ -31,7 +31,7 @@ No Google secret belongs in `.env.local` for this flow.
 
 ## Kakao Developers
 
-1. Create an app → enable **Kakao Login**.
+1. Confirm the approved app is shown as a **Biz App**, then enable **Kakao Login**.
 2. REST API key = Supabase Kakao **Client ID**.
 3. Activate Kakao Login Client Secret = Supabase Kakao **Client Secret**.
 4. Kakao Login Redirect URI:
@@ -39,23 +39,58 @@ No Google secret belongs in `.env.local` for this flow.
    `https://<PROJECT_REF>.supabase.co/auth/v1/callback`
 
    Local Supabase (optional): `http://localhost:54321/auth/v1/callback`
-5. Consent items: enable **`profile_nickname`** and **`profile_image` only**.
-   - Leave **`account_email` disabled** unless the app is a Kakao **Biz App**.
+5. Kakao Login → Consent items: enable all three scopes requested by the app:
+   - Kakao account (email): **`account_email`**
+   - Profile nickname: **`profile_nickname`**
+   - Profile image: **`profile_image`**
+   - For production account creation, set `account_email` to **Required consent**
+     after Biz/additional-feature approval. If the console only offers Optional,
+     Optional is valid but a user may decline it.
 6. Supabase → Authentication → Providers → **Kakao** → Enable + paste credentials.
-7. Turn **Allow users without an email** **ON** (required when email consent is unavailable).
+7. Keep **Allow users without an email** **OFF** when email is Required. Turn it
+   ON only if email is Optional and PickMeTalk intentionally supports users who
+   decline email consent.
 
-### Kakao without email / KOE205
+### `KOE205` checklist
 
-Kakao **KOE205** means the authorize request asked for a consent item that is not enabled — almost always `account_email` on a non–Biz App.
+Kakao **KOE205 (`invalid_scope`)** means the authorization request contains a
+scope that is not enabled in the Kakao app. Biz approval makes email consent
+configurable; approval alone does not toggle the consent item.
 
-This app’s Kakao `signInWithOAuth` scopes are **profile only** (`profile_nickname,profile_image`) and **do not** request `account_email` / email (see `lib/auth/oauth.ts`). Google still uses `openid email profile`.
+This app requests `account_email,profile_nickname,profile_image` for Kakao (see
+`lib/auth/oauth.ts`). Google independently keeps `openid email profile`.
 
 Checklist when KOE205 appears:
 
-1. Kakao Developers → Consent: `account_email` off; nickname/image on.
-2. Supabase Kakao provider: **Allow users without an email** ON.
-3. Confirm the app is not passing `account_email` in `scopes` (this repo does not).
-4. If KOE205 persists after (1)–(3), hosted GoTrue may still inject `account_email` by default until Supabase Auth omits it when email is optional ([auth#2574](https://github.com/supabase/auth/issues/2574) / [auth#2579](https://github.com/supabase/auth/pull/2579)). Workarounds then: Kakao Biz App (or “Register as Individual”) to enable `account_email`, or wait for that Auth fix.
+1. In Kakao Developers, verify the production REST API key belongs to the
+   approved Biz App.
+2. Under Kakao Login → Consent items, verify the three scopes above are enabled
+   before testing. The consent-screen preview should show email.
+3. Do not add `openid` unless Kakao OpenID Connect is also enabled. This app
+   uses Kakao OAuth and does not request `openid`.
+4. In Supabase, verify Kakao is enabled and its Client ID is the same REST API
+   key whose consent items were configured.
+5. Verify Kakao's redirect URI exactly matches the **Callback URL displayed by
+   the Supabase Kakao provider**:
+   `https://<PROJECT_REF>.supabase.co/auth/v1/callback`.
+6. Retry in a private window or revoke the app connection before checking the
+   consent screen again.
+
+Do not remove `account_email` to mask KOE205 now that the production app relies
+on email identity. Fix the Kakao consent-item mismatch instead.
+
+## Production smoke checklist
+
+- [ ] `/login` shows enabled Google and Kakao buttons.
+- [ ] Google account selection returns to `/characters` as an authenticated user.
+- [ ] Kakao consent shows email, nickname, and profile image; accepting returns
+      to `/characters` as an authenticated user without KOE205.
+- [ ] Refreshing `/characters` preserves each provider session.
+- [ ] Cancelling either provider returns to `/login` with a readable error.
+- [ ] Supabase Authentication → Users shows the expected provider identity and
+      an email for the Kakao user.
+- [ ] No provider secret appears in Vercel client environment variables, source,
+      browser bundles, logs, or the PR.
 
 ## Env vars (app)
 

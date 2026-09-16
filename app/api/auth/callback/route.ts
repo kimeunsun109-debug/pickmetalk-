@@ -1,13 +1,6 @@
+import { safeAuthNextPath } from "@/lib/auth/redirect";
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
-
-/** Only allow relative in-app paths (blocks open redirects). */
-function safeNextPath(raw: string | null): string {
-  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) {
-    return "/characters";
-  }
-  return raw;
-}
 
 /**
  * Supabase email / OAuth callback: exchange PKCE code, set session cookies, redirect.
@@ -16,7 +9,7 @@ function safeNextPath(raw: string | null): string {
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = safeNextPath(searchParams.get("next"));
+  const next = safeAuthNextPath(searchParams.get("next"));
   const oauthError = searchParams.get("error_description") ?? searchParams.get("error");
 
   if (oauthError) {

@@ -9,15 +9,13 @@ export type OAuthProviderId = (typeof OAUTH_PROVIDERS)[number];
 /**
  * Provider scopes for signInWithOAuth.
  * - Google: keep openid + email + profile.
- * - Kakao: profile only — never request `account_email` / email.
- *   Kakao KOE205 happens when email consent is requested without a Biz App.
- *   Pair with Supabase Kakao “Allow users without an email”.
+ * - Kakao: request the Biz App's enabled email + profile consent items.
+ *   Kakao returns KOE205 if any requested item is not enabled in its console.
  */
-const OAUTH_SCOPES: Record<OAuthProviderId, string> = {
+export const OAUTH_SCOPES: Record<OAuthProviderId, string> = {
   google: "openid email profile",
   // Comma-separated: GoTrue Kakao provider splits scopes on ",".
-  // Do not include account_email — that consent needs Kakao Biz App.
-  kakao: "profile_nickname,profile_image",
+  kakao: "account_email,profile_nickname,profile_image",
 };
 
 /**

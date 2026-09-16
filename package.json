@@ -16,6 +16,7 @@
     "android:run": "npx cap run android",
     "cap:sync": "npx cap sync",
     "cap:init": "npx cap init",
+    "test:oauth": "npx tsx scripts/test_oauth.mts",
     "perf:benchmark": "npx tsx scripts/perf_benchmark.mts",
     "perf:chat-entry": "npx tsx scripts/chat_entry_benchmark.mts",
     "verify:sync": "npx tsx scripts/verify_cross_device_sync.mts"
