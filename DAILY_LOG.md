@@ -2,6 +2,68 @@
 
 ---
 
+## 2026-09-18
+
+### 선택한 작업
+성별·MBTI·이상형 시스템 프롬프트 반영 + 회상 힌트 chat route 연결 (limit 2→3)
+
+### 선택 이유
+- 프로필에 성별·MBTI·이상형이 저장되어 있었으나 AI 시스템 프롬프트에 전혀 반영되지 않아 캐릭터가 대화 상대를 이해하지 못하고 있었음
+- `getContextMemoryPrompt`(회상 힌트 생성)가 `services/memory.ts`에 완성되어 있었으나 chat route에 연결되지 않아 과거 대화 기억(직장 스트레스, 취미, 일정)이 프롬프트에 포함되지 않았음
+- 회상 힌트 상한 2개는 풍부한 기억 활용에 부족
+- 대화 품질·Memory·Adaptive Personality 동시 개선
+
+### 구현 내용
+
+#### `services/context.ts`
+- `UserContextData`에 `userGender`, `userMbti`, `userIdealType` 필드 추가
+- `extractUserContext`: `profileCtx.gender/mbti/idealType` 추출 및 전달
+- `buildCommonContextBlock`:
+  - 성별: `male→남성`, `female→여성` 레이블로 출력
+  - MBTI: 참고용 안내 포함 (분석·해석·직접 언급 금지)
+  - 이상형: 은근한 반영 지침 포함 (직접 인용·해석 금지)
+
+#### `services/memory.ts`
+- `getContextMemoryPrompt`: 회상 힌트 상한 `2 → 3`으로 상향
+
+#### `app/api/chat/route.ts`
+- `getContextMemoryPrompt` import 추가
+- `memoryRecallBlock` 생성 후 `dynamicContextBlock`에 포함
+
+#### `scripts/test_personal_memory.mts`
+- gender/mbti/idealType 추출·출력 테스트 +10 케이스
+- recall limit 3개 이하 검증 +1 케이스
+
+### 해결한 버그
+- 없음 (신규 기능 연결)
+
+### 실행 및 테스트
+```
+npx tsx scripts/test_personal_memory.mts → 33 passed / 0 failed
+npx tsc --noEmit → 0 errors
+npm run lint → No ESLint warnings or errors
+```
+
+### 사용자에게 달라지는 점
+- 프로필에 성별·MBTI·이상형을 입력한 경우 AI가 이를 대화 맥락에 자연스럽게 반영 (직접 언급 없이 말투·반응 조정)
+- 과거 대화에서 언급한 직장 스트레스, 취미, 예정 일정, 재무 관련 사항을 AI가 회상하여 자연스럽게 언급 (최대 3건)
+- 관계 연속성 강화: "저번에 야근 힘들다 했잖아" 같은 자연스러운 기억 활용 가능
+
+### PR
+- https://github.com/kimeunsun109-debug/pickmetalk-/pull/48
+
+### 남은 문제
+- 이상형 키워드 기반 실사용 QA 미완료
+- 회상 힌트 상한 추가 조정 검토 필요 (3→4)
+- daily pattern context 연결 미완료 (별도 PR)
+
+### 다음 추천 작업
+- P1: daily pattern context chat route 연결 (시간대별 루틴·대화 빈도 패턴 주입)
+- P1: 이상형 키워드 기반 실사용 QA (다양한 이상형 입력값으로 프롬프트 출력 검증)
+- P1: 회상 힌트에서 같은 카테고리 중복 방지 로직 강화
+
+---
+
 ## 2026-08-27
 
 ### 선택한 작업

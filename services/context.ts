@@ -16,6 +16,12 @@ export interface UserContextData {
   recentSchedule?: string;
   /** 반려동물 이름, 가족 이름 등 대화에서 언급한 개인 정보 */
   personalFacts?: string[];
+  /** 성별: "male" | "female" | 기타 원시값 */
+  userGender?: string;
+  /** MBTI 4자리 (e.g. "INFP") */
+  userMbti?: string;
+  /** 이상형 설명 문자열 */
+  userIdealType?: string;
 }
 
 export interface YoonseoStats {
@@ -104,6 +110,9 @@ export function extractUserContext(
     recentStressor,
     recentSchedule,
     personalFacts: personalFacts.length > 0 ? personalFacts : undefined,
+    userGender: profileCtx.gender || undefined,
+    userMbti: profileCtx.mbti || undefined,
+    userIdealType: profileCtx.idealType || undefined,
   };
 }
 
@@ -134,6 +143,23 @@ export function buildCommonContextBlock(ctx: UserContextData): string {
   }
   if (ctx.userAge) lines.push(`- 나이: ${ctx.userAge}세`);
   if (ctx.userJob) lines.push(`- 직업/직장: ${ctx.userJob}`);
+  if (ctx.userGender) {
+    const genderLabel =
+      ctx.userGender === "male"
+        ? "남성"
+        : ctx.userGender === "female"
+          ? "여성"
+          : ctx.userGender;
+    lines.push(`- 성별: ${genderLabel}`);
+  }
+  if (ctx.userMbti)
+    lines.push(
+      `- MBTI: ${ctx.userMbti} (참고용. 분석·해석·직접 언급 금지. 성격 이해에만 활용.)`
+    );
+  if (ctx.userIdealType)
+    lines.push(
+      `- 이상형: "${ctx.userIdealType}" (은근히 반영. 직접 인용·해석 금지.)`
+    );
   if (ctx.recentStressor)
     lines.push(`- 최근 스트레스 요인: ${ctx.recentStressor}`);
   if (ctx.recentSchedule)

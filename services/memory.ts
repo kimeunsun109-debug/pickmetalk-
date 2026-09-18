@@ -502,7 +502,7 @@ export function getContextMemoryPrompt(
   // personal은 buildCommonContextBlock에서 처리하므로 여기선 제외
   const nonPersonal = sortByPriority(
     entities.filter((e) => e.category !== "personal")
-  ).slice(0, 2);
+  ).slice(0, 3);
   if (nonPersonal.length === 0) return "";
 
   const lines = ["[기억 활용 지침 — 선택적 회상]"];

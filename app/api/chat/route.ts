@@ -17,6 +17,7 @@ import {
   pickMessagesForContext,
   updateMemorySummary,
   removeCompletedScheduleFromSummary,
+  getContextMemoryPrompt,
 } from "@/services/memory";
 import { isShortTermCompletionMessage } from "@/services/shortTermMemory";
 import {
@@ -415,6 +416,13 @@ export async function POST(request: Request) {
         const userCtx = extractUserContext(updatedMemory, profileCtx);
         const commonCtxBlock = buildCommonContextBlock(userCtx);
 
+        const memoryRecallBlock = getContextMemoryPrompt(updatedMemory, {
+          userMessageCount: userContents.length,
+          emotion: newEmotion,
+          emotionDurationTurns,
+          ongoingSession,
+        });
+
         const freshChatStart = Boolean(
           profile?.chatHistoryResetAt &&
             Date.now() - new Date(profile.chatHistoryResetAt).getTime() <
@@ -432,6 +440,7 @@ export async function POST(request: Request) {
           timeContextBlock,
           shortTermMemoryBlock,
           commonCtxBlock,
+          memoryRecallBlock,
           characterCtxBlock,
         ]
           .filter(Boolean)

@@ -7,6 +7,7 @@ import {
   extractKeyMemories,
   updateMemorySummary,
   parseStoredSummary,
+  getContextMemoryPrompt,
 } from "../services/memory.js";
 import { extractUserContext, buildCommonContextBlock } from "../services/context.js";
 
@@ -236,6 +237,91 @@ test("반려동물 이름이 personalFacts에 있고 userName에는 없음", () 
   const facts = ctx.personalFacts!;
   expect(facts.length).toBe(1);
   expect(facts[0]).toContain("망고");
+});
+
+// ─── Gender / MBTI / idealType context ─────────────────────────────
+
+test("extractUserContext: userGender 'male' 추출됨", () => {
+  const ctx = extractUserContext(null, { gender: "male" });
+  expect(ctx.userGender).toBe("male");
+});
+
+test("extractUserContext: userGender 'female' 추출됨", () => {
+  const ctx = extractUserContext(null, { gender: "female" });
+  expect(ctx.userGender).toBe("female");
+});
+
+test("extractUserContext: gender 미설정 시 undefined", () => {
+  const ctx = extractUserContext(null, {});
+  expect(ctx.userGender).toBe(undefined);
+});
+
+test("extractUserContext: userMbti 추출됨", () => {
+  const ctx = extractUserContext(null, { mbti: "INFP" });
+  expect(ctx.userMbti).toBe("INFP");
+});
+
+test("extractUserContext: userIdealType 추출됨", () => {
+  const ctx = extractUserContext(null, { idealType: "다정하고 유머 있는 사람" });
+  expect(ctx.userIdealType).toBe("다정하고 유머 있는 사람");
+});
+
+test("buildCommonContextBlock: 남성 성별 출력", () => {
+  const ctx = extractUserContext(null, { gender: "male", nickname: "준혁" });
+  const block = buildCommonContextBlock(ctx);
+  expect(block).toContain("남성");
+});
+
+test("buildCommonContextBlock: 여성 성별 출력", () => {
+  const ctx = extractUserContext(null, { gender: "female", nickname: "지은" });
+  const block = buildCommonContextBlock(ctx);
+  expect(block).toContain("여성");
+});
+
+test("buildCommonContextBlock: MBTI 출력 및 참고용 안내 포함", () => {
+  const ctx = extractUserContext(null, { mbti: "ENFJ", nickname: "민준" });
+  const block = buildCommonContextBlock(ctx);
+  expect(block).toContain("ENFJ");
+  expect(block).toContain("분석·해석·직접 언급 금지");
+});
+
+test("buildCommonContextBlock: 이상형 출력", () => {
+  const ctx = extractUserContext(null, { idealType: "따뜻하고 웃긴 사람", nickname: "태호" });
+  const block = buildCommonContextBlock(ctx);
+  expect(block).toContain("따뜻하고 웃긴 사람");
+  expect(block).toContain("직접 인용·해석 금지");
+});
+
+test("buildCommonContextBlock: gender/mbti/idealType 없으면 관련 줄 미출력", () => {
+  const ctx = extractUserContext(null, { nickname: "도윤" });
+  const block = buildCommonContextBlock(ctx);
+  if (block.includes("성별:")) throw new Error("성별 줄 출력되면 안 됨");
+  if (block.includes("MBTI:")) throw new Error("MBTI 줄 출력되면 안 됨");
+  if (block.includes("이상형:")) throw new Error("이상형 줄 출력되면 안 됨");
+});
+
+// ─── Memory recall limit ─────────────────────────────────────
+
+test("getContextMemoryPrompt: 안정 단계에서 최대 3개 힌트 반환", () => {
+  const summary = [
+    "- [work] 야근 힘들다",
+    "- [hobby] 야구 좋아함",
+    "- [schedule] 다음 주 제주도 여행",
+    "- [finance] 코인 투자 중",
+  ].join("\n");
+  const block = getContextMemoryPrompt(summary, {
+    userMessageCount: 10,
+    emotion: "happy",
+    emotionDurationTurns: 1,
+    ongoingSession: false,
+  });
+  const hintLines = block.split("\n").filter((l) => l.startsWith("- "));
+  if (hintLines.length > 3) {
+    throw new Error(`힌트 줄 수 ${hintLines.length}개 (3개 초과)`);
+  }
+  if (hintLines.length === 0) {
+    throw new Error("힌트가 하나도 없음");
+  }
 });
 
 // ─── Summary ────────────────────────────────────────────────
