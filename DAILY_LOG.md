@@ -277,3 +277,46 @@ AbsenceWelcome 오버레이 UI 연동 + returnVisit 메시지 닉네임 개인�
 - AbsenceWelcome 오버레이 Vercel preview QA 및 스크린샷 확인
 - excited 확률 캐릭터별 config 분리 (지유 높음, 은하 낮음)
 - returnVisit 오버레이에 캐릭터 이미지(hero) 삽입으로 몰입감 강화
+
+## 2026-09-19
+
+### 선택한 작업
+- 감정 공명 패턴 시스템 — 유저 감정 트리거 장기 학습 + 캐릭터 선제 공감
+
+### 선택 이유
+- 야근/게임 등 주제별 감정 패턴을 캐릭터가 인식하면 "이 캐릭터가 나를 진짜 이해한다"는 느낌이 강화됨
+- 기존 말투 학습(speechProfile)의 감정 축 보완 — 어떤 말을 할 때 어떤 감정을 보이는지 장기 기억
+- 기존 DRAFT PR들이 다루지 않는 새 영역
+
+### 구현 내용
+- `services/emotionPattern.ts` 신규: 6개 주제 × 2개 감정(stress/positive) 상관 추출 및 병합
+- `supabase/migrations/013_emotion_pattern.sql`: profiles.emotion_pattern JSONB 컬럼 추가
+- `services/chatSideEffects.ts`: 세션마다 백그라운드 분석 → DB 누적 병합 저장
+- `app/api/chat/route.ts`: emotion_pattern 로드 → dynamicContextBlock 주입
+- `lib/db/mappers.ts`, `types/index.ts`: UserProfile.emotionPattern 타입 추가
+
+### 해결한 버그
+- 없음 (신규 기능)
+
+### 실행 및 테스트
+- `npx tsx scripts/test_emotion_pattern.mts`: 13 통과 / 0 실패
+- `npx tsc --noEmit`: 통과
+- `npm run lint`: 경고 없음
+
+### 사용자에게 달라지는 점
+- 야근 이야기를 반복하는 유저에게 캐릭터가 더 빠르게 공감·위로 준비
+- 게임/야구 등 긍정 주제 언급 시 캐릭터가 함께 신나는 반응 강화
+- 유저가 의식하지 못해도 "이 캐릭터가 나를 진짜 이해하는구나" 느낌 증가
+
+### PR
+- #49: https://github.com/kimeunsun109-debug/pickmetalk-/pull/49
+
+### 남은 문제
+- 프로덕션 반영을 위해 `npx supabase db push`로 migration 013 적용 필요
+- emotion_pattern 컬럼이 없는 환경에서는 try/catch로 조용히 스킵 (기능 영향 없음)
+- 충분한 대화 이력(8+ 메시지)이 쌓이기 전까지 블록 미노출 (의도된 동작)
+
+### 다음 추천 작업
+- P1: 레벨업 토스트에 캐릭터 미니 아이콘 추가 (독립 구현 가능)
+- P0: getContextMemoryPrompt 채팅 라우트 연결 (PR #35 DRAFT 병합 또는 재구현)
+- P0: gender/MBTI/idealType 컨텍스트 블록 연결 (PR #48 DRAFT 병합)
