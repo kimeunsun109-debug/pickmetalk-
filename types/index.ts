@@ -117,6 +117,8 @@ export interface UserProfile {
   userContext: Record<string, string>;
   /** profiles.speech_profile JSONB — 사용자 말투 학습 */
   speechProfile: Record<string, unknown> | null;
+  /** profiles.emotion_pattern JSONB — 감정 공명 패턴 */
+  emotionPattern: Record<string, unknown> | null;
   gender?: string | null;
   birthDate?: string | null;
   mbti?: string | null;

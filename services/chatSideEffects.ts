@@ -18,6 +18,11 @@ import {
   mergeSpeechProfile,
   parseSpeechProfile,
 } from "@/services/speechStyle";
+import {
+  analyzeEmotionPattern,
+  mergeEmotionPattern,
+  parseSavedEmotionPattern,
+} from "@/services/emotionPattern";
 import type { UserProfile } from "@/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -85,6 +90,27 @@ export async function runDeferredChatSideEffects(options: {
       })()
     );
   }
+
+  tasks.push(
+    (async () => {
+      try {
+        // 대화 히스토리(userContents)로 감정 패턴 분석 후 DB 저장
+        if (userContents.length >= 4 && profile) {
+          const sessionPattern = analyzeEmotionPattern(userContents);
+          const storedPattern = parseSavedEmotionPattern(
+            profile.emotionPattern ?? null
+          );
+          const mergedPattern = mergeEmotionPattern(storedPattern, sessionPattern);
+          await supabase
+            .from("profiles")
+            .update({ emotion_pattern: mergedPattern })
+            .eq("id", userId);
+        }
+      } catch {
+        /* emotion_pattern 컬럼 미마이그레이션 시 무시 */
+      }
+    })()
+  );
 
   tasks.push(
     (async () => {

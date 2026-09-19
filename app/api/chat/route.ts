@@ -38,6 +38,10 @@ import {
   buildYoonseoStatsBlock,
 } from "@/services/context";
 import {
+  parseSavedEmotionPattern,
+  buildEmotionPatternPromptBlock,
+} from "@/services/emotionPattern";
+import {
   buildTimeAwareContext,
   buildTimeContextPromptBlock,
 } from "@/services/timeContext";
@@ -428,11 +432,17 @@ export async function POST(request: Request) {
           characterCtxBlock = buildYoonseoStatsBlock(yoonseoStats);
         }
 
+        const emotionPattern = parseSavedEmotionPattern(
+          profile?.emotionPattern ?? null
+        );
+        const emotionPatternBlock = buildEmotionPatternPromptBlock(emotionPattern);
+
         const dynamicContextBlock = [
           timeContextBlock,
           shortTermMemoryBlock,
           commonCtxBlock,
           characterCtxBlock,
+          emotionPatternBlock,
         ]
           .filter(Boolean)
           .join("\n\n");

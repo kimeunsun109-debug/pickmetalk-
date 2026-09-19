@@ -76,6 +76,7 @@ export function mapUserProfile(row: Record<string, unknown>): UserProfile {
     dailyMessageResetAt: row.daily_message_reset_at as string,
     userContext: (row.user_context as Record<string, string>) ?? {},
     speechProfile: (row.speech_profile as Record<string, unknown> | null) ?? null,
+    emotionPattern: (row.emotion_pattern as Record<string, unknown> | null) ?? null,
     gender: (row.gender as string | null) ?? null,
     birthDate: (row.birth_date as string | null) ?? null,
     mbti: (row.mbti as string | null) ?? null,
