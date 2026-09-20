@@ -324,7 +324,7 @@ npm run lint                          → No ESLint warnings or errors
 - 추론된 생활 패턴(기상·출근·퇴근·점심 등)을 시스템 프롬프트에 주입 → 맥락 맞는 시간대별 챙김 반응 강화
 
 ### PR
-- (아래에서 생성 예정)
+- https://github.com/kimeunsun109-debug/pickmetalk-/pull/50
 
 ### 남은 문제
 - 생활 패턴 DB 테이블(`user_daily_patterns`)이 migration 006으로 생성되어야 함 — 프로덕션에서는 이미 적용됨
