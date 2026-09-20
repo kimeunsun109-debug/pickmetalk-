@@ -17,6 +17,7 @@ import {
   pickMessagesForContext,
   updateMemorySummary,
   removeCompletedScheduleFromSummary,
+  getContextMemoryPrompt,
 } from "@/services/memory";
 import { isShortTermCompletionMessage } from "@/services/shortTermMemory";
 import {
@@ -50,9 +51,11 @@ import {
 } from "@/services/dailyMessageLimit";
 import { NextResponse } from "next/server";
 import type { ChatRequestBody } from "@/types/api";
-import type { Message, UserCharacterState } from "@/types";
+import type { Message, UserCharacterState, UserDailyPattern } from "@/types";
 import { ageFromBirthDate } from "@/lib/userAge";
 import { markPhotoDeliveryReplied } from "@/services/photoPush/followup";
+import { getDailyPatternsForUser } from "@/lib/db/dailyPatterns";
+import { buildDailyPatternPromptBlock } from "@/prompts/patternNudges";
 import type {
   PostgrestResponse,
   PostgrestSingleResponse,
@@ -226,12 +229,14 @@ export async function POST(request: Request) {
           historyResult,
           ucsResult,
           shortTermMemoryBlock,
+          dailyPatterns,
         ] = await trace.span<
           [
             PostgrestSingleResponse<Record<string, unknown>>,
             PostgrestResponse<Record<string, unknown>>,
             PostgrestSingleResponse<Record<string, unknown>>,
             string,
+            UserDailyPattern[],
           ]
         >("Parallel DB — context load", async () => {
           const shortTermPromise = (async (): Promise<string> => {
@@ -272,6 +277,7 @@ export async function POST(request: Request) {
               .eq("character_id", characterId)
               .maybeSingle(),
             shortTermPromise,
+            getDailyPatternsForUser(supabase, userId, 40).catch(() => [] as UserDailyPattern[]),
           ]);
         });
 
@@ -428,11 +434,22 @@ export async function POST(request: Request) {
           characterCtxBlock = buildYoonseoStatsBlock(yoonseoStats);
         }
 
+        const memoryRecallBlock = getContextMemoryPrompt(updatedMemory, {
+          userMessageCount: userContents.length,
+          emotion: newEmotion,
+          emotionDurationTurns,
+          ongoingSession,
+        });
+
+        const dailyPatternBlock = buildDailyPatternPromptBlock(dailyPatterns);
+
         const dynamicContextBlock = [
           timeContextBlock,
           shortTermMemoryBlock,
           commonCtxBlock,
           characterCtxBlock,
+          memoryRecallBlock,
+          dailyPatternBlock,
         ]
           .filter(Boolean)
           .join("\n\n");
