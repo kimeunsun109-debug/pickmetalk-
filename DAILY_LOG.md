@@ -277,3 +277,60 @@ AbsenceWelcome 오버레이 UI 연동 + returnVisit 메시지 닉네임 개인�
 - AbsenceWelcome 오버레이 Vercel preview QA 및 스크린샷 확인
 - excited 확률 캐릭터별 config 분리 (지유 높음, 은하 낮음)
 - returnVisit 오버레이에 캐릭터 이미지(hero) 삽입으로 몰입감 강화
+
+---
+
+## 2026-09-20
+
+### 선택한 작업
+채팅 컨텍스트 3종 개선 — 성별·MBTI·이상형 프롬프트 반영 + 메모리 회상 힌트 연결 + 생활 패턴 블록 주입
+
+### 선택 이유
+- main 브랜치에는 메모리 회상 힌트(`getContextMemoryPrompt`), 생활 패턴 블록(`buildDailyPatternPromptBlock`), 성별·MBTI·이상형 컨텍스트가 모두 미연결 상태
+- 이 세 가지를 동시에 연결하면 대화마다 AI가 유저를 더 잘 알고 있다는 느낌이 즉각 강화됨
+- "사용자가 실제 사람과 관계를 맺는 느낌" 우선순위 2번(대화 품질), 3번(Memory) 해당
+
+### 구현 내용
+1. **`services/context.ts`**
+   - `UserContextData` 인터페이스에 `userGender?`, `userMbti?`, `userIdealType?` 추가
+   - `extractUserContext()`: profileCtx.gender/.mbti/.idealType 추출 포함
+   - `buildCommonContextBlock()`: 성별(male→남성/female→여성), MBTI(참고용·분석 금지), 이상형(직접 언급 금지·은근 반영) 라인 추가
+
+2. **`app/api/chat/route.ts`**
+   - `getContextMemoryPrompt` import 추가
+   - `getDailyPatternsForUser` + `buildDailyPatternPromptBlock` import 추가
+   - `UserDailyPattern` 타입 import 추가
+   - 기존 `Promise.all` 병렬 DB 로드에 `dailyPatterns` 5번째 항목 추가 (zero latency 추가)
+   - `memoryRecallBlock` 생성: `getContextMemoryPrompt(updatedMemory, {emotion, emotionDurationTurns, ongoingSession})`
+   - `dailyPatternBlock` 생성: `buildDailyPatternPromptBlock(dailyPatterns)`
+   - `dynamicContextBlock`에 두 블록 추가
+
+3. **`scripts/test_chat_context.mts`** (신규)
+   - 총 30개 케이스 전체 통과
+
+### 해결한 버그
+- 없음 (신규 기능 연결)
+
+### 실행 및 테스트
+```
+npx tsx scripts/test_chat_context.mts → 30 passed / 0 failed
+npx tsc --noEmit                      → 0 errors
+npm run lint                          → No ESLint warnings or errors
+```
+
+### 사용자에게 달라지는 점
+- AI가 유저의 성별·MBTI·이상형을 시스템 프롬프트에서 인지하여 말투·챙김 방식에 자연스럽게 반영
+- 기존에 기억된 직장·취미·일정 팩트를 새 대화 시작 시 회상 힌트로 주입 → AI가 이전 대화 내용을 더 자연스럽게 언급
+- 추론된 생활 패턴(기상·출근·퇴근·점심 등)을 시스템 프롬프트에 주입 → 맥락 맞는 시간대별 챙김 반응 강화
+
+### PR
+- (아래에서 생성 예정)
+
+### 남은 문제
+- 생활 패턴 DB 테이블(`user_daily_patterns`)이 migration 006으로 생성되어야 함 — 프로덕션에서는 이미 적용됨
+- 감정 패턴 시스템(PR #49) migration 013은 아직 미적용 — 별도 PR
+
+### 다음 추천 작업
+- P1: 레벨업 토스트에 캐릭터 미니 아이콘 추가 (components/chat/ChatScreen.tsx 관련)
+- P1: 관계 레벨업 SSE 이벤트 → 프론트 연동 QA
+- P0: DRAFT PR들(#31~#49) 중 가장 안전한 것부터 main 머지 검토
