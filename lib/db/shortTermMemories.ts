@@ -182,6 +182,53 @@ function formatDue(memory: ShortTermMemory): string {
   });
 }
 
+/**
+ * 새 대화 인사에서 사용할 "최근 기한 만료 단기기억" 조회.
+ * due_date가 windowHours 이내에 지난 고우선순위(priority >= 3) 기억을 반환한다.
+ * status = 'active' | 'expired' 모두 포함 (expireShortTermMemories 실행 여부 무관).
+ */
+export async function getDueFollowUpMemories(
+  supabase: SupabaseClient,
+  userId: string,
+  characterId: string,
+  nowIso = new Date().toISOString(),
+  windowHours = 48
+): Promise<ShortTermMemory[]> {
+  const windowStart = new Date(
+    Date.now() - windowHours * 60 * 60 * 1000
+  ).toISOString();
+
+  const { data, error } = await supabase
+    .from("short_term_memories")
+    .select("*")
+    .eq("user_id", userId)
+    .in("status", ["active", "expired"])
+    .lt("due_date", nowIso)
+    .gt("due_date", windowStart)
+    .gte("priority", 3)
+    .or(`character_id.is.null,character_id.eq.${characterId}`)
+    .order("priority", { ascending: false })
+    .order("due_date", { ascending: false })
+    .limit(3);
+
+  if (error || !data) return [];
+  return (data as ShortTermMemoryRow[]).map(mapShortTermMemory);
+}
+
+/** 인사에 활용한 follow-up 기억을 dismissed 처리해 중복 질문을 방지한다. */
+export async function dismissShortTermMemories(
+  supabase: SupabaseClient,
+  ids: string[],
+  userId: string
+): Promise<void> {
+  if (ids.length === 0) return;
+  await supabase
+    .from("short_term_memories")
+    .update({ status: "dismissed", updated_at: new Date().toISOString() })
+    .in("id", ids)
+    .eq("user_id", userId);
+}
+
 export function buildShortTermMemoryContextBlock(
   memories: ShortTermMemory[]
 ): string {
