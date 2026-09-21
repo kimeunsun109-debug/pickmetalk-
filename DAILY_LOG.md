@@ -2,6 +2,64 @@
 
 ---
 
+## 2026-09-21
+
+### 선택한 작업
+기한 만료 단기기억 follow-up 질문 — 새 대화 인사에 자동 포함
+
+### 선택 이유
+단기기억 시스템이 면접·병원·과제 등 중요한 일을 저장하지만, `due_date`가 지나면
+`expired`로 사라져 캐릭터가 결과를 전혀 물어보지 않는 문제가 있었다.
+"캐릭터가 진짜 사람처럼 기억하고 챙겨주는 느낌"을 만드는 데 가장 직접적으로
+기여하는 Proactive Behavior + Memory 개선이라 선택했다.
+
+### 구현 내용
+1. **`lib/db/shortTermMemories.ts`**
+   - `getDueFollowUpMemories()` 추가
+     - `due_date`가 최근 48시간 이내에 지난 `priority >= 3` 기억
+     - `status = 'active' | 'expired'` 모두 포함 (expireShortTermMemories 실행 여부 무관)
+   - `dismissShortTermMemories()` 추가 — 중복 질문 방지용 dismissed 처리
+
+2. **`services/newConversationGreeting.ts`**
+   - 기존 이전 대화 조회와 **병렬로** `getDueFollowUpMemories` 호출
+   - follow-up 항목이 있으면 `[꼭 안부를 물어볼 것]` 블록을 LLM 프롬프트에 주입
+   - LLM 성공 시에만 dismissed 처리 (timeout/fallback 시 재시도 가능)
+   - 이전 대화 요약 없이 follow-up만 있어도 LLM 호출하도록 수정
+
+3. **`scripts/test_due_followup_greeting.mts`** (신규)
+   - 10케이스 단위 테스트 — 시간 창 경계값, 상태 필터, priority 필터 등
+
+### 해결한 버그
+- `due_date` 이후 새 대화 시 캐릭터가 결과를 물어보지 않는 문제
+  (단기기억이 `expired` 상태로 전환되어 프롬프트에서 사라지는 구조적 문제)
+
+### 실행 및 테스트
+- `npx tsx scripts/test_due_followup_greeting.mts` → 10/10 통과
+- `npx tsc --noEmit` → 에러 0
+- `npm run lint` → 경고·에러 0
+
+### 사용자에게 달라지는 점
+> 유저: "내일 회사 발표야 긴장돼"
+> (하루 뒤 새 대화방 오픈)
+> 캐릭터: "발표 어떻게 됐어? 어제부터 계속 신경 쓰였는데~"
+
+면접, 병원, 과제, 약속 등 중요한 일의 결과를 캐릭터가 자연스럽게 챙겨 물어봄
+→ 캐릭터가 진짜 사람처럼 기억하고 관심 갖는 느낌 제공
+
+### PR
+- https://github.com/kimeunsun109-debug/pickmetalk-/pull/51
+
+### 남은 문제
+- 단기기억 `expires_at`을 `due_date + 24h`로 연장하면 채팅 컨텍스트에도 더 오래 노출 가능 (후속 검토)
+- 진행 중 대화(새 대화방 아님)에서의 follow-up 기회 확보 방안 검토 필요
+
+### 다음 추천 작업
+- `expires_at` 연장 로직 (`due_date + 24h`) 적용 시 chat 컨텍스트 블록에도 결과 추적 가능
+- 단기기억 타입별 follow-up 문구 특화 (면접 → "어떻게 됐어?", 병원 → "괜찮아?")
+- 감정 공명 패턴 (PR #49) 또는 관계 레벨업 모멘트 (PR #41) main 반영 검토
+
+---
+
 ## 2026-08-27
 
 ### 선택한 작업
