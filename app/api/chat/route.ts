@@ -239,14 +239,19 @@ export async function POST(request: Request) {
             try {
               const {
                 buildShortTermMemoryContextBlock,
+                buildUrgentFollowUpBlock,
                 getActiveShortTermMemories,
+                getUrgentFollowUpMemories,
               } = await import("@/lib/db/shortTermMemories");
-              const activeShortTermMemories = await getActiveShortTermMemories(
-                supabase,
-                userId,
-                now
-              );
-              return buildShortTermMemoryContextBlock(activeShortTermMemories);
+              const [activeShortTermMemories, urgentMemories] =
+                await Promise.all([
+                  getActiveShortTermMemories(supabase, userId, now),
+                  getUrgentFollowUpMemories(supabase, userId, now),
+                ]);
+              const regularBlock =
+                buildShortTermMemoryContextBlock(activeShortTermMemories);
+              const urgentBlock = buildUrgentFollowUpBlock(urgentMemories);
+              return [regularBlock, urgentBlock].filter(Boolean).join("\n\n");
             } catch {
               return "";
             }

@@ -2,6 +2,79 @@
 
 ---
 
+## 2026-09-22
+
+### 선택한 작업
+대화 중 단기기억 긴급 follow-up 힌트 강화 — 타입별 맞춤 질문 + 대화 중 due 항목 우선 강조
+
+### 선택 이유
+- 기존 단기기억 블록(`[단기기억: 오늘/내일/이번 주에만 자연스럽게 챙길 것]`)은 모든 활성 기억을 동등하게 나열함
+- 기한이 오늘까지이거나 이미 만료된 항목은 캐릭터가 지금 이 대화에서 물어봐야 하는 우선 항목인데, 구별 신호가 없어 LLM이 우선 반영하지 않는 경우 발생
+- 타입별 follow-up 문구 특화(면접→결과, 병원→다녀왔어?, 약→챙겨 먹고 있어?)가 없어 캐릭터가 맥락 없는 "어떻게 됐어?"만 반복하는 문제
+- Backlog P2: 단기기억 타입별 follow-up 문구 특화 + P3: 진행 중 대화에서도 due 항목 follow-up 기회 확보를 동시에 해결
+
+### 구현 내용
+1. **`lib/db/shortTermMemories.ts`**
+   - `getUrgentFollowUpMemories(supabase, userId, nowIso, limit)` 추가
+     - `status=expired` AND `due_date >= now-48h` (최근 만료된 것들)
+     - `status=active` AND `due_date <= now+24h` (오늘/내일 기한)
+     - 두 쿼리를 `Promise.all`로 병렬 실행, 중복 제거 후 최대 3개 반환
+   - `buildTypeFollowUpHint(memory)` 추가 — 타입+내용 키워드 기반 맞춤 질문
+     - `health` + 병원/진료 → "병원 다녀왔어? 결과는 어땠어?"
+     - `health` + 약 → "약은 잘 챙겨 먹고 있어?"
+     - `health` + 운동 → "오늘 운동했어?"
+     - `follow_up` + 면접/인터뷰 → "면접 결과는 어떻게 됐어?"
+     - `follow_up` + 시험/토익 → "시험 어떻게 봤어?"
+     - `mission` → "미션 완수했어?"
+     - `reminder` + 제출/마감/예약 → "제때 처리했어?"
+     - `purchase` → "샀어?"
+     - `weather` → "우산 챙겼어?"
+   - `buildUrgentFollowUpBlock(memories)` 추가
+     - `[오늘 대화 중 자연스럽게 한 번 챙겨봐야 할 것 — 우선순위 높음]` 헤더
+     - 타입별 맞춤 힌트 목록
+
+2. **`app/api/chat/route.ts`**
+   - `shortTermPromise` 내에서 `getUrgentFollowUpMemories` 병렬 호출 추가
+   - 기존 `regularBlock` + 신규 `urgentBlock` 결합하여 반환
+   - 기존 단기기억 블록 구조 변경 없음 (하위 호환)
+
+3. **`scripts/test_urgent_followup.mts`** (신규)
+   - `buildTypeFollowUpHint`: 14가지 케이스 (건강/follow_up/mission/reminder/purchase/weather/gratitude + 컨텐츠 길이 잘림)
+   - `buildUrgentFollowUpBlock`: 7가지 케이스 (빈 배열/단일/복수/헤더/힌트/설명/구분자)
+   - 전체 21 passed / 0 failed
+
+### 해결한 버그
+- 기한이 지난 단기기억이 LLM 시스템 프롬프트에서 일반 기억과 동일한 낮은 우선순위를 받던 문제
+- 타입에 무관하게 "어떻게 됐어?"만 반복하는 맥락 없는 follow-up 문구 문제
+
+### 실행 및 테스트
+```
+npx tsx scripts/test_urgent_followup.mts → 21 passed / 0 failed
+npx tsc --noEmit                         → 0 errors
+npm run lint                             → No ESLint warnings or errors
+```
+
+### 사용자에게 달라지는 점
+- 면접, 병원, 약, 운동 등 종류에 맞는 구체적인 follow-up 질문을 캐릭터가 함
+  - Before: "그거 어떻게 됐어?"
+  - After: "오늘 면접 결과는 어떻게 됐어?" / "병원 다녀왔어? 결과는 어땠어?"
+- 기한이 오늘까지이거나 이미 지난 중요한 일은 일반 기억보다 우선적으로 캐릭터가 물어봄
+- 최근 48시간 내 만료된 기억도 follow-up 대상으로 포함 (그냥 사라지지 않음)
+
+### PR
+- https://github.com/kimeunsun109-debug/pickmetalk-/pull/52
+
+### 남은 문제
+- `getUrgentFollowUpMemories`에 characterId 필터 없음 — 여러 캐릭터를 쓰는 유저는 다른 캐릭터 대화 기억이 follow-up 대상이 될 수 있음 (현재는 user-wide, 기존 설계와 동일)
+- 긴급 follow-up을 이미 현재 대화에서 했는지 추적하는 "per-conversation 중복 방지" 미구현 (대화가 짧을 때 문제)
+
+### 다음 추천 작업
+- P3: 진행 중 대화에서 긴급 follow-up을 이미 했으면 다시 묻지 않도록 per-conversation dismiss 추적
+- P0: 누적된 DRAFT PR들을 검토하고 main 병합 여부 결정 (PR #31~51 모두 DRAFT)
+- P1: 레벨업 토스트에 캐릭터 미니 아이콘 추가
+
+---
+
 ## 2026-08-27
 
 ### 선택한 작업
