@@ -198,3 +198,117 @@ export function buildShortTermMemoryContextBlock(
     ...lines,
   ].join("\n");
 }
+
+/**
+ * 기한이 지나거나(status=expired) 오늘/내일이 기한인(status=active) 단기기억을 반환한다.
+ * 대화 중 캐릭터가 자연스럽게 follow-up 할 수 있도록 강화 힌트에 사용된다.
+ *
+ * - active AND due_date <= now+24h: 오늘 안에 처리돼야 할 것
+ * - expired AND due_date >= now-48h: 최근 기한이 지난 것 (follow-up 아직 적절)
+ */
+export async function getUrgentFollowUpMemories(
+  supabase: SupabaseClient,
+  userId: string,
+  nowIso = new Date().toISOString(),
+  limit = 3
+): Promise<ShortTermMemory[]> {
+  const now = new Date(nowIso);
+  const within24h = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
+  const ago48h = new Date(now.getTime() - 48 * 60 * 60 * 1000).toISOString();
+
+  const [{ data: expiredData }, { data: dueData }] = await Promise.all([
+    supabase
+      .from("short_term_memories")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("status", "expired")
+      .not("due_date", "is", null)
+      .gte("due_date", ago48h)
+      .order("priority", { ascending: false })
+      .order("due_date", { ascending: false })
+      .limit(limit),
+
+    supabase
+      .from("short_term_memories")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("status", "active")
+      .not("due_date", "is", null)
+      .lte("due_date", within24h)
+      .order("priority", { ascending: false })
+      .order("due_date", { ascending: true })
+      .limit(limit),
+  ]);
+
+  const combined = [
+    ...((expiredData ?? []) as ShortTermMemoryRow[]).map(mapShortTermMemory),
+    ...((dueData ?? []) as ShortTermMemoryRow[]).map(mapShortTermMemory),
+  ];
+
+  const seen = new Set<string>();
+  return combined
+    .filter((m) => {
+      if (seen.has(m.id)) return false;
+      seen.add(m.id);
+      return true;
+    })
+    .slice(0, limit);
+}
+
+/**
+ * 단기기억 타입과 내용에 맞는 follow-up 질문 힌트를 생성한다.
+ * 감시하듯 지시하지 않고 캐릭터가 자연스럽게 물어볼 수 있도록 가이드한다.
+ */
+export function buildTypeFollowUpHint(memory: ShortTermMemory): string {
+  const c = memory.content;
+  const type = memory.memoryType;
+
+  if (type === "health") {
+    if (/병원|진료|검사|치과/.test(c)) return `"${c.slice(0, 40)}" — 병원 다녀왔어? 결과는 어땠어?`;
+    if (/약|복약|처방/.test(c)) return `"${c.slice(0, 40)}" — 약은 잘 챙겨 먹고 있어?`;
+    if (/운동|헬스|조깅/.test(c)) return `"${c.slice(0, 40)}" — 오늘 운동했어?`;
+    return `"${c.slice(0, 40)}" — 몸 상태는 좀 어때?`;
+  }
+
+  if (type === "follow_up") {
+    if (/면접|인터뷰/.test(c)) return `"${c.slice(0, 40)}" — 면접 결과는 어떻게 됐어?`;
+    if (/시험|토익|토플|수능|자격증/.test(c)) return `"${c.slice(0, 40)}" — 시험 어떻게 봤어?`;
+    if (/병원|진료/.test(c)) return `"${c.slice(0, 40)}" — 병원 다녀왔어? 괜찮아?`;
+    if (/약속|만남|미팅/.test(c)) return `"${c.slice(0, 40)}" — 약속은 잘 됐어?`;
+    return `"${c.slice(0, 40)}" — 어떻게 됐어?`;
+  }
+
+  if (type === "mission") {
+    return `"${c.slice(0, 40)}" — 미션 완수했어?`;
+  }
+
+  if (type === "reminder") {
+    if (/예약|신청|제출|마감/.test(c)) return `"${c.slice(0, 40)}" — 제때 처리했어?`;
+    return `"${c.slice(0, 40)}" — 잊지 않고 했어?`;
+  }
+
+  if (type === "purchase") {
+    return `"${c.slice(0, 40)}" — 샀어?`;
+  }
+
+  if (type === "weather") {
+    return `"${c.slice(0, 40)}" — 우산 챙겼어?`;
+  }
+
+  return `"${c.slice(0, 40)}" — 어떻게 됐어?`;
+}
+
+/**
+ * 기한이 임박하거나 만료된 단기기억에 대한 강화 follow-up 힌트 블록.
+ * 일반 단기기억 블록보다 우선순위가 높고, 타입별 구체적인 질문을 제안한다.
+ */
+export function buildUrgentFollowUpBlock(memories: ShortTermMemory[]): string {
+  if (memories.length === 0) return "";
+
+  const hints = memories.map((m) => `- ${buildTypeFollowUpHint(m)}`);
+  return [
+    "[오늘 대화 중 자연스럽게 한 번 챙겨봐야 할 것 — 우선순위 높음]",
+    "아래 항목들은 기한이 오늘까지이거나 이미 지난 것들이야. 감시하듯 다그치지 말고, 대화 흐름에서 적절한 타이밍에 다정하게 한 번만 물어봐.",
+    ...hints,
+  ].join("\n");
+}
