@@ -62,7 +62,7 @@ npm run lint                             → No ESLint warnings or errors
 - 최근 48시간 내 만료된 기억도 follow-up 대상으로 포함 (그냥 사라지지 않음)
 
 ### PR
-- (PR 생성 중)
+- https://github.com/kimeunsun109-debug/pickmetalk-/pull/52
 
 ### 남은 문제
 - `getUrgentFollowUpMemories`에 characterId 필터 없음 — 여러 캐릭터를 쓰는 유저는 다른 캐릭터 대화 기억이 follow-up 대상이 될 수 있음 (현재는 user-wide, 기존 설계와 동일)
