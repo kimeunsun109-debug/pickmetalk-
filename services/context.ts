@@ -16,6 +16,12 @@ export interface UserContextData {
   recentSchedule?: string;
   /** 반려동물 이름, 가족 이름 등 대화에서 언급한 개인 정보 */
   personalFacts?: string[];
+  /** 사용자 성별 — 한국어 공감·호칭 조정에 활용 */
+  gender?: string;
+  /** 사용자 MBTI — 성격 유형별 대화 스타일 조정 */
+  mbti?: string;
+  /** 사용자 이상형/선호 관계 스타일 */
+  idealType?: string;
 }
 
 export interface YoonseoStats {
@@ -104,6 +110,9 @@ export function extractUserContext(
     recentStressor,
     recentSchedule,
     personalFacts: personalFacts.length > 0 ? personalFacts : undefined,
+    gender: profileCtx.gender || undefined,
+    mbti: profileCtx.mbti || undefined,
+    idealType: profileCtx.idealType || undefined,
   };
 }
 
@@ -134,6 +143,19 @@ export function buildCommonContextBlock(ctx: UserContextData): string {
   }
   if (ctx.userAge) lines.push(`- 나이: ${ctx.userAge}세`);
   if (ctx.userJob) lines.push(`- 직업/직장: ${ctx.userJob}`);
+  if (ctx.gender) {
+    const genderLabel = normalizeGenderLabel(ctx.gender);
+    lines.push(`- 성별: ${genderLabel} — 공감 표현·호칭·말투를 성별에 맞게 자연스럽게 조정`);
+  }
+  if (ctx.mbti) {
+    const mbtiHint = getMbtiInteractionHint(ctx.mbti);
+    lines.push(`- MBTI: ${ctx.mbti.toUpperCase()}${mbtiHint ? ` — ${mbtiHint}` : ""}`);
+  }
+  if (ctx.idealType) {
+    lines.push(
+      `- 이상형/선호 스타일: ${ctx.idealType} — 대화·행동에서 이 특성을 자연스럽게 녹여낸다`
+    );
+  }
   if (ctx.recentStressor)
     lines.push(`- 최근 스트레스 요인: ${ctx.recentStressor}`);
   if (ctx.recentSchedule)
@@ -150,6 +172,46 @@ export function buildCommonContextBlock(ctx: UserContextData): string {
   return ["[유저 컨텍스트 — 매 턴 참고, 대화에 자연스럽게 활용]", ...lines].join(
     "\n"
   );
+}
+
+// ─────────────────────────────────────────────
+// MBTI / Gender Helpers
+// ─────────────────────────────────────────────
+
+function normalizeGenderLabel(gender: string): string {
+  const g = gender.trim().toLowerCase();
+  if (g === "male" || g === "man" || g === "남성" || g === "남자" || g === "m") return "남성";
+  if (g === "female" || g === "woman" || g === "여성" || g === "여자" || g === "f") return "여성";
+  return gender;
+}
+
+/**
+ * MBTI 유형별 대화 스타일 힌트 — 캐릭터가 사용자에게 맞는 방식으로 대화하도록 돕는다.
+ * 힌트는 짧고 실행 가능하게 작성한다.
+ */
+export function getMbtiInteractionHint(mbti: string): string | null {
+  const type = mbti.trim().toUpperCase();
+
+  const hints: Record<string, string> = {
+    INTJ: "논리적이고 독립적, 직접적·효율적 대화 선호, 감정 과잉 표현 피할 것",
+    INTP: "분석적·호기심 많음, 아이디어 토론 환영, 감정적 압박 피할 것",
+    ENTJ: "목표지향적·결단력, 솔직하고 명확하게, 지나친 징징 피할 것",
+    ENTP: "토론·아이디어 좋아함, 유머와 위트 통함, 반박도 자연스럽게 받아들임",
+    INFJ: "깊은 감정·공감 중시, 진심 어린 대화, 피상적 잡담보다 의미 있는 이야기",
+    INFP: "감수성 풍부·가치 중시, 감정 공감 우선, 비판적 조언 조심",
+    ENFJ: "다른 사람 챙기기 좋아함, 따뜻한 공감·격려, 관계 깊이 중시",
+    ENFP: "열정적·창의적, 가능성 얘기 좋아함, 긍정·흥미 반응에 잘 반응",
+    ISTJ: "책임감·신뢰 중시, 실용적·구체적 대화, 변덕스러운 감정 표현 피할 것",
+    ISFJ: "배려·안정 중시, 따뜻한 지지, 세심한 기억·챙김에 감동받음",
+    ESTJ: "규칙·효율 중시, 직접적·명확, 감정 위주보다 사실 위주",
+    ESFJ: "사람·조화 중시, 칭찬·인정에 잘 반응, 갈등 상황 부드럽게",
+    ISTP: "독립적·관찰력 있음, 과한 감정 표현 피할 것, 개인 공간 존중",
+    ISFP: "온화·예술적 감성, 비판보다 수용적 반응, 자기 페이스 존중",
+    ESTP: "행동지향·현실적, 유머·에너지 높음, 지루한 이론보다 재미 있는 현실",
+    ESFP: "사교적·즉흥적, 재미·감동 둘 다 통함, 분위기 맞추기 중요",
+  };
+
+  return hints[type] ?? null;
 }
 
 // ─────────────────────────────────────────────
