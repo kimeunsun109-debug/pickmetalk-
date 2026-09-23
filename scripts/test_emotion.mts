@@ -107,16 +107,19 @@ const recentHistory: Message[] = [
   makeMessage("user", 5),    // 5분 전 (최근 유저 메시지 — prev로 쓰임)
 ];
 
-// ongoingSession = true일 때 warm msg → happy
-test(
-  "온고잉 + warm → happy",
-  resolveCharacterEmotion(
+// ongoingSession = true일 때 warm msg → happy or excited (pickPositiveEmotion 30% 확률)
+{
+  const result = resolveCharacterEmotion(
     { userMessage: "오늘 점심 뭐 먹었어?", lastChatAt: minutesAgo(5), lastSeenAt: minutesAgo(60), affectionWillIncrease: true },
     undefined,
     recentHistory
-  ),
-  "happy"
-);
+  );
+  test(
+    "온고잉 + warm → happy or excited",
+    result === "happy" || result === "excited",
+    true
+  );
+}
 
 // ongoingSession = true, 호감도 증가 — #23 pickPositiveEmotion: happy or excited
 {
@@ -335,6 +338,167 @@ const gapHist: Message[] = [
 test("prev 유저메시지가 30분 전 → ongoing=true", isOngoingChatSession(ongoingHist), true);
 test("prev 유저메시지가 2h 전 → ongoing=false", isOngoingChatSession(gapHist), false);
 test("메시지 1개 → ongoing=false", isOngoingChatSession([makeMessage("user", 5)]), false);
+
+// ─────────────────────────────────────────────
+// 9. hurt/pouty arc 복귀 경로 (신규)
+// ─────────────────────────────────────────────
+
+console.log("\n[9] hurt/pouty arc 복귀 경로");
+
+// 비온고잉 + arc 2턴 + warm + 1h+ gap → miss_you
+const hurt2History: Message[] = [
+  makeMessage("user", 100),
+  makeMessage("assistant", 90, "happy"),
+  makeMessage("user", 80),
+  makeMessage("assistant", 70, "hurt"),  // 1번째 hurt 턴
+  makeMessage("user", 60),
+  makeMessage("assistant", 50, "hurt"),  // 2번째 hurt 턴
+];
+test(
+  "비온고잉 + hurt arc 2턴 + 1h+ gap + warm → miss_you",
+  resolveCharacterEmotion(
+    {
+      userMessage: "미안해 진짜로",
+      lastChatAt: hoursAgo(2),
+      lastSeenAt: hoursAgo(2.5),
+      currentEmotion: "hurt",
+    },
+    undefined,
+    hurt2History
+  ),
+  "miss_you"
+);
+
+// 비온고잉 + arc 2턴 + warm + 갭 < 1h → happy (짧은 갭은 miss_you 아님)
+test(
+  "비온고잉 + hurt arc 2턴 + 갭 30분 + warm → happy",
+  resolveCharacterEmotion(
+    {
+      userMessage: "미안해",
+      lastChatAt: minutesAgo(30),
+      lastSeenAt: minutesAgo(60),
+      currentEmotion: "hurt",
+    },
+    undefined,
+    hurt2History
+  ),
+  "happy"
+);
+
+// 온고잉 + arc 2턴 + warm → happy
+const ongoingHurt2History: Message[] = [
+  makeMessage("user", 30),
+  makeMessage("assistant", 25, "hurt"),
+  makeMessage("user", 15),
+  makeMessage("assistant", 10, "hurt"),
+];
+test(
+  "온고잉 + hurt arc 2턴 + warm → happy",
+  resolveCharacterEmotion(
+    {
+      userMessage: "아 미안해 진짜",
+      lastChatAt: minutesAgo(10),
+      lastSeenAt: minutesAgo(40),
+      currentEmotion: "hurt",
+    },
+    undefined,
+    ongoingHurt2History
+  ),
+  "happy"
+);
+
+// arc history 1턴 (= countEmotionDurationTurns 2) + warm + 갭 < 1h → happy
+// (hurtDuration >= 2 이므로 회복 가능. 갭 15분 < 1h → miss_you 아닌 happy)
+const hurt1History: Message[] = [
+  makeMessage("user", 20),
+  makeMessage("assistant", 15, "hurt"),  // 1번째 hurt 턴
+];
+test(
+  "history 1 hurt turn (duration=2) + warm + 15분 갭 → happy",
+  resolveCharacterEmotion(
+    {
+      userMessage: "미안해",
+      lastChatAt: minutesAgo(15),
+      lastSeenAt: minutesAgo(30),
+      currentEmotion: "hurt",
+    },
+    undefined,
+    hurt1History
+  ),
+  "happy"
+);
+
+// arc 2턴 + cold → hurt 유지 (냉담 복귀)
+test(
+  "arc 2턴 + cold msg → hurt 유지",
+  resolveCharacterEmotion(
+    {
+      userMessage: "ㄴ",  // 1글자, isNegativeOrColdMessage = true
+      lastChatAt: hoursAgo(2),
+      lastSeenAt: hoursAgo(2.5),
+      currentEmotion: "hurt",
+    },
+    undefined,
+    hurt2History
+  ),
+  "hurt"
+);
+
+// pouty arc 2턴 + 비온고잉 + warm → miss_you
+const pouty2History: Message[] = [
+  makeMessage("user", 100),
+  makeMessage("assistant", 90, "happy"),
+  makeMessage("user", 80),
+  makeMessage("assistant", 70, "pouty"),
+  makeMessage("user", 60),
+  makeMessage("assistant", 50, "pouty"),
+];
+test(
+  "비온고잉 + pouty arc 2턴 + 1h+ gap + warm → miss_you",
+  resolveCharacterEmotion(
+    {
+      userMessage: "왔어 많이 기다렸어?",
+      lastChatAt: hoursAgo(1.5),
+      lastSeenAt: hoursAgo(2),
+      currentEmotion: "pouty",
+    },
+    undefined,
+    pouty2History
+  ),
+  "miss_you"
+);
+
+// 패턴 우선 — "좋아해" → hurt arc 무시, excited 반환
+test(
+  "hurt arc 중 '좋아해' → excited (패턴 우선)",
+  resolveCharacterEmotion(
+    {
+      userMessage: "좋아해",
+      lastChatAt: hoursAgo(2),
+      lastSeenAt: hoursAgo(2.5),
+      currentEmotion: "hurt",
+    },
+    undefined,
+    hurt2History
+  ),
+  "excited"
+);
+
+// currentEmotion = hurt, 하지만 history에 hurt 없음 → arc 1턴 → hurt 유지
+test(
+  "hurt currentEmotion + history 없음 (arc 1턴) + warm → hurt 유지",
+  resolveCharacterEmotion(
+    {
+      userMessage: "미안해",
+      lastChatAt: hoursAgo(2),
+      lastSeenAt: hoursAgo(2.5),
+      currentEmotion: "hurt",
+    },
+    undefined,
+    []
+  ),
+  "hurt"
+);
 
 // ─────────────────────────────────────────────
 // 결과

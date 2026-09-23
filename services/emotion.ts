@@ -99,6 +99,31 @@ export function resolveCharacterEmotion(
   const replyGapHours = hoursSince(input.lastChatAt);
   const absenceHours = hoursSince(input.lastSeenAt);
 
+  // hurt/pouty arc 전용 복귀 경로
+  // inferEmotionFromUserMessage 패턴에 걸리지 않은 메시지(중립·사과 등)에만 적용
+  if (current === "hurt" || current === "pouty") {
+    const coldReturn = isNegativeOrColdMessage(text);
+    const hurtDuration = countEmotionDurationTurns(history, current);
+
+    if (coldReturn) {
+      // 냉담한 메시지 → arc 계속 유지
+      return current;
+    }
+
+    if (hurtDuration >= 2) {
+      // arc 2턴 이상 + 따뜻한 메시지 → 회복
+      // 실제 이탈 갭(1h+)이 있는 비온고잉 복귀: miss_you (서운했지만 돌아와서 다행)
+      // 온고잉 세션 또는 갭 없는 비온고잉: happy (부드러운 화해)
+      if (!ongoingSession && replyGapHours != null && replyGapHours >= 1) {
+        return "miss_you";
+      }
+      return "happy";
+    }
+
+    // arc 1턴 — 아직 회복하기 이르다: arc 유지 (프롬프트 최소 2~3턴 룰 준수)
+    return current;
+  }
+
   if (!ongoingSession) {
     if (absenceHours != null && absenceHours >= 24) return "miss_you";
     if (isLateNight() && replyGapHours != null && replyGapHours >= 6) {
