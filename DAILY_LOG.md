@@ -277,3 +277,52 @@ AbsenceWelcome 오버레이 UI 연동 + returnVisit 메시지 닉네임 개인�
 - AbsenceWelcome 오버레이 Vercel preview QA 및 스크린샷 확인
 - excited 확률 캐릭터별 config 분리 (지유 높음, 은하 낮음)
 - returnVisit 오버레이에 캐릭터 이미지(hero) 삽입으로 몰입감 강화
+
+---
+
+## 2026-09-23
+
+### 선택한 작업
+- 성별·MBTI·이상형 컨텍스트 파이프라인 연결 — 회원가입 데이터 → LLM 시스템 프롬프트 반영
+
+### 선택 이유
+- 회원가입 시 성별/MBTI/이상형을 수집하고 있으나, `extractUserContext`에서 반환하지 않아 LLM이 전혀 활용 못 했음
+- 성별은 한국어 공감·호칭 조정에 필수, MBTI는 한국 사용자에게 매우 중요한 정체성, 이상형은 캐릭터가 사용자 선호에 맞게 행동할 수 있는 핵심 단서
+- 소규모 수정(context.ts 1개)으로 모든 캐릭터·대화에 즉시 적용됨
+
+### 구현 내용
+- `services/context.ts`
+  - `UserContextData`에 `gender`, `mbti`, `idealType` 필드 추가
+  - `extractUserContext`: `profileCtx`에서 세 필드 추출·반환 (빈 문자열 → undefined)
+  - `buildCommonContextBlock`: 성별(정규화 라벨+조정 안내), MBTI(16유형 힌트 포함), 이상형(스타일 반영 안내) 블록 출력
+  - `normalizeGenderLabel`: male/female/남성/여성/m/f 등 다양한 입력 → 한국어 정규화
+  - `getMbtiInteractionHint`: 16개 MBTI 유형별 대화 스타일 힌트 (export — 외부 테스트 가능)
+
+### 해결한 버그
+- 성별·MBTI·이상형이 회원가입 시 DB에 저장되어 있으나 chat route에서 사용되지 않던 문제 해결
+
+### 실행 및 테스트
+- `npx tsc --noEmit` → 오류 0
+- `npm run lint` → 경고·오류 0
+- `npx tsx scripts/test_gender_mbti_context.mts` → 30/30 통과
+
+### 사용자에게 달라지는 점
+- 캐릭터가 사용자 성별에 맞는 공감 표현·말투 사용 (예: 남성 → 형/오빠 관계 스타일, 여성 → 여자친구 연대 스타일)
+- 캐릭터가 사용자 MBTI 성격 유형을 인식하고 맞춤형 대화 스타일 구사
+  - F형: 감정 공감 우선, 논리적 압박 회피
+  - T형: 직접적·효율적, 감정 과잉 자제
+  - I형: 과한 열정 자제, 개인 공간 존중
+  - P형: 개방형 대화 선호
+- 캐릭터가 사용자 이상형/선호 스타일을 대화에 자연스럽게 반영
+
+### PR
+- https://github.com/kimeunsun109-debug/pickmetalk-/pull/53
+
+### 남은 문제
+- 이상형 필드가 프리텍스트라 LLM이 판단해야 함 (단어 수준 정형화 없음) — 실제 사용자 입력 패턴 보고 필요시 보완
+- 성별 외 항목(논바이너리 등) 정규화 확장 가능
+
+### 다음 추천 작업
+- P0: DRAFT PR (#51, #52) 메인 머지 검토 — 단기기억 follow-up 기능 실제 사용자에게 도달 필요
+- P1: 캐릭터 타이핑 버블 (PR #44) 메인 머지 — 응답 대기 UX 개선
+- P2: 감정 공명 패턴 migration 013 프로덕션 적용 (PR #49)
