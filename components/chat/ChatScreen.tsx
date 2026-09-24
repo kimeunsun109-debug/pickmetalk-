@@ -4,6 +4,7 @@ import { ChatHeader } from "@/components/chat/ChatHeader";
 import { FreeUsageBanner } from "@/components/chat/FreeUsageBanner";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { ChatOnboarding } from "@/components/chat/ChatOnboarding";
+import { LevelUpToast } from "@/components/chat/LevelUpToast";
 import { MessageList } from "@/components/chat/MessageList";
 import { PremiumModal } from "@/components/chat/PremiumModal";
 import { GiftPickerSheet } from "@/components/gifts/GiftPickerSheet";
@@ -36,6 +37,8 @@ export function ChatScreen({
     sendGift,
     usageBannerMessage,
     dismissUsageBanner,
+    levelUpEvent,
+    clearLevelUpEvent,
   } = useChat();
 
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -181,6 +184,14 @@ export function ChatScreen({
           characterName={character.name}
           data={absenceEvent.data}
           onDismiss={handleAbsenceDismiss}
+        />
+      )}
+
+      {levelUpEvent && (
+        <LevelUpToast
+          characterId={characterId}
+          newLevel={levelUpEvent.newLevel}
+          onDismiss={clearLevelUpEvent}
         />
       )}
     </div>
