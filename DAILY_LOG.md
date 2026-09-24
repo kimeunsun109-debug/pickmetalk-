@@ -277,3 +277,65 @@ AbsenceWelcome 오버레이 UI 연동 + returnVisit 메시지 닉네임 개인�
 - AbsenceWelcome 오버레이 Vercel preview QA 및 스크린샷 확인
 - excited 확률 캐릭터별 config 분리 (지유 높음, 은하 낮음)
 - returnVisit 오버레이에 캐릭터 이미지(hero) 삽입으로 몰입감 강화
+
+---
+
+## 2026-09-24
+
+### 선택한 작업
+관계 레벨업 토스트 — 호감도 레벨 상승 시 축하 애니메이션 오버레이
+
+### 선택 이유
+- 현재 `relationshipLevel`이 DB + SSE로 실시간 추적되지만 레벨업 순간이 UI에서 전혀 표시되지 않음
+- "실제 사람처럼 느끼는" 경험에서 관계 진전(Relationship progression)은 핵심 감정 포인트
+- 기존 아키텍처(`ChatProvider` SSE done 처리)에 자연스럽게 끼울 수 있는 수직 범위
+- P1 백로그 항목 ("레벨업 토스트에 캐릭터 미니 아이콘 추가")을 완전한 컴포넌트로 구현
+
+### 구현 내용
+1. **`components/chat/LevelUpToast.tsx`** (신규)
+   - 채팅 화면 하단에 고정되는 애니메이션 오버레이 (fixed bottom, z-50)
+   - 캐릭터 excited/happy 아바타 (80×80), 새 관계 단계명, 레벨 진행바 (5칸)
+   - CSS 키프레임: `level-up-in` (spring 효과), `level-up-out` (페이드아웃), `sparkle-pop`, `float-up`
+   - 부유하는 하트/별/꽃 파티클 6개 (랜덤 x위치, staggered delay)
+   - 3.8초 후 자동 닫힘 + 탭해서 즉시 닫기 가능
+   - `aria-live="polite"` 접근성
+
+2. **`contexts/ChatProvider.tsx`**
+   - `levelUpEvent: { newLevel, stageName } | null` 상태 추가
+   - `prevRelationshipLevelRef` (useRef)로 이전 레벨 추적
+   - SSE done 청크 (`chunk.relationshipLevel`) + `sendGift` 응답 양쪽에서 레벨업 감지
+   - `clearLevelUpEvent` 콜백을 `ChatContextValue`에 노출
+   - `RELATIONSHIP_STAGES` import하여 단계명 결정
+
+3. **`components/chat/ChatScreen.tsx`**
+   - `levelUpEvent`, `clearLevelUpEvent` destructure 추가
+   - `LevelUpToast` 조건부 렌더
+
+4. **`tailwind.config.ts`**
+   - `level-up-in`, `level-up-out`, `sparkle-pop`, `float-up` 키프레임·애니메이션 클래스 추가
+
+### 해결한 버그
+- 레벨업이 일어나도 사용자에게 시각적 피드백이 전혀 없던 UX 공백
+
+### 실행 및 테스트
+- `npx tsc --noEmit` → 오류 0
+- `npm run lint` → 경고·오류 0
+- `npm run build` → 빌드 성공
+
+### 사용자에게 달라지는 점
+- 대화 중 호감도가 다음 단계로 올라가면 하단에 축하 오버레이 표시
+- 선물 전송으로 레벨업 시에도 동일하게 작동
+- 캐릭터 아바타, 새 관계 단계명, 떠오르는 파티클로 감정적 충족감 제공
+- 3.8초 자동 닫힘 또는 탭으로 즉시 닫기
+
+### PR
+- https://github.com/kimeunsun109-debug/pickmetalk-/pull/54 (예정)
+
+### 남은 문제
+- 실제 레벨업 트리거는 Vercel 환경에서만 가능 (로컬 DeepSeek 호출 필요)
+- 레벨업 토스트와 AbsenceWelcome 오버레이가 동시 발생 시 겹침 처리 미완 (레이어 우선순위로 해결됨)
+
+### 다음 추천 작업
+- 캐릭터 타이핑 버블 (PR #44 DRAFT) 메인 브랜치 적용
+- 새 대화방 선제 인사 (PR #40 DRAFT) 메인 브랜치 적용
+- 레벨업 토스트 Vercel Preview에서 수동 QA

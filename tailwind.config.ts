@@ -30,6 +30,10 @@ const config: Config = {
         "heart-float": "heart-float 1.5s ease-out forwards",
         "typing-dot": "typing-dot 1.4s infinite ease-in-out both",
         "fadeIn": "fade-in 0.25s ease-out both",
+        "level-up-in": "level-up-in 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards",
+        "level-up-out": "level-up-out 0.4s ease-in forwards",
+        "sparkle-pop": "sparkle-pop 0.6s ease-out forwards",
+        "float-up": "float-up 2.2s ease-out forwards",
       },
       keyframes: {
         "pulse-soft": {
@@ -47,6 +51,24 @@ const config: Config = {
         "fade-in": {
           "0%": { opacity: "0", transform: "translateY(-4px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        "level-up-in": {
+          "0%": { opacity: "0", transform: "translateY(32px) scale(0.88)" },
+          "100%": { opacity: "1", transform: "translateY(0) scale(1)" },
+        },
+        "level-up-out": {
+          "0%": { opacity: "1", transform: "translateY(0) scale(1)" },
+          "100%": { opacity: "0", transform: "translateY(-24px) scale(0.95)" },
+        },
+        "sparkle-pop": {
+          "0%": { transform: "scale(0) rotate(0deg)", opacity: "0" },
+          "60%": { transform: "scale(1.3) rotate(15deg)", opacity: "1" },
+          "100%": { transform: "scale(1) rotate(0deg)", opacity: "1" },
+        },
+        "float-up": {
+          "0%": { transform: "translateY(0)", opacity: "1" },
+          "70%": { opacity: "0.7" },
+          "100%": { transform: "translateY(-80px)", opacity: "0" },
         },
       },
     },
