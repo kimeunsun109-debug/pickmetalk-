@@ -277,3 +277,48 @@ AbsenceWelcome 오버레이 UI 연동 + returnVisit 메시지 닉네임 개인�
 - AbsenceWelcome 오버레이 Vercel preview QA 및 스크린샷 확인
 - excited 확률 캐릭터별 config 분리 (지유 높음, 은하 낮음)
 - returnVisit 오버레이에 캐릭터 이미지(hero) 삽입으로 몰입감 강화
+
+## 2026-09-25
+
+### 선택한 작업
+- 캐릭터 감정 톤 가이드 + 레벨별 말투 예시 + 성격 토핑 블록 프롬프트 연결
+
+### 선택 이유
+- `emotionToneGuide`, `levelChatTone`, `buildCharacterToppingBlock`이 각 캐릭터 데이터에 정의되어 있었으나 실제 LLM 프롬프트에 주입되지 않아 모든 캐릭터가 감정/레벨 상황에서 비슷하게 반응하는 문제가 있었음
+- 캐릭터별 고유 성격 강화 (우선순위 P2)로 "실제 사람과 관계 맺는 느낌" 핵심 목표에 직결
+
+### 구현 내용
+- `prompts/natural.ts`에 `buildEmotionToneHint()`, `buildLevelChatToneHint()` 함수 추가
+  - `personality.emotionToneGuide[emotion]` → `- 지금 감정 표현 방식: …` 으로 상황 블록에 주입
+  - `personality.levelChatTone[level]` → `- 지금 레벨 말투 예시: …` 으로 상황 블록에 주입
+- `buildCharacterToppingBlock()` (기존 정의는 있었으나 미사용) → `buildNaturalSystemPrompt`에 통합
+
+### 해결한 버그
+- 캐릭터별 emotionToneGuide·levelChatTone 데이터가 정의만 되고 미주입 → 각 전환 시 개성 손실 방지
+
+### 실행 및 테스트
+- `npx tsc --noEmit` → 오류 0
+- `npm run lint` → 경고·오류 0
+- `npm run build` → 정상 완료
+- `npx tsx` 스크립트로 나린/유나/윤서 프롬프트 출력 검증:
+  - 나린 pouty Lv3: `삐졌지만 사용자 공격 금지. '됐어~ 그냥 좀 서운했단 말이야.'`, `오빠 호칭 OK. 예1: "오빠 늦었네~"`, `[캐릭터 토핑 — 소프트 츤데레]` 모두 확인
+  - 유나 hurt Lv2: 토핑·감정톤·레벨톤 모두 주입 확인
+  - 윤서 happy Lv1: `쿨·간결 50% + 짧은 공감 20% + 실용 팁 30%` 주입 확인
+
+### 사용자에게 달라지는 점
+- 나린이 삐졌을 때: 이제 나린 고유 방식(`됐어~ 그냥 좀 서운했단 말이야.`)으로 표현 — 기존에는 일반적인 삐침
+- Lv3 이상 대화: 관계 레벨에 맞는 말투 예시가 LLM에 직접 제공되어 더 자연스러운 톤 전환
+- 윤서: T형 토핑(`쿨·간결 50% + 실용 팁 30%`) 명시로 캐릭터 차별성 강화
+- 지유: 장난형 토핑(`장난기 65% + 다정 30%`) 명시로 기존보다 더 밝고 경쾌한 대화
+
+### PR
+- https://github.com/kimeunsun109-debug/pickmetalk-/pull/55
+
+### 남은 문제
+- 많은 기능 PR이 DRAFT 상태 — #51~#54 머지 검토 필요
+- levelChatTone 데이터가 없는 캐릭터의 경우 레벨톤 힌트 미주입 (graceful fallback 처리됨)
+
+### 다음 추천 작업
+- 캐릭터별 conversationRules 일부를 buildNaturalSystemPrompt에 추가 주입 (3-4개 핵심 규칙)
+- DRAFT PR #51~#54 머지 검토 요청
+- 성별·MBTI·이상형 컨텍스트 (PR #53) 머지 후 buildCommonContextBlock에 반영
