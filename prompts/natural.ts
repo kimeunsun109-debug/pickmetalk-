@@ -2,6 +2,7 @@ import { getCharacterById } from "@/lib/characters/full";
 import { getEmotionMeta } from "@/lib/emotions";
 import { getRelationshipStage } from "@/lib/relationship";
 import { buildMediaRecommendationRules } from "@/prompts/mediaGuard";
+import { buildCharacterToppingBlock } from "@/prompts/characterToppings";
 import { buildSpeechStylePromptBlock } from "@/services/speechStyle";
 import type { UserSpeechProfile } from "@/services/speechStyle";
 import type { EmotionState, RelationshipLevel } from "@/types";
@@ -43,6 +44,34 @@ function buildIdentityBlock(characterId: string): string {
   ]
     .filter(Boolean)
     .join("\n");
+}
+
+/**
+ * 캐릭터의 현재 감정 상태에 맞는 말투 힌트 (emotionToneGuide에서 추출).
+ * 감정이 기본값(happy)이거나 데이터가 없으면 빈 문자열.
+ */
+function buildEmotionToneHint(
+  characterId: string,
+  emotion: EmotionState
+): string {
+  const character = getCharacterById(characterId);
+  const guide = character?.personality?.emotionToneGuide?.[emotion];
+  if (!guide) return "";
+  return `- 지금 감정 표현 방식: ${guide}`;
+}
+
+/**
+ * 현재 관계 레벨에 맞는 말투 예시 힌트 (levelChatTone에서 추출).
+ * 데이터가 없으면 빈 문자열.
+ */
+function buildLevelChatToneHint(
+  characterId: string,
+  level: RelationshipLevel
+): string {
+  const character = getCharacterById(characterId);
+  const tone = character?.personality?.levelChatTone?.[level];
+  if (!tone) return "";
+  return `- 지금 레벨 말투 예시: ${tone}`;
 }
 
 function buildBeingBlock(): string {
@@ -110,11 +139,16 @@ export interface NaturalPromptOptions {
 export function buildNaturalSystemPrompt(o: NaturalPromptOptions): string {
   const stage = getRelationshipStage(o.affection);
 
+  const emotionToneHint = buildEmotionToneHint(o.characterId, o.emotion);
+  const levelToneHint = buildLevelChatToneHint(o.characterId, o.level);
+
   const situation = [
     "[지금 상황 — 네가 이미 알고 있는 것들]",
     "아래 정보는 설명하려 들지 말고, 필요할 때만 자연스럽게 스며들게 써.",
     `- 관계: Lv${o.level} (${stage.label}) — ${LEVEL_HINT[o.level]}`,
     buildEmotionLine(o.emotion, o.emotionDurationTurns ?? 1),
+    emotionToneHint,
+    levelToneHint,
     o.freshChatStart
       ? "- 이 사람이 채팅 기록을 지우고 새로 시작했어. 지워진 대화의 구체적인 내용은 아는 척하지 말고, 자연스럽게 새로 시작해."
       : "",
@@ -124,6 +158,7 @@ export function buildNaturalSystemPrompt(o: NaturalPromptOptions): string {
 
   return [
     buildIdentityBlock(o.characterId),
+    buildCharacterToppingBlock(o.characterId),
     buildBeingBlock(),
     buildMannersBlock(),
     buildMediaRecommendationRules(o.characterId),
