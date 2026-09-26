@@ -2,6 +2,58 @@
 
 ---
 
+## 2026-09-26
+
+### 선택한 작업
+AI 응답 반복 오프너 감지 + 다양성 힌트 프롬프트 주입
+
+### 선택 이유
+현재 main에 반영된 기능 중 대화 품질을 가장 직접적으로 개선할 수 있는 것이 부족함.
+DeepSeek 모델이 '헐', '맞아', '와' 같은 동일 시작 단어를 반복해 대화가 단조롭게 느껴지는 문제가 실제 사용에서 발생. DRAFT PR들(#51~#55)이 아직 main에 미반영된 상황에서, 독립적으로 즉시 배포 가능한 대화 품질 개선 선택.
+
+### 구현 내용
+1. **`prompts/natural.ts`**
+   - `extractOpener(text)`: 공백·문장부호 앞의 첫 단어 추출. 한글 단음절(헐·와·응) 정확 지원.
+   - `buildResponseVarietyBlock(msgs)`: 최근 5개 AI 응답 오프너 분석, 동일 패턴 2회 이상이면 다양성 힌트 블록 반환.
+   - `NaturalPromptOptions.recentAssistantMessages?: string[]` 추가.
+   - `buildNaturalSystemPrompt` 마지막 블록에 variety hint 통합.
+2. **`app/api/chat/route.ts`**
+   - `recent` 메시지에서 assistant 응답 최대 5개 추출 후 `buildSystemPrompt`에 전달.
+
+### 해결한 버그
+- 초기 구현에서 `op.length >= 2` 필터가 한글 단음절 오프너를 제거하는 문제 발견·수정.
+  - 한글 단음절(헐, 와, 응)은 JavaScript `String.length === 1`이라 필터에 걸림.
+  - `filter(Boolean)`으로 교체 → 빈 문자열만 제외.
+
+### 실행 및 테스트
+- `npx tsc --noEmit` → 오류 0
+- `npm run lint` → 경고/오류 0
+- Node.js 단위 테스트 (5 케이스):
+  - 3/5 반복(헐×3): DETECTED ✓
+  - 2/5 반복(헐×2): DETECTED ✓
+  - 반복 없음: NOT triggered ✓
+  - 메시지 2개 이하: NOT triggered ✓
+  - 정확히 3개 + 2개 동일: DETECTED ✓
+
+### 사용자에게 달라지는 점
+- AI 캐릭터가 매 답변을 '헐', '맞아', '와' 등 동일 단어로 시작하는 패턴이 감지되면 자동으로 다른 방식의 시작을 유도함.
+- 3개 미만 메시지, 반복 없는 대화에서는 프롬프트 오버헤드 없음.
+- 강제 금지가 아닌 부드러운 제안 방식 — '억지로가 아니라, 자연스럽게'.
+
+### PR
+- https://github.com/kimeunsun109-debug/pickmetalk-/pull/56
+
+### 남은 문제
+- 이모지로 시작하는 AI 응답 처리 (현재 이모지 오프너도 감지되나 정확도 미확인)
+- DRAFT PR #51~#55 main 미반영 상태 — 독립 기능이 계속 쌓이는 중
+
+### 다음 추천 작업
+- P0: DRAFT PR들 순차 검토 및 머지 준비 (특히 #55 감정톤+레벨톤 가이드)
+- P2: 오프너 추출 개선 — 이모지 처리, 더 긴 어절 오프너 지원
+- P2: 반복 임계값(현 2/5) 수치 조정 테스트
+
+---
+
 ## 2026-08-27
 
 ### 선택한 작업

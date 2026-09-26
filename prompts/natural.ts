@@ -95,6 +95,50 @@ function buildMemoryBlock(memorySummary: string | null): string {
   ].join("\n");
 }
 
+/** 최근 AI 응답에서 반복 오프너를 감지할 윈도우 크기 */
+const VARIETY_OPENER_WINDOW = 5;
+
+/**
+ * 최근 AI 응답의 첫 단어를 추출한다.
+ * 공백·문장부호 이전까지의 첫 어절을 반환하되, 6자 초과면 앞 5자만 사용.
+ */
+function extractOpener(text: string): string {
+  const t = text.trim();
+  if (!t) return "";
+  const m = t.match(/^([^\s,!?.~\u2026\uff01\uff1f]+)/);
+  const token = m ? m[1] : t.slice(0, 5);
+  return token.length <= 6 ? token.toLowerCase() : token.slice(0, 5).toLowerCase();
+}
+
+/**
+ * 최근 AI 응답에서 반복되는 시작 패턴을 감지하고,
+ * 2회 이상 반복된 오프너가 있으면 다양성 힌트 블록을 반환한다.
+ * 3개 미만이면 빈 문자열을 반환한다.
+ */
+function buildResponseVarietyBlock(recentAssistantMsgs: string[]): string {
+  if (recentAssistantMsgs.length < 3) return "";
+
+  const window = recentAssistantMsgs.slice(-VARIETY_OPENER_WINDOW);
+  // 한글 단음절(헐·와·응 등)도 유효한 오프너이므로 빈 문자열만 제외한다.
+  const openers = window.map(extractOpener).filter(Boolean);
+
+  const counts = new Map<string, number>();
+  openers.forEach((op) => counts.set(op, (counts.get(op) ?? 0) + 1));
+
+  const repeated = [...counts.entries()]
+    .filter(([, n]) => n >= 2)
+    .map(([op]) => `'${op}'`)
+    .slice(0, 3);
+
+  if (repeated.length === 0) return "";
+
+  return [
+    "[이번 답변 다양성]",
+    `최근 답에서 ${repeated.join(", ")}으로 시작하는 패턴이 반복됐어.`,
+    "이번엔 다른 방식으로 대화를 열어봐 — 억지로가 아니라, 그냥 자연스럽게.",
+  ].join("\n");
+}
+
 export interface NaturalPromptOptions {
   characterId: string;
   emotion: EmotionState;
@@ -105,6 +149,8 @@ export interface NaturalPromptOptions {
   dynamicContextBlock?: string;
   speechProfile?: UserSpeechProfile | null;
   freshChatStart?: boolean;
+  /** 최근 AI 응답 목록 — 반복 오프너 감지용 */
+  recentAssistantMessages?: string[];
 }
 
 export function buildNaturalSystemPrompt(o: NaturalPromptOptions): string {
@@ -131,6 +177,7 @@ export function buildNaturalSystemPrompt(o: NaturalPromptOptions): string {
     o.dynamicContextBlock?.trim() ?? "",
     buildMemoryBlock(o.memorySummary ?? null),
     buildSpeechStylePromptBlock(o.speechProfile ?? null),
+    buildResponseVarietyBlock(o.recentAssistantMessages ?? []),
   ]
     .filter(Boolean)
     .join("\n\n");
