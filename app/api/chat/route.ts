@@ -437,6 +437,11 @@ export async function POST(request: Request) {
           .filter(Boolean)
           .join("\n\n");
 
+        const recentAssistantMessages = recent
+          .filter((m) => m.role === "assistant")
+          .slice(-5)
+          .map((m) => m.content);
+
         const systemPrompt = trace.sync("Prompt Build", () =>
           buildSystemPrompt({
             characterId,
@@ -448,6 +453,7 @@ export async function POST(request: Request) {
             dynamicContextBlock,
             speechProfile,
             freshChatStart,
+            recentAssistantMessages,
           })
         );
         trace.mark("Prompt length", `${systemPrompt.length} chars`);

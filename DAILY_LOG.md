@@ -277,3 +277,46 @@ AbsenceWelcome 오버레이 UI 연동 + returnVisit 메시지 닉네임 개인�
 - AbsenceWelcome 오버레이 Vercel preview QA 및 스크린샷 확인
 - excited 확률 캐릭터별 config 분리 (지유 높음, 은하 낮음)
 - returnVisit 오버레이에 캐릭터 이미지(hero) 삽입으로 몰입감 강화
+
+---
+
+## 2026-09-27
+
+### 선택한 작업
+- 캐릭터 토핑 블록 + 감정/레벨별 말투 힌트 + 응답 다양성 감지 프롬프트 연결
+
+### 선택 이유
+- PR #55(캐릭터 토핑·감정톤·레벨톤), #56(응답 오프너 다양성)이 DRAFT로 5개 이상의 PR이 main에 미머지 상태
+- `characterToppings.ts`·`emotionToneGuide`·`levelChatTone` 데이터가 이미 구현되어 있으나 `buildNaturalSystemPrompt`에 미연결
+- 캐릭터별 성격 차별화와 응답 단조로움 방지는 관계 경험 핵심
+
+### 구현 내용
+- `prompts/natural.ts`:
+  - `buildCharacterToppingBlock` import 및 Identity 블록 직후 삽입
+  - `buildEmotionToneHint(characterId, emotion)` 추가 — emotionToneGuide 데이터 활용
+  - `buildLevelChatToneHint(characterId, level)` 추가 — levelChatTone 데이터 활용
+  - `extractOpener(text)` + `buildResponseVarietyBlock(msgs)` 추가 — 반복 오프너 감지
+  - `NaturalPromptOptions.recentAssistantMessages?: string[]` 추가
+  - `buildNaturalSystemPrompt` 에 위 4개 기능 연결
+- `app/api/chat/route.ts`:
+  - `recentAssistantMessages` 추출(최근 5개 assistant 메시지) 후 `buildSystemPrompt` 전달
+
+### 실행 및 테스트
+- `npx tsc --noEmit` → 오류 없음
+- `npm run lint` → ESLint 경고·오류 없음
+- Node.js inline test: extractOpener / buildResponseVarietyBlock 로직 검증 통과
+- tsx smoke test: narin/happy/Lv3 프롬프트 빌드 56줄, 토핑·감정톤·레벨톤·다양성 블록 모두 확인
+
+### 사용자에게 달라지는 점
+- 모든 대화에서 캐릭터별 성격(유나=다정, 나린=소프트 츤데레, 윤서=T, 은하=다정, 지유=장난형)이 시스템 프롬프트에 명시적으로 포함됨
+- 현재 감정 상태(happy/hurt/pouty 등)에 따른 말투 방향이 프롬프트에 추가됨
+- 관계 레벨(1~5)별 구체적 말투 예시가 프롬프트에 포함됨
+- 최근 5개 응답에서 동일 오프너 2회+ 반복 시 다양성 힌트 자동 주입
+
+### 남은 문제
+- DRAFT PR #51~#56이 여전히 main 미머지 — 사용자 검토 후 머지 필요
+- 성별·MBTI·이상형 컨텍스트(PR #53) 미반영 — 다음 우선 작업 후보
+
+### 다음 추천 작업
+- 성별·MBTI·이상형 컨텍스트 파이프라인(PR #53) 구현 및 wire
+- 단기기억 follow-up 힌트(PR #51~#52) 구현
