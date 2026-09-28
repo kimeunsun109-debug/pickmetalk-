@@ -315,7 +315,7 @@ AbsenceWelcome 오버레이 UI 연동 + returnVisit 메시지 닉네임 개인�
 - follow-up 항목이 없으면 기존 기억 기반 인사 유지 (하위 호환)
 
 ### PR
-- PR 생성 예정 (cursor/daily-dev-2026-09-28)
+- https://github.com/kimeunsun109-debug/pickmetalk-/pull/58
 
 ### 남은 문제
 - `ENABLE_SHORT_TERM_MEMORY` 플래그가 false인 경우 follow-up 비활성 (플래그 확인 필요)
