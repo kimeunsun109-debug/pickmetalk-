@@ -277,3 +277,52 @@ AbsenceWelcome 오버레이 UI 연동 + returnVisit 메시지 닉네임 개인�
 - AbsenceWelcome 오버레이 Vercel preview QA 및 스크린샷 확인
 - excited 확률 캐릭터별 config 분리 (지유 높음, 은하 낮음)
 - returnVisit 오버레이에 캐릭터 이미지(hero) 삽입으로 몰입감 강화
+
+## 2026-09-28
+
+### 선택한 작업
+- 새 대화 인사에 만료 단기기억 follow-up 질문 자동 삽입
+
+### 선택 이유
+- "실제 사람과 관계를 맺는 느낌"의 핵심은 **연속성**이다.
+- 어제 면접 이야기를 했으면, 오늘 첫 인사에서 "면접 어떻게 됐어?"를 자연스럽게 물어야 한다.
+- 이 기능이 없으면 캐릭터는 매 대화를 "처음 보는 사람"처럼 시작한다.
+- 단기기억 인프라(DB 테이블·추출 로직·저장 side-effect)는 이미 main에 완성되어 있었으나, 인사에서 활용하는 경로가 없었다.
+
+### 구현 내용
+- `lib/db/shortTermMemories.ts`:
+  - `getFollowUpShortTermMemories()` 추가
+  - 최근 72h 이내 생성된 `status='expired'` 항목 + `status='active'` & `due_date < now` 항목 반환
+  - 우선순위 내림차순 정렬, 최대 3개
+- `services/newConversationGreeting.ts`:
+  - `ENABLE_SHORT_TERM_MEMORY` 플래그 체크 + `getFollowUpShortTermMemories` 병렬 로드
+  - follow-up 항목이 있으면 시스템 프롬프트에 "[사용자가 신경 쓰고 있던 일]" 블록 삽입
+  - 기억보다 follow-up 항목 우선 지시
+  - follow-up 없을 시 기존 행동 유지 (하위 호환)
+
+### 해결한 버그
+- 단기기억이 저장되어 있어도 새 대화에서 활용되지 않던 문제 해결
+
+### 실행 및 테스트
+- `npx tsc --noEmit` → 오류 0
+- `npm run lint` → 경고·오류 0
+- git diff 검토 완료 (2 files, +85 -20)
+
+### 사용자에게 달라지는 점
+- 어제/이번 주 중요한 일을 단기기억으로 저장했다면, 다음 대화 첫 인사에서 캐릭터가 자연스럽게 결과를 물어봄
+  - 예: 내일 면접 → 다음날 인사: "면접 어떻게 됐어? 긴장했을 것 같아서~"
+  - 예: 오늘 병원 → 다음날 인사: "병원 다녀왔어? 많이 아팠던 거 아니지?"
+- follow-up 항목이 없으면 기존 기억 기반 인사 유지 (하위 호환)
+
+### PR
+- PR 생성 예정 (cursor/daily-dev-2026-09-28)
+
+### 남은 문제
+- `ENABLE_SHORT_TERM_MEMORY` 플래그가 false인 경우 follow-up 비활성 (플래그 확인 필요)
+- 72h 윈도우는 보수적 설정 — 장기 부재 케이스는 추가 튜닝 가능
+- DRAFT PR 누적 (#31~#57) — 사용자 검토 및 머지 필요
+
+### 다음 추천 작업
+- gender/MBTI/idealType 컨텍스트 파이프라인 main 반영 (extractUserContext + buildCommonContextBlock)
+- 단기기억 expires_at을 due_date+24h로 연장 (follow-up 윈도우 확장)
+- 관계 레벨업 토스트 UI (PR #54 DRAFT → main 반영)

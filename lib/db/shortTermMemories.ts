@@ -84,6 +84,52 @@ export async function getActiveShortTermMemories(
   return (data as ShortTermMemoryRow[]).map(mapShortTermMemory);
 }
 
+/**
+ * 새 대화 인사에서 follow-up 질문을 생성할 때 사용.
+ * 최근 72시간 이내에 생성된 단기기억 중 아직 완료되지 않았고
+ * 이미 만료됐거나(status='expired') due_date가 지난 항목을 반환한다.
+ * 캐릭터가 "어제 X는 어떻게 됐어?" 스타일로 물어볼 후보 목록이다.
+ */
+export async function getFollowUpShortTermMemories(
+  supabase: SupabaseClient,
+  userId: string,
+  nowIso = new Date().toISOString(),
+  limit = 3
+): Promise<ShortTermMemory[]> {
+  const cutoffIso = new Date(
+    new Date(nowIso).getTime() - 72 * 60 * 60 * 1000
+  ).toISOString();
+
+  const { data: expiredData } = await supabase
+    .from("short_term_memories")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("status", "expired")
+    .gte("created_at", cutoffIso)
+    .order("priority", { ascending: false })
+    .limit(limit);
+
+  const { data: overdueData } = await supabase
+    .from("short_term_memories")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("status", "active")
+    .lt("due_date", nowIso)
+    .gte("created_at", cutoffIso)
+    .order("priority", { ascending: false })
+    .limit(limit);
+
+  const combined = [
+    ...((expiredData ?? []) as ShortTermMemoryRow[]),
+    ...((overdueData ?? []) as ShortTermMemoryRow[]),
+  ]
+    .map(mapShortTermMemory)
+    .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))
+    .slice(0, limit);
+
+  return combined;
+}
+
 export async function createShortTermMemory(
   supabase: SupabaseClient,
   input: CreateShortTermMemoryInput

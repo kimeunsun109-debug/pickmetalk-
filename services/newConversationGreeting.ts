@@ -1,8 +1,10 @@
 import { completeDeepSeekChat } from "@/lib/ai/deepseek";
 import { getCharacterById } from "@/lib/characters/full";
+import { getFollowUpShortTermMemories } from "@/lib/db/shortTermMemories";
 import { postProcessAssistantReply } from "@/services/responsePostProcess";
 import { formatGapHours, getSeoulTimeContext } from "@/services/timeContext";
-import type { EmotionState } from "@/types";
+import { ENABLE_SHORT_TERM_MEMORY } from "@/lib/constants";
+import type { EmotionState, ShortTermMemory } from "@/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export interface NewConversationGreeting {
@@ -39,22 +41,29 @@ export async function generateNewConversationGreeting(
     character?.personality.firstGreeting?.trim() || DEFAULT_GREETING;
 
   try {
-    const [{ data: prevRows }, { data: profileRow }] = await Promise.all([
-      supabase
-        .from("conversations")
-        .select("summary, last_message_preview, last_message_at")
-        .eq("user_id", userId)
-        .eq("character_id", characterId)
-        .neq("id", conversationId)
-        .not("last_message_at", "is", null)
-        .order("last_message_at", { ascending: false })
-        .limit(1),
-      supabase
-        .from("profiles")
-        .select("display_name")
-        .eq("id", userId)
-        .maybeSingle(),
-    ]);
+    const now = new Date().toISOString();
+    const [{ data: prevRows }, { data: profileRow }, followUpMemories] =
+      await Promise.all([
+        supabase
+          .from("conversations")
+          .select("summary, last_message_preview, last_message_at")
+          .eq("user_id", userId)
+          .eq("character_id", characterId)
+          .neq("id", conversationId)
+          .not("last_message_at", "is", null)
+          .order("last_message_at", { ascending: false })
+          .limit(1),
+        supabase
+          .from("profiles")
+          .select("display_name")
+          .eq("id", userId)
+          .maybeSingle(),
+        ENABLE_SHORT_TERM_MEMORY
+          ? getFollowUpShortTermMemories(supabase, userId, now, 2).catch(
+              () => [] as ShortTermMemory[]
+            )
+          : Promise.resolve([] as ShortTermMemory[]),
+      ]);
 
     const prev = prevRows?.[0] as
       | {
@@ -66,7 +75,7 @@ export async function generateNewConversationGreeting(
 
     const summary = prev?.summary?.trim() ?? "";
     const lastPreview = prev?.last_message_preview?.trim() ?? "";
-    if (!character || (!summary && !lastPreview)) {
+    if (!character || (!summary && !lastPreview && followUpMemories.length === 0)) {
       return { message: fallback, emotion };
     }
 
@@ -95,11 +104,21 @@ export async function generateNewConversationGreeting(
         : "",
       lastPreview ? `- 마지막으로 주고받은 말: ${lastPreview.slice(0, 120)}` : "",
       nickname ? `- 사용자 호칭: ${nickname}` : "",
+      followUpMemories.length > 0
+        ? [
+            "",
+            "[사용자가 신경 쓰고 있던 일 — 아직 결과를 못 물어봤음]",
+            ...followUpMemories.map((m) => `- ${m.content}`),
+            "※ 위 항목 중 하나를 자연스럽게 언급하며 어떻게 됐는지 물어봐라. 이전 대화 기억보다 이 항목을 우선해라.",
+          ].join("\n")
+        : "",
       `[현재 시각] ${seoul.currentDateTime}`,
       "",
       "[첫 인사 규칙]",
-      "- 이전 대화 속 **구체적인 일 하나**를 자연스럽게 챙겨 물어라. 예: '어제 집 수리는 잘 됐어?', '피자 맛있게 먹었다며, 오늘 저녁은 뭐야?'",
-      "- 위 기억에 실제로 있는 것만 언급해라. 기억에 없는 일(야근, 약속 등)을 지어내지 마라.",
+      followUpMemories.length > 0
+        ? "- 사용자가 신경 쓰던 일의 결과를 자연스럽게 챙겨 물어라. 예: '어제 면접은 어떻게 됐어?', '병원 다녀왔어?'"
+        : "- 이전 대화 속 **구체적인 일 하나**를 자연스럽게 챙겨 물어라. 예: '어제 집 수리는 잘 됐어?', '피자 맛있게 먹었다며, 오늘 저녁은 뭐야?'",
+      "- 기억에 없는 일을 지어내지 마라.",
       "- 기억에 챙길 만한 구체적인 내용이 없으면, 시간대에 맞는 가볍고 따뜻한 안부로 시작한다.",
       "- 1~3문장. 카카오톡 말투. 질문은 1개만. 괄호 지문·이모지 남발 금지.",
       "- 인사말만 출력한다. 설명·따옴표 없이.",
