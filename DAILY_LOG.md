@@ -277,3 +277,59 @@ AbsenceWelcome 오버레이 UI 연동 + returnVisit 메시지 닉네임 개인�
 - AbsenceWelcome 오버레이 Vercel preview QA 및 스크린샷 확인
 - excited 확률 캐릭터별 config 분리 (지유 높음, 은하 낮음)
 - returnVisit 오버레이에 캐릭터 이미지(hero) 삽입으로 몰입감 강화
+
+## 2026-09-29
+
+### 선택한 작업
+사용자 메시지 감정 감지 + 공감 응답 힌트 시스템 프롬프트 주입
+
+### 선택 이유
+- 기존 감정 시스템(emotion.ts)은 캐릭터의 감정 상태만 추적; 사용자의 현재 감정 인식 미구현
+- 사용자가 슬픔/스트레스/분노/걱정 등을 표현해도 캐릭터가 맥락 없는 톤으로 응답할 수 있었음
+- "실제 사람과 관계를 맺는 것처럼" 느끼게 하려면 감정 공감 품질이 핵심
+- 기존 DRAFT PR(#48~#58)과 겹치지 않는 완전 새로운 기능
+
+### 구현 내용
+1. `services/userEmotionDetector.ts` (신규)
+   - `detectUserEmotion(message)`: 8개 감정 × 3단계 강도 키워드 패턴 감지
+   - 감정: sad/stressed/angry/worried/happy/excited/lonely/tired
+   - 강도: high/medium/low (우선순위 순서로 첫 번째 매칭)
+   - 감정 없으면 null 반환 (불필요한 힌트 주입 방지)
+   - `buildUserEmotionHintBlock(detection)`: 캐릭터용 공감 응답 힌트 블록 생성
+2. `prompts/natural.ts`
+   - `NaturalPromptOptions`에 `userEmotionHintBlock?: string | null` 추가
+   - situation 블록 직후, dynamicContextBlock 직전에 삽입
+3. `app/api/chat/route.ts`
+   - 매 채팅 요청마다 detectUserEmotion(message) 호출
+   - 결과 → buildUserEmotionHintBlock → buildSystemPrompt에 전달
+
+### 해결한 버그
+- 사용자가 감정을 표현해도 캐릭터가 맥락 없이 일반 톤으로 응답하는 문제
+
+### 실행 및 테스트
+- `npx tsc --noEmit` → 오류 0
+- `npm run lint` → 경고·오류 0
+- `npx tsx scripts/test_user_emotion_detector.mts` → 24/24 통과
+  - 8개 감정 카테고리 × 강도별 케이스 + 힌트 블록 생성 + null 반환 케이스
+
+### 사용자에게 달라지는 점
+- 슬픔/힘듦 → 캐릭터가 조언 대신 충분한 공감과 위로 먼저
+- 스트레스 → "힘들었겠다"로 시작, 해결책 강요 안 함
+- 화남/짜증 → "내 편"이라는 느낌의 공감 응답
+- 걱정/불안 → 성급한 안심보다 먼저 들어줌
+- 기쁨/설렘 → 진심으로 같이 기뻐하고 더 물어봄
+- 외로움 → "함께 있다"는 느낌 강화
+- 피로 → 가볍고 따뜻한 톤, 무거운 대화 자제
+
+### PR
+- https://github.com/kimeunsun109-debug/pickmetalk-/pull/59
+
+### 남은 문제
+- 실제 LLM 응답 품질 QA 필요 (Vercel preview 배포 후)
+- 감정 오탐지 케이스 수집 및 패턴 보완 필요 (예: "좋은 거 없어?" 등 부정 의문문)
+- 복합 감정(슬프면서 설레는 등) 처리 미구현
+
+### 다음 추천 작업
+- 성별·MBTI·이상형 컨텍스트 파이프라인 연결 (PR #53 대신 새 구현 — P0 백로그)
+- 감정 감지 오탐지 패턴 개선
+- 관계 레벨업 토스트 UI 완성 (PR #54 개선 버전)
