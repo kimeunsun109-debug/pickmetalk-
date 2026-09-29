@@ -105,6 +105,8 @@ export interface NaturalPromptOptions {
   dynamicContextBlock?: string;
   speechProfile?: UserSpeechProfile | null;
   freshChatStart?: boolean;
+  /** 사용자 현재 메시지에서 감지된 감정 힌트 블록 (userEmotionDetector) */
+  userEmotionHintBlock?: string | null;
 }
 
 export function buildNaturalSystemPrompt(o: NaturalPromptOptions): string {
@@ -128,6 +130,7 @@ export function buildNaturalSystemPrompt(o: NaturalPromptOptions): string {
     buildMannersBlock(),
     buildMediaRecommendationRules(o.characterId),
     situation,
+    o.userEmotionHintBlock?.trim() ?? "",
     o.dynamicContextBlock?.trim() ?? "",
     buildMemoryBlock(o.memorySummary ?? null),
     buildSpeechStylePromptBlock(o.speechProfile ?? null),

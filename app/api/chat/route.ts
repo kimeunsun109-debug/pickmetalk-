@@ -9,6 +9,10 @@ import { buildSystemPrompt } from "@/prompts";
 import { affectionToLevel, clampAffection } from "@/services/affection";
 import { runDeferredChatSideEffects } from "@/services/chatSideEffects";
 import {
+  detectUserEmotion,
+  buildUserEmotionHintBlock,
+} from "@/services/userEmotionDetector";
+import {
   countEmotionDurationTurns,
   isOngoingChatSession,
   resolveCharacterEmotion,
@@ -437,6 +441,11 @@ export async function POST(request: Request) {
           .filter(Boolean)
           .join("\n\n");
 
+        const userEmotionDetection = detectUserEmotion(message);
+        const userEmotionHintBlock = userEmotionDetection
+          ? buildUserEmotionHintBlock(userEmotionDetection)
+          : null;
+
         const systemPrompt = trace.sync("Prompt Build", () =>
           buildSystemPrompt({
             characterId,
@@ -448,6 +457,7 @@ export async function POST(request: Request) {
             dynamicContextBlock,
             speechProfile,
             freshChatStart,
+            userEmotionHintBlock,
           })
         );
         trace.mark("Prompt length", `${systemPrompt.length} chars`);
