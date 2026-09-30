@@ -3,6 +3,7 @@ import { getEmotionMeta } from "@/lib/emotions";
 import { getRelationshipStage } from "@/lib/relationship";
 import { buildMediaRecommendationRules } from "@/prompts/mediaGuard";
 import { buildSpeechStylePromptBlock } from "@/services/speechStyle";
+import { buildKickLineHint } from "@/prompts/kickLines";
 import type { UserSpeechProfile } from "@/services/speechStyle";
 import type { EmotionState, RelationshipLevel } from "@/types";
 
@@ -105,6 +106,10 @@ export interface NaturalPromptOptions {
   dynamicContextBlock?: string;
   speechProfile?: UserSpeechProfile | null;
   freshChatStart?: boolean;
+  /** 사용자의 현재 메시지 (킥 문장 맥락 판단용) */
+  userMessage?: string;
+  /** 누적 사용자 메시지 수 (모멘텀 턴 계산용) */
+  turnCount?: number;
 }
 
 export function buildNaturalSystemPrompt(o: NaturalPromptOptions): string {
@@ -122,6 +127,12 @@ export function buildNaturalSystemPrompt(o: NaturalPromptOptions): string {
     .filter(Boolean)
     .join("\n");
 
+  const kickLineBlock = buildKickLineHint({
+    characterId: o.characterId,
+    userMessage: o.userMessage ?? "",
+    turnCount: o.turnCount ?? 0,
+  });
+
   return [
     buildIdentityBlock(o.characterId),
     buildBeingBlock(),
@@ -131,6 +142,7 @@ export function buildNaturalSystemPrompt(o: NaturalPromptOptions): string {
     o.dynamicContextBlock?.trim() ?? "",
     buildMemoryBlock(o.memorySummary ?? null),
     buildSpeechStylePromptBlock(o.speechProfile ?? null),
+    kickLineBlock,
   ]
     .filter(Boolean)
     .join("\n\n");

@@ -448,6 +448,8 @@ export async function POST(request: Request) {
             dynamicContextBlock,
             speechProfile,
             freshChatStart,
+            userMessage: userText,
+            turnCount: userContents.length,
           })
         );
         trace.mark("Prompt length", `${systemPrompt.length} chars`);
