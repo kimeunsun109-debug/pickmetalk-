@@ -277,3 +277,73 @@ AbsenceWelcome 오버레이 UI 연동 + returnVisit 메시지 닉네임 개인�
 - AbsenceWelcome 오버레이 Vercel preview QA 및 스크린샷 확인
 - excited 확률 캐릭터별 config 분리 (지유 높음, 은하 낮음)
 - returnVisit 오버레이에 캐릭터 이미지(hero) 삽입으로 몰입감 강화
+
+---
+
+## 2026-09-09
+
+### 선택한 작업
+생활 패턴 컨텍스트 채팅 라우트 연결 — `buildDailyPatternPromptBlock` 사용 활성화
+
+### 선택 이유
+- `buildDailyPatternPromptBlock`이 `prompts/patternNudges.ts`에 구현되어 있었으나 채팅 라우트에 전혀 연결되지 않아 dead code 상태
+- 수집(chatSideEffects) → 저장(user_daily_patterns) → **활용(시스템 프롬프트 주입)** 의 마지막 단계가 비어 있었음
+- 유저가 점심 12시에 밥 먹는 패턴이 쌓여도 AI가 "밥은 챙겨 먹었어?"를 적시에 꺼낼 수 없었음
+- 데이터는 이미 있으니 와이어 하나로 즉시 가치 실현 가능
+
+### 구현 내용
+
+#### `prompts/patternNudges.ts`
+- `buildDailyPatternPromptBlock(patterns, nowKSTMinute?)` — `nowKSTMinute` 파라미터 추가
+  - 현재 KST 분이 패턴 창 내에 있으면 `(지금 이 시간대)` + `※ 현재 [점심] 시간대` 힌트 삽입
+  - sleep 패턴처럼 자정을 걸치는 창(23:00~01:00)도 wrap-around 정상 처리
+- 신뢰도 ≥ 60% 필터 — 데이터가 적은 신규 유저에게는 블록 비어있어 영향 없음
+- 보고서 톤 완전 제거 — `신뢰도 XX%`, `관측 N회` 출력 삭제
+- 최대 4개 패턴 제한
+- `minuteFromDateInKst(date)` 헬퍼 export
+
+#### `app/api/chat/route.ts`
+- Parallel DB 호출에 `getDailyPatternsForUser(supabase, userId, 60)` 추가 (conf ≥ 60)
+- `minuteFromDateInKst(new Date(now))`로 현재 KST 분 계산
+- `buildDailyPatternPromptBlock(patterns, nowKST)` → `dynamicContextBlock`에 삽입
+- 기존 병렬 DB 조회와 동시에 실행 — 지연 영향 없음
+
+#### `scripts/test_daily_patterns.mts`
+- 24개 신규 테스트 추가 (이전: 0개 자동화 검증)
+  - `minuteFromDateInKst` 4개
+  - confidence 필터 5개
+  - active-window 감지 9개 (sleep wrap-around 포함)
+  - max-4 cap 1개
+  - 보고서 톤 금지 3개
+  - nowKST 미제공 시 동작 2개
+
+### 해결한 버그
+- `buildDailyPatternPromptBlock` dead code 상태 — 채팅 라우트에 연결되지 않아 데이터가 수집되어도 LLM에 전달 안 됨
+
+### 실행 및 테스트
+```
+npx tsx scripts/test_daily_patterns.mts → 24 passed / 0 failed
+npx tsx scripts/test_emotion.mts        → 45 passed / 0 failed
+npx tsx scripts/test_personal_memory.mts → 22 passed / 0 failed
+npx tsx scripts/test_short_term_memory.mts → 41 passed / 0 failed
+npx tsc --noEmit                        → 0 errors
+npm run lint                            → No ESLint warnings or errors
+```
+
+### 사용자에게 달라지는 점
+- 유저가 점심 12~13시에 밥 먹는 패턴(신뢰도 60%+)이 쌓이면, 그 시간대에 AI가 자연스럽게 "밥은 챙겨 먹었어?" 류의 생활 밀착 맥락을 꺼낼 수 있음
+- 퇴근 시간, 운동 시간, 취침 시간 동일
+- 패턴 데이터가 없는 신규 유저는 블록이 비어있어 기존 동작 완전 동일
+
+### PR
+- https://github.com/kimeunsun109-debug/pickmetalk-/pull/37
+
+### 남은 문제
+- 패턴 신뢰도 60% 임계값 실사용 데이터 기반 조정 필요 (현재 경험치)
+- 같은 패턴 멘트 연속 억제는 LLM 규칙에 위임 중 — 측정 후 보강 가능
+- PR #31, #34, #35, #36 여전히 DRAFT — 머지 시 함께 동작하면 시너지 큼
+
+### 다음 추천 작업
+- P0: PR #35 (memory recall wire) 머지 검토 — 오늘 작업과 함께 쓰면 회상 + 패턴 컨텍스트 동시 활성화
+- P1: returnVisit 오버레이에 캐릭터 hero 이미지 삽입 (관계 연속성 강화)
+- P1: 같은 패턴 멘트 연속 반복 억제 측정 및 필요 시 server-side rate 제한 추가

@@ -1,5 +1,8 @@
 import type { UserDailyPattern } from "@/types";
 
+const MIN_PATTERN_CONFIDENCE = 60;
+const KST_OFFSET_MINUTES = 9 * 60;
+
 function minuteToClock(minute: number): string {
   const hh = Math.floor(minute / 60)
     .toString()
@@ -27,24 +30,61 @@ function labelForType(type: UserDailyPattern["patternType"]): string {
   }
 }
 
-export function buildDailyPatternPromptBlock(patterns: UserDailyPattern[]): string {
-  if (!patterns.length) return "";
-  const rows = patterns
-    .slice(0, 4)
-    .map(
-      (p) =>
-        `- ${labelForType(p.patternType)} 추정 ${minuteToClock(p.timeStartMinute)}~${minuteToClock(p.timeEndMinute)} (신뢰도 ${Math.round(p.confidence)}%, 관측 ${p.evidenceCount}회)`
-    );
+/**
+ * 현재 KST 분(0~1439)이 패턴 창 내에 있는지 확인한다.
+ * sleep 패턴처럼 자정을 걸치는 창(start > end)도 처리한다.
+ */
+function isInWindow(start: number, end: number, nowKST: number): boolean {
+  if (start <= end) return nowKST >= start && nowKST <= end;
+  return nowKST >= start || nowKST <= end;
+}
 
-  return [
-    "[생활 패턴 힌트 — 추정치]",
-    "아래 패턴은 대화에서 추정된 생활 리듬이다. 정확한 기록처럼 단정하지 말고, 자연스러운 관심 표현으로만 가볍게 활용한다.",
-    "절대 금지: '기록에 따르면', '평균', '통계', '데이터상' 같은 감시/리포트 톤.",
-    "같은 패턴 멘트 연속 반복 금지. 질문 없이 챙김/공감/여운 마무리도 적극 사용.",
+/**
+ * UTC Date → KST 분(0~1439)
+ */
+export function minuteFromDateInKst(date: Date): number {
+  const kst = new Date(date.getTime() + KST_OFFSET_MINUTES * 60_000);
+  return kst.getUTCHours() * 60 + kst.getUTCMinutes();
+}
+
+/**
+ * 유저의 생활 패턴을 LLM 시스템 프롬프트 블록으로 변환한다.
+ *
+ * @param patterns  DB에서 가져온 UserDailyPattern 배열 (신뢰도 내림차순 권장)
+ * @param nowKSTMinute  현재 KST 분(0~1439). 미제공 시 활성 창 표시 생략.
+ */
+export function buildDailyPatternPromptBlock(
+  patterns: UserDailyPattern[],
+  nowKSTMinute?: number
+): string {
+  const significant = patterns
+    .filter((p) => p.confidence >= MIN_PATTERN_CONFIDENCE)
+    .slice(0, 4);
+
+  if (significant.length === 0) return "";
+
+  const activeLabels: string[] = [];
+  const rows = significant.map((p) => {
+    const label = labelForType(p.patternType);
+    const timeStr = `${minuteToClock(p.timeStartMinute)}~${minuteToClock(p.timeEndMinute)}`;
+    const active =
+      nowKSTMinute !== undefined &&
+      isInWindow(p.timeStartMinute, p.timeEndMinute, nowKSTMinute);
+    if (active) activeLabels.push(label);
+    return `- ${label}: 보통 ${timeStr}${active ? " (지금 이 시간대)" : ""}`;
+  });
+
+  const lines = [
+    "[생활 패턴 힌트 — 대화에 자연스럽게만 활용]",
+    "아래는 대화에서 추론된 생활 리듬이다. 단정·보고 톤 금지 ('기록에 따르면', '평균', '통계' 등). 가볍게 챙기는 맥락에서만 1~2번 활용한다.",
     ...rows,
-    "[패턴 활용 멘트 풀(상황 맞을 때 랜덤 사용)]",
-    "- 점심 전: '점심시간 다가오네~ 뭐 챙겨 먹을 생각이야?' / '배고플 타이밍이네, 오늘은 뭐 땡겨?'",
-    "- 퇴근 전: '조금만 더 버티면 퇴근이네. 오늘도 고생 많았어.' / '퇴근각 보인다, 끝나면 숨부터 돌리자.'",
-    "- 취침 전: '이제 슬슬 쉬어도 되겠다. 오늘도 수고했어.' / '밤이 깊어졌네, 오늘은 일찍 눕자.'",
-  ].join("\n");
+  ];
+
+  if (activeLabels.length > 0) {
+    lines.push(
+      `※ 현재 [${activeLabels.join(", ")}] 시간대 — 자연스럽게 언급 가능. 강요 금지.`
+    );
+  }
+
+  return lines.join("\n");
 }
