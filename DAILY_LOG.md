@@ -2,6 +2,57 @@
 
 ---
 
+## 2026-09-30
+
+### 선택한 작업
+성별·MBTI·이상형 컨텍스트 파이프라인 완성 (`services/context.ts`)
+
+### 선택 이유
+- 회원가입 시 수집한 gender/mbti/idealType이 `profileCtx`까지 로드되지만 `extractUserContext`에서 필드가 없어 조용히 드롭되고 있었음
+- 사용자가 MBTI를 기입해도 캐릭터는 전혀 알지 못한 채 대화 — 데이터 낭비 + 개인화 기회 손실
+- PR #53 DRAFT가 있었으나 다른 각도로: 단순 필드 추가가 아니라 **16유형별 행동 힌트 사전**을 구현해 캐릭터가 대화 방식을 실질적으로 조정할 수 있도록 함
+
+### 구현 내용
+1. **`services/context.ts`**
+   - `UserContextData`에 `gender`, `mbti`, `idealType` 필드 추가
+   - `extractUserContext()`에서 profileCtx 세 필드 추출 (공백·빈 문자열 → undefined)
+   - `MBTI_HINTS` 사전 추가 (16유형 × 행동 힌트 — 라벨 아닌 "대화 결" 설명)
+   - `buildCommonContextBlock()`에 성별·MBTI(힌트)·이상형 라인 삽입
+     - gender: `male`/`'남'` → 남성, `female`/`'여'` → 여성 자동 표준화
+     - idealType: "직접 언급 금지" 주석 → 캐릭터 태도에 자연스럽게 녹아들게 유도
+2. **`scripts/test_mbti_gender_context.mts`** — 40개 단위 테스트 (신규)
+
+### 해결한 버그
+- 없음 (신규 기능)
+
+### 실행 및 테스트
+```
+npx tsx scripts/test_mbti_gender_context.mts → 40/40 passed
+npx tsc --noEmit                             → 0 errors
+npm run lint                                 → No ESLint warnings or errors
+```
+
+### 사용자에게 달라지는 점
+- MBTI를 설정한 사용자는 캐릭터가 그 유형의 대화 선호도에 맞게 소통 방식을 미세 조정함
+  - 예: INTJ → 논리적이고 직접적인 대화 / ENFP → 에너지 넘치는 반응
+- 성별 정보가 캐릭터 호칭·분위기에 자연스럽게 반영됨
+- 이상형 키워드가 캐릭터 태도에 은근히 스며듦 (직접 언급 없이)
+
+### PR
+- https://github.com/kimeunsun109-debug/pickmetalk-/pull/60
+
+### 남은 문제
+- 이상형 힌트를 캐릭터별로 다르게 처리하면 더 개인화 가능 (현재 공통 처리)
+- MBTI 대화 적응도 A/B 테스트 미구현 (실제 효과 측정 필요)
+- PR #53 DRAFT와 중복 — 어느 것을 머지할지 사용자 판단 필요
+
+### 다음 추천 작업
+- P0: 관계 레벨업 토스트 UI (PR #54 DRAFT 검토 또는 재구현)
+- P0: 단기기억 긴급 follow-up 힌트 (PR #52 DRAFT 검토)
+- P1: 감정 감지 오탐지 개선 — 부정 의문문 패턴 ("좋은 거 없어?" → happy 오탐 방지)
+
+---
+
 ## 2026-08-27
 
 ### 선택한 작업
