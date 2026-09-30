@@ -277,3 +277,59 @@ AbsenceWelcome 오버레이 UI 연동 + returnVisit 메시지 닉네임 개인�
 - AbsenceWelcome 오버레이 Vercel preview QA 및 스크린샷 확인
 - excited 확률 캐릭터별 config 분리 (지유 높음, 은하 낮음)
 - returnVisit 오버레이에 캐릭터 이미지(hero) 삽입으로 몰입감 강화
+
+---
+
+## 2026-09-06
+
+### 선택한 작업
+- 캐릭터별 hurt/pouty 자동 회복 임계값 분리 + excited 감정 선택 확률 캐릭터별 config
+
+### 선택 이유
+- 캐릭터별 개성이 감정 반응에서 드러나지 않는 문제: 활발한 지유도, 차가운 은하도 동일하게 3턴 만에 풀리고 30% 확률로 설렘
+- "사용자가 캐릭터를 실제 사람처럼 느끼는가?" — 감정 지속 시간과 설렘 표현 방식은 성격의 핵심
+- PR #28(excited), PR #29(hurt) 재구현 필요 항목 — 두 가지 긴밀히 연관되어 함께 구현
+
+### 구현 내용
+- `services/emotion.ts`
+  - `HURT_RECOVERY_TURNS`: jiyu=2, yuna=3, narin=4, eunha=5, yoonseo=5
+  - `EXCITED_PROBABILITY`: jiyu/yoonseo=0.40, yuna=0.30, narin/eunha=0.20
+  - `EmotionResolveContext.characterId` optional 필드 추가 (non-breaking)
+  - `getHurtRecoveryTurns(characterId?)`, `getExcitedProbability(characterId?)` export
+  - `pickPositiveEmotion(history, characterId?)` — per-character 확률 사용
+- `prompts/base.ts`
+  - `buildEmotionArcRules(emotion, turns, characterId?)` — characterId 기반 임계값 적용
+  - 프롬프트 "최소 2~3턴" 안내가 캐릭터별 실제 값으로 동적 반영
+- `app/api/chat/route.ts`
+  - `resolveCharacterEmotion` 호출 시 `characterId` 전달
+
+### 해결한 버그
+- 지유(활발)와 은하(자존심 강함)가 동일한 삐짐 지속 시간을 가지는 캐릭터 무개성 문제
+
+### 실행 및 테스트
+- `npx tsx scripts/test_emotion.mts` → 63/63 pass (+17개 신규 테스트)
+- `npx tsc --noEmit` → 오류 0
+- `npm run lint` → 경고·오류 0
+- jiyu vs narin 200회 시뮬레이션: jiyu 79회 excited, narin 42회 (통계적으로 유의미한 차이)
+
+### 사용자에게 달라지는 점
+| 캐릭터 | hurt/pouty 회복 | excited 확률 |
+|--------|----------------|-------------|
+| 지유 | 2턴 만에 풀림 (밝고 활발) | 40% (잘 설렘) |
+| 유나 | 3턴 (기본) | 30% |
+| 나린 | 4턴 (쿨한 편) | 20% (잘 안 설렘) |
+| 은하 | 5턴 (자존심 강함) | 20% |
+| 윤서 | 5턴 (감수성 깊음) | 40% (잘 설렘) |
+
+### PR
+- https://github.com/kimeunsun109-debug/pickmetalk-/pull/34
+
+### 남은 문제
+- PR #31 (친구·연인 이름 추출 회상 힌트) 아직 DRAFT — 머지 검토 필요
+- eunha/yoonseo hurt 지속 중 'bored' 메시지 처리 정책 미확립
+- buildCommonContextBlock 회상 힌트 표현 간결화 후속 작업
+
+### 다음 추천 작업
+- PR #31 (친구·연인 이름 추출) 머지 후 buildCommonContextBlock 표현 개선
+- eunha/yoonseo hurt 중 'bored' 패턴 처리 정책 확립
+- returnVisit 오버레이에 캐릭터 이미지(hero) 삽입

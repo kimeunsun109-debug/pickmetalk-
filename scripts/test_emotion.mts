@@ -10,6 +10,8 @@ import {
   inferEmotionFromUserMessage,
   isOngoingChatSession,
   countEmotionDurationTurns,
+  getHurtRecoveryTurns,
+  getExcitedProbability,
 } from "../services/emotion";
 import type { EmotionState, Message } from "../types";
 
@@ -335,6 +337,85 @@ const gapHist: Message[] = [
 test("prev 유저메시지가 30분 전 → ongoing=true", isOngoingChatSession(ongoingHist), true);
 test("prev 유저메시지가 2h 전 → ongoing=false", isOngoingChatSession(gapHist), false);
 test("메시지 1개 → ongoing=false", isOngoingChatSession([makeMessage("user", 5)]), false);
+
+// ─────────────────────────────────────────────
+// 9. getHurtRecoveryTurns — 캐릭터별 회복 임계값
+// ─────────────────────────────────────────────
+
+console.log("\n[9] getHurtRecoveryTurns — 캐릭터별 임계값");
+
+test("jiyu → 2 (빠른 회복)", getHurtRecoveryTurns("jiyu"), 2);
+test("yuna → 3 (기본)", getHurtRecoveryTurns("yuna"), 3);
+test("narin → 4 (조금 오래)", getHurtRecoveryTurns("narin"), 4);
+test("eunha → 5 (오래)", getHurtRecoveryTurns("eunha"), 5);
+test("yoonseo → 5 (오래)", getHurtRecoveryTurns("yoonseo"), 5);
+test("미등록 캐릭터 → 3 (기본값)", getHurtRecoveryTurns("unknown"), 3);
+test("undefined → 3 (기본값)", getHurtRecoveryTurns(undefined), 3);
+
+// ─────────────────────────────────────────────
+// 10. getExcitedProbability — 캐릭터별 excited 확률
+// ─────────────────────────────────────────────
+
+console.log("\n[10] getExcitedProbability — 캐릭터별 확률");
+
+test("jiyu → 0.40 (활발)", getExcitedProbability("jiyu"), 0.40);
+test("yuna → 0.30 (기본)", getExcitedProbability("yuna"), 0.30);
+test("narin → 0.20 (쿨한 성격)", getExcitedProbability("narin"), 0.20);
+test("eunha → 0.20 (차가운 성격)", getExcitedProbability("eunha"), 0.20);
+test("yoonseo → 0.40 (감수성 풍부)", getExcitedProbability("yoonseo"), 0.40);
+test("미등록 캐릭터 → 0.30 (기본값)", getExcitedProbability("unknown"), 0.30);
+test("undefined → 0.30 (기본값)", getExcitedProbability(undefined), 0.30);
+
+// ─────────────────────────────────────────────
+// 11. resolveCharacterEmotion + characterId → excited 확률 분기
+// ─────────────────────────────────────────────
+
+console.log("\n[11] resolveCharacterEmotion characterId → excited 확률 분기");
+
+// jiyu(40%) vs narin(20%): 100번 시뮬레이션으로 확률 범위 검증
+{
+  const runs = 200;
+  const jiyu_excited = Array.from({ length: runs }).filter(() =>
+    resolveCharacterEmotion(
+      { userMessage: "회사 끝났어", lastChatAt: minutesAgo(3), lastSeenAt: minutesAgo(30), affectionWillIncrease: true, characterId: "jiyu" },
+      undefined,
+      [] // history 없이 → pickPositiveEmotion 매번 독립 시행
+    ) === "excited"
+  ).length;
+  const narin_excited = Array.from({ length: runs }).filter(() =>
+    resolveCharacterEmotion(
+      { userMessage: "회사 끝났어", lastChatAt: minutesAgo(3), lastSeenAt: minutesAgo(30), affectionWillIncrease: true, characterId: "narin" },
+      undefined,
+      []
+    ) === "excited"
+  ).length;
+  // jiyu excited 비율이 narin보다 높아야 함 (통계적으로)
+  test(
+    `jiyu(${jiyu_excited}/${runs}) excited 횟수 > narin(${narin_excited}/${runs})`,
+    jiyu_excited > narin_excited,
+    true
+  );
+  // 범위 체크: jiyu 15~65%, narin 5~35% (200번 시도)
+  test(`jiyu excited 비율이 15%~65% 사이`, jiyu_excited >= 30 && jiyu_excited <= 130, true);
+  test(`narin excited 비율이 5%~35% 사이`, narin_excited >= 10 && narin_excited <= 70, true);
+}
+
+// characterId가 없을 때 기본 동작 유지 (30%)
+{
+  const runs = 200;
+  const default_excited = Array.from({ length: runs }).filter(() =>
+    resolveCharacterEmotion(
+      { userMessage: "회사 끝났어", lastChatAt: minutesAgo(3), lastSeenAt: minutesAgo(30), affectionWillIncrease: true },
+      undefined,
+      []
+    ) === "excited"
+  ).length;
+  test(
+    `characterId 없음: excited 비율이 10%~50% 사이 (기본 30%)`,
+    default_excited >= 20 && default_excited <= 100,
+    true
+  );
+}
 
 // ─────────────────────────────────────────────
 // 결과

@@ -367,6 +367,7 @@ export async function POST(request: Request) {
             lastSeenAt: conversation.updatedAt,
             currentEmotion: conversation.emotion,
             affectionWillIncrease: true,
+            characterId,
           },
           undefined,
           history
