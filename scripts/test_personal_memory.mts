@@ -7,6 +7,7 @@ import {
   extractKeyMemories,
   updateMemorySummary,
   parseStoredSummary,
+  getContextMemoryPrompt,
 } from "../services/memory.js";
 import { extractUserContext, buildCommonContextBlock } from "../services/context.js";
 
@@ -236,6 +237,142 @@ test("반려동물 이름이 personalFacts에 있고 userName에는 없음", () 
   const facts = ctx.personalFacts!;
   expect(facts.length).toBe(1);
   expect(facts[0]).toContain("망고");
+});
+
+// ─── Friend name extraction ──────────────────────────────────
+
+test("친구 이름 추출 — Pattern 1: 친구 이름이 {name}야", () => {
+  const entities = extractKeyMemories("친구 이름이 민지야");
+  const personal = entities.filter((e) => e.category === "personal");
+  expect(personal.length).toBe(1);
+  expect(personal[0].fact).toContain("친구");
+  expect(personal[0].fact).toContain("민지");
+});
+
+test("친구 이름 추출 — Pattern 2: {name}라는 친구야", () => {
+  const entities = extractKeyMemories("준호라는 친구가 있어");
+  const personal = entities.filter((e) => e.category === "personal");
+  expect(personal.length).toBe(1);
+  expect(personal[0].fact).toContain("친구");
+  expect(personal[0].fact).toContain("준호");
+});
+
+test("친구 이름 추출 — Pattern 3: 내 친구가 {name}야", () => {
+  const entities = extractKeyMemories("내 친구가 수현이야");
+  const personal = entities.filter((e) => e.category === "personal");
+  expect(personal.length).toBe(1);
+  expect(personal[0].fact).toContain("친구");
+  expect(personal[0].fact).toContain("수현");
+});
+
+test("베프 이름 추출", () => {
+  const entities = extractKeyMemories("내 베프 이름이 지은이야");
+  const personal = entities.filter((e) => e.category === "personal");
+  expect(personal.length).toBe(1);
+  expect(personal[0].fact).toContain("베프");
+  expect(personal[0].fact).toContain("지은");
+});
+
+// ─── Partner name extraction ──────────────────────────────────
+
+test("남자친구 이름 추출 — Pattern 1: 남자친구 이름이 {name}야", () => {
+  const entities = extractKeyMemories("남자친구 이름이 준호야");
+  const personal = entities.filter((e) => e.category === "personal");
+  expect(personal.length).toBe(1);
+  expect(personal[0].fact).toContain("남자친구");
+  expect(personal[0].fact).toContain("준호");
+});
+
+test("여자친구 이름 추출 — Pattern 2: {name}이라는 여자친구", () => {
+  const entities = extractKeyMemories("서연이라는 여자친구가 있어");
+  const personal = entities.filter((e) => e.category === "personal");
+  expect(personal.length).toBe(1);
+  expect(personal[0].fact).toContain("여자친구");
+  expect(personal[0].fact).toContain("서연");
+});
+
+test("남친 이름 추출 — Pattern 3: 내 남친이 {name}야", () => {
+  const entities = extractKeyMemories("내 남친이 태민이야");
+  const personal = entities.filter((e) => e.category === "personal");
+  expect(personal.length).toBe(1);
+  expect(personal[0].fact).toContain("남친");
+  expect(personal[0].fact).toContain("태민");
+});
+
+test("애인 이름 추출 — Pattern 2: {name}라는 애인", () => {
+  const entities = extractKeyMemories("재원이라는 애인이 생겼어");
+  const personal = entities.filter((e) => e.category === "personal");
+  expect(personal.length).toBe(1);
+  expect(personal[0].fact).toContain("애인");
+  expect(personal[0].fact).toContain("재원");
+});
+
+// ─── Extended family patterns ─────────────────────────────────
+
+test("형 이름 추출 — Pattern 4: 형이 {name}야", () => {
+  const entities = extractKeyMemories("형이 준혁이야");
+  const personal = entities.filter((e) => e.category === "personal");
+  expect(personal.length).toBe(1);
+  expect(personal[0].fact).toContain("형");
+  expect(personal[0].fact).toContain("준혁");
+});
+
+test("사촌 이름 추출 — Pattern 2: {name}라는 사촌", () => {
+  const entities = extractKeyMemories("영호라는 사촌이 있어");
+  const personal = entities.filter((e) => e.category === "personal");
+  expect(personal.length).toBe(1);
+  expect(personal[0].fact).toContain("사촌");
+  expect(personal[0].fact).toContain("영호");
+});
+
+// ─── Negative tests ───────────────────────────────────────────
+
+test("직업/역할 추출 안 함 — '친구 같은 선생님이야'", () => {
+  const entities = extractKeyMemories("우리 선생님은 친구 같아");
+  const personal = entities.filter((e) => e.category === "personal");
+  expect(personal.length).toBe(0);
+});
+
+test("관계 언급만 있고 이름 없으면 추출 안 함 — '내 친구가 너무 예뻐'", () => {
+  const entities = extractKeyMemories("내 친구가 너무 예뻐");
+  const personal = entities.filter((e) => e.category === "personal");
+  expect(personal.length).toBe(0);
+});
+
+// ─── getContextMemoryPrompt — relation recall hints ───────────
+
+test("친구 이름이 getContextMemoryPrompt에 회상 힌트로 포함됨", () => {
+  const summary = "- [personal] 친구 이름: 민지";
+  const prompt = getContextMemoryPrompt(summary, { userMessageCount: 3 });
+  expect(prompt).toContain("민지");
+  expect(prompt).toContain("친구");
+});
+
+test("남자친구 이름이 getContextMemoryPrompt에 회상 힌트로 포함됨", () => {
+  const summary = "- [personal] 남자친구 이름: 준호";
+  const prompt = getContextMemoryPrompt(summary, { userMessageCount: 3 });
+  expect(prompt).toContain("준호");
+  expect(prompt).toContain("남자친구");
+});
+
+test("가족 이름이 getContextMemoryPrompt에 회상 힌트로 포함됨", () => {
+  const summary = "- [personal] 형 이름: 민수";
+  const prompt = getContextMemoryPrompt(summary, { userMessageCount: 3 });
+  expect(prompt).toContain("민수");
+  expect(prompt).toContain("형");
+});
+
+test("유저 이름·반려동물은 getContextMemoryPrompt에서 제외됨 (buildCommonContextBlock에서 처리)", () => {
+  const summary = "- [personal] 유저 이름: 철수\n- [personal] 반려동물: 망고 (강아지)";
+  const prompt = getContextMemoryPrompt(summary, { userMessageCount: 3 });
+  expect(prompt).toBe("");
+});
+
+test("friend + non-personal 조합 회상 힌트 모두 포함됨", () => {
+  const summary = "- [personal] 친구 이름: 지은\n- [work] 야근 힘들다";
+  const prompt = getContextMemoryPrompt(summary, { userMessageCount: 3 });
+  expect(prompt).toContain("지은");
+  expect(prompt).toContain("야근");
 });
 
 // ─── Summary ────────────────────────────────────────────────

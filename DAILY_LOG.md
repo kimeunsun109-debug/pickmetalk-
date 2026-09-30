@@ -277,3 +277,73 @@ AbsenceWelcome 오버레이 UI 연동 + returnVisit 메시지 닉네임 개인�
 - AbsenceWelcome 오버레이 Vercel preview QA 및 스크린샷 확인
 - excited 확률 캐릭터별 config 분리 (지유 높음, 은하 낮음)
 - returnVisit 오버레이에 캐릭터 이미지(hero) 삽입으로 몰입감 강화
+
+---
+
+## 2026-09-05
+
+### 선택한 작업
+- 친구·연인 관계 이름 추출 + `getContextMemoryPrompt` 회상 힌트 주입
+
+### 선택 이유
+- 현재 코드는 반려동물·유저 이름·가족 이름만 추출. "내 친구 민지가" · "남자친구 준호가" 같은 발화에서 이름이 소실됨
+- 백로그 최상위: `getContextMemoryPrompt에 친구/연인 이름도 회상 힌트로 활용`
+- 관계 경험 우선순위 3 (Memory) — 지인 이름을 기억하고 자연스럽게 언급하면 AI가 실제 사람처럼 느껴짐
+
+### 구현 내용
+1. **`services/memory.ts`** — 상수 추가
+   - `FRIEND_RELATIONS`: 베프, 절친, 동생뻘, 선배, 후배, 친구
+   - `PARTNER_RELATIONS`: 남자친구, 여자친구, 남친, 여친, 애인, 연인
+   - `ALL_RELATIONS`: 가족+연인+친구 합산, 길이 내림차순 정렬(부분 문자열 충돌 방지)
+   - `FAMILY_RELATIONS`: 사촌 추가, 길이 내림차순 정렬
+
+2. **`services/memory.ts`** — `stripNameSuffix()` 헬퍼
+   - 야/이야/이에요/이고/인데/이다 접미사 제거
+
+3. **`services/memory.ts`** — `extractPersonalEntity()` 확장
+   - Pattern 1: `{relation} 이름이/은/가 {name}` → 모든 관계 적용
+   - Pattern 2: `{name}라는/이라는 {relation}` → "준호라는 친구야"
+   - Pattern 3: `내 {relation}이/가 {name}야` (접미사 필수 — 부사 오탐 방지)
+   - Pattern 4: `{relation}이/가 {name}야` (형·언니·오빠·누나·동생 단음절)
+
+4. **`services/memory.ts`** — `getContextMemoryPrompt()` 개선
+   - 기존: personal 엔티티 전체 제외
+   - 변경: 친구·연인·가족 이름을 관계 유형별 맞춤 회상 힌트로 주입
+     - 연인: "유저의 남자친구 이름이 '준호'임을 알고 있다. 연애 관련 대화에서 이름을 자연스럽게 활용."
+     - 친구: "유저 주변에 '민지'라는 친구이 있다. 관련 이야기가 나올 때 이름을 자연스럽게 활용."
+     - 가족: "유저의 형 이름이 '민수'임을 알고 있다."
+   - 유저 이름·반려동물은 기존대로 buildCommonContextBlock에서 처리
+
+5. **`scripts/test_personal_memory.mts`** — 테스트 17개 추가
+   - 친구 3개 (Pattern 1/2/3), 베프 1개
+   - 남자친구/여자친구/남친/애인 4개
+   - 형 Pattern 4, 사촌 Pattern 2
+   - 부정 테스트 2개 (직업/역할 오탐, 이름 없는 관계 언급)
+   - getContextMemoryPrompt 회상 힌트 5개
+
+### 해결한 버그
+- "내 친구가 너무 예뻐"에서 "너무"를 이름으로 오탐 → Pattern 3에 접미사 필수화로 수정
+
+### 실행 및 테스트
+- `npx tsc --noEmit` → 오류 0
+- `npm run lint` → 경고·오류 0
+- `npx tsx scripts/test_personal_memory.mts` → **39/39 pass** (신규 17개 포함)
+
+### 사용자에게 달라지는 점
+- 캐릭터가 "아, 민지 친구 잘 지낸대?" 처럼 대화에서 언급한 지인 이름을 기억하고 자연스럽게 활용
+- 남자친구/여자친구/애인 이름도 저장되어 연애 대화에서 자연스럽게 호칭
+- 가족(형·언니·엄마 등) 이름도 회상 힌트 포함
+- 기억 정확성·감정적 연결 강화 — AI가 "내 친구들과 내 상황을 아는 사람"처럼 느껴짐
+
+### PR
+- 생성 예정
+
+### 남은 문제
+- Pattern 3이 접미사 필수라 "내 친구가 민지야" 패턴만 캡처 (접미사 없는 경우 미포함 — 보수적 선택)
+- 실제 대화에서 다양한 문장 구조 추가 필요 시 패턴 확장 가능
+- getContextMemoryPrompt 회상 힌트 최대 3개 (친구/연인/가족 이름 수 제한) — 추후 조정 가능
+
+### 다음 추천 작업
+- `buildCommonContextBlock`에서 친구·연인 이름을 더 자연스럽게 표현 (현재 "유저가 알려준 정보: 친구 이름: 민지"를 "친구 민지"로 간결화)
+- Photo Push 연동 — 지인 이름이 있으면 그와 관련된 사진 추천 흐름 가능
+- P0 캐릭터 프로필·홈 UI Vercel 검수

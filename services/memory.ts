@@ -105,18 +105,55 @@ const PET_ANIMALS = [
 ] as const;
 
 const FAMILY_RELATIONS = [
-  "형",
-  "언니",
-  "오빠",
-  "누나",
-  "엄마",
-  "아빠",
-  "남동생",
-  "여동생",
-  "동생",
   "할머니",
   "할아버지",
+  "남동생",
+  "여동생",
+  "엄마",
+  "아빠",
+  "언니",
+  "누나",
+  "오빠",
+  "형",
+  "동생",
+  "사촌",
 ] as const;
+
+const FRIEND_RELATIONS = [
+  "베프",
+  "절친",
+  "동생뻘",
+  "선배",
+  "후배",
+  "친구",
+] as const;
+
+const PARTNER_RELATIONS = [
+  "남자친구",
+  "여자친구",
+  "남친",
+  "여친",
+  "애인",
+  "연인",
+] as const;
+
+/**
+ * 모든 관계어 목록 (길이 내림차순 — 부분 문자열 충돌 방지).
+ * e.g. "남자친구"가 "친구"보다 먼저 매칭되어야 한다.
+ */
+const ALL_RELATIONS: string[] = [
+  ...FAMILY_RELATIONS,
+  ...PARTNER_RELATIONS,
+  ...FRIEND_RELATIONS,
+].sort((a, b) => b.length - a.length);
+
+/**
+ * 이름 캡처 후미 접미사(야/이야/이에요/이고/인데) 제거.
+ * 예: "민지야" → "민지", "준호이야" → "준호"
+ */
+function stripNameSuffix(raw: string): string {
+  return raw.replace(/(?:이야|이에요|이고|인데|이다|야)$/, "").trim();
+}
 
 const OCCUPATION_WORDS = new Set([
   "학생",
@@ -207,20 +244,69 @@ function extractPersonalEntity(
     };
   }
 
-  // 가족 이름: "{relation} 이름이 {name}야"
-  for (const relation of FAMILY_RELATIONS) {
+  // 관계 이름 Pattern 1: "{relation} 이름이/은/가 {name}야"
+  // 모든 관계(가족·친구·연인)에 적용
+  for (const relation of ALL_RELATIONS) {
     const m = text.match(
       new RegExp(
-        `${relation}\\s*이름(?:이|은|가)?\\s*([가-힣]{1,6})(?:야|이야|이에요)?`,
+        `${relation}\\s*이름(?:이|은|가)?\\s*([가-힣]{1,6})(?:야|이야|이에요|이고)?`,
         "u"
       )
     );
     if (m?.[1]) {
-      return {
-        fact: `${relation} 이름: ${m[1]}`,
-        category: "personal",
-        timestamp,
-      };
+      const name = stripNameSuffix(m[1]);
+      if (name.length >= 1) {
+        return { fact: `${relation} 이름: ${name}`, category: "personal", timestamp };
+      }
+    }
+  }
+
+  // 관계 이름 Pattern 2: "{name}라는/이라는 {relation}"
+  // 예: "준호라는 친구야", "민지이라는 베프"
+  for (const relation of ALL_RELATIONS) {
+    const m = text.match(
+      new RegExp(
+        `([가-힣a-zA-Z]{1,6})(?:라는|이라는)\\s*${relation}`,
+        "u"
+      )
+    );
+    if (m?.[1] && isLikelyKoreanName(m[1])) {
+      return { fact: `${relation} 이름: ${m[1]}`, category: "personal", timestamp };
+    }
+  }
+
+  // 관계 이름 Pattern 3: "내 {relation}이/가 {name}야/이야" — 접미사 필수로 부사 오탐 방지
+  // 예: "내 친구가 민지야", "내 남친이 태민이야"
+  for (const relation of ALL_RELATIONS) {
+    const m = text.match(
+      new RegExp(
+        `내\\s*${relation}\\s*(?:이|가|은|는)?\\s*([가-힣]{1,6})(?:야|이야|이에요|이고)`,
+        "u"
+      )
+    );
+    if (m?.[1]) {
+      const name = stripNameSuffix(m[1]);
+      if (isLikelyKoreanName(name)) {
+        return { fact: `${relation} 이름: ${name}`, category: "personal", timestamp };
+      }
+    }
+  }
+
+  // 관계 이름 Pattern 4: "{short-relation}이/가 {name}야" (단음절 관계어 — 형·언니·오빠·누나·동생)
+  // 예: "형이 준호야", "언니가 서연이야"
+  const SHORT_FAMILY = ["형", "언니", "오빠", "누나", "동생"] as const;
+  for (const relation of SHORT_FAMILY) {
+    const m = text.match(
+      new RegExp(
+        `(?<![가-힣])${relation}\\s*(?:이|가)\\s*([가-힣]{1,6})(?:야|이야|이에요|이고)?(?!\\s*(?:아니|맞아|이야기|이상))`,
+        "u"
+      )
+    );
+    if (m?.[1]) {
+      const name = stripNameSuffix(m[1]);
+      if (isLikelyKoreanName(name)) {
+        return { fact: `${relation} 이름: ${name}`, category: "personal", timestamp };
+      }
     }
   }
 
@@ -499,11 +585,24 @@ export function getContextMemoryPrompt(
 
   if (!isStablePhase) return "";
 
-  // personal은 buildCommonContextBlock에서 처리하므로 여기선 제외
+  // non-personal facts (work / hobby / schedule / finance / emotion)
   const nonPersonal = sortByPriority(
     entities.filter((e) => e.category !== "personal")
   ).slice(0, 2);
-  if (nonPersonal.length === 0) return "";
+
+  // personal: 친구·연인·가족 이름만 회상 힌트로 추가 (유저 이름·반려동물은 buildCommonContextBlock에서 처리)
+  const relationPersonal = entities
+    .filter((e) => e.category === "personal")
+    .filter((e) => {
+      const f = e.fact;
+      return (
+        !f.startsWith("유저 이름:") &&
+        !f.startsWith("반려동물:")
+      );
+    })
+    .slice(0, 3);
+
+  if (nonPersonal.length === 0 && relationPersonal.length === 0) return "";
 
   const lines = ["[기억 활용 지침 — 선택적 회상]"];
 
@@ -534,6 +633,32 @@ export function getContextMemoryPrompt(
           `- 유저가 "${entity.fact}" 감정을 표현했다. 공감은 유지하되 같은 안부·감정 질문 반복 금지.`
         );
         break;
+    }
+  }
+
+  // 친구·연인·가족 이름 회상 힌트
+  for (const entity of relationPersonal) {
+    const [relPart, namePart] = entity.fact.split(": ");
+    const name = namePart?.trim();
+    const rel = relPart?.trim();
+    if (!name || !rel) continue;
+
+    const isPartner = (PARTNER_RELATIONS as readonly string[]).includes(rel);
+    const isFriend = (FRIEND_RELATIONS as readonly string[]).includes(rel);
+
+    if (isPartner) {
+      lines.push(
+        `- 유저의 ${rel} 이름이 "${name}"임을 알고 있다. 연애 관련 대화에서 이름을 자연스럽게 활용. 반복 언급 금지.`
+      );
+    } else if (isFriend) {
+      lines.push(
+        `- 유저 주변에 "${name}"라는 ${rel}이 있다. 관련 이야기가 나올 때 이름을 자연스럽게 활용. 같은 질문 반복 금지.`
+      );
+    } else {
+      // 가족
+      lines.push(
+        `- 유저의 ${rel} 이름이 "${name}"임을 알고 있다. 가족 관련 대화에서 자연스럽게 활용. 반복 언급 금지.`
+      );
     }
   }
 
