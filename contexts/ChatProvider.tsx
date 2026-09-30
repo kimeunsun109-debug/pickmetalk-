@@ -46,6 +46,8 @@ interface ChatContextValue {
   lastChatAt: string | null;
   messages: ChatMessage[];
   isTyping: boolean;
+  /** 캐릭터 선제 인사 생성 중 — 타이핑 버블 표시용 */
+  isProactiveLoading: boolean;
   /** 백그라운드 동기화 중 — UI 차단·전체 로딩 화면에 사용하지 않음 */
   isSyncingHistory: boolean;
   sendMessage: (text: string, options?: { resend?: boolean }) => Promise<void>;
@@ -141,6 +143,7 @@ export function ChatProvider({
   const hasSsrMessages = Boolean(initialMessages?.length);
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages ?? []);
   const [isTyping, setIsTyping] = useState(false);
+  const [isProactiveLoading, setIsProactiveLoading] = useState(false);
   /** UI에 사용하지 않음 — 백그라운드 동기화만 (로딩 화면·skeleton 없음) */
   const [isSyncingHistory] = useState(false);
   const streamingIdRef = useRef<string | null>(null);
@@ -271,6 +274,7 @@ export function ChatProvider({
       if (proactiveDoneRef.current === convId) return;
       // POST 발사 전에 마킹 — 동시 마운트(strict mode 등)로 인한 이중 인사 방지
       proactiveDoneRef.current = convId;
+      setIsProactiveLoading(true);
 
       void fetch(`/api/conversations/${convId}/proactive`, { method: "POST" })
         .then(() => {
@@ -280,7 +284,10 @@ export function ChatProvider({
           if (streamingIdRef.current) return;
           setMessages((prev) => mergeNewServerMessages(prev, refreshed));
         })
-        .catch(() => undefined);
+        .catch(() => undefined)
+        .finally(() => {
+          setIsProactiveLoading(false);
+        });
     },
     [fetchMessages]
   );
@@ -722,6 +729,7 @@ export function ChatProvider({
       lastChatAt,
       messages,
       isTyping,
+      isProactiveLoading,
       isSyncingHistory,
       sendMessage,
       sendGift,
@@ -746,6 +754,7 @@ export function ChatProvider({
       lastChatAt,
       messages,
       isTyping,
+      isProactiveLoading,
       isSyncingHistory,
       sendMessage,
       sendGift,

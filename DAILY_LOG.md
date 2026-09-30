@@ -2,6 +2,62 @@
 
 ---
 
+## 2026-09-14
+
+### 선택한 작업
+- 캐릭터 타이핑 버블 — AI 응답 대기 및 선제 인사 로딩 시 표시
+
+### 선택 이유
+- `TypingIndicator` 컴포넌트가 존재했으나 어디에도 렌더링되지 않음
+- 사용자가 메시지를 보낸 후 AI 첫 청크가 오기 전까지 화면이 정지한 것처럼 보임
+- 캐릭터 선제 인사 생성 중(~8초) 아무 피드백 없이 메시지가 갑자기 나타남
+- "실제 사람과 대화한다"는 느낌의 핵심인 타이핑 피드백이 없었음
+
+### 구현 내용
+1. **`contexts/ChatProvider.tsx`**
+   - `isProactiveLoading: boolean` 상태 추가
+   - `runProactiveInBackground()`: 시작 시 `true`, `.finally()`에서 `false`
+   - Context value에 `isProactiveLoading` 노출
+
+2. **`components/chat/MessageList.tsx`**
+   - `isProactiveLoading?: boolean` prop 추가
+   - `TypingBubble` 내부 컴포넌트: 캐릭터 아바타 + `TypingIndicator` 점 3개 애니메이션
+   - `showTypingBubble` 조건: `(isTyping && 마지막 메시지가 user) || isProactiveLoading`
+   - 타이핑 버블만 있을 때도 렌더링할 수 있도록 early-return 조건 조정
+
+3. **`components/chat/ChatScreen.tsx`**
+   - `isProactiveLoading` useChat()에서 구조분해
+   - `showOnboarding`: `messages.length === 0 && !isProactiveLoading`
+   - `MessageList`에 `isProactiveLoading` prop 전달
+
+### 해결한 버그
+- 메시지 전송 후 AI 응답 전까지 타이핑 피드백 없던 문제
+- 캐릭터 선제 인사 생성 중 아무 피드백 없던 문제
+
+### 실행 및 테스트
+- `npx tsc --noEmit` → 오류 0
+- `npm run lint` → 경고·오류 0
+
+### 사용자에게 달라지는 점
+- 메시지 전송 후 AI 응답 전에 카카오톡처럼 캐릭터 타이핑 버블(점 3개 애니메이션)이 표시됨
+- 채팅방 입장 시 캐릭터 선제 인사를 생성하는 동안 온보딩 화면 대신 타이핑 버블이 표시됨
+- 인사 메시지가 도착하면 자연스럽게 메시지로 전환
+
+### PR
+- https://github.com/kimeunsun109-debug/pickmetalk-/pull/44
+
+### 남은 문제
+- 선제 인사가 없는 경우(새 유저) 타이핑 버블이 수백ms 동안 순간적으로 표시될 수 있음 (무해)
+- 선제 인사가 있는 경우에만 타이핑 버블을 보여주는 최적화 가능 (서버에서 hint 반환)
+- 타이핑 버블 애니메이션 딜레이 미세 조정 가능
+
+### 다음 추천 작업
+- P1: 레벨업 토스트에 캐릭터 미니 아이콘 추가 (PR #41 의존 없이 독립 구현 가능)
+- P1: 회상 힌트 상한 2→3 조정 (간단한 config 변경)
+- P2: 선제 인사 여부 API hint로 타이핑 버블 조건 최적화
+
+---
+
 ## 2026-08-27
 
 ### 선택한 작업
