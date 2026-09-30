@@ -11,6 +11,7 @@ import { AbsenceWelcome } from "@/components/events/AbsenceWelcome";
 import { useChat } from "@/contexts/ChatProvider";
 import { useAbsenceEvent } from "@/hooks/useAbsenceEvent";
 import { usePerfRenderCount } from "@/lib/perf/client";
+import { characterEmotionSrc } from "@/lib/characters/images";
 import { getAbsenceTier } from "@/lib/returnVisit";
 import { trackEvent } from "@/services/analytics";
 import type { Gift } from "@/types";
@@ -179,6 +180,7 @@ export function ChatScreen({
       {absenceEvent.shouldShow && !absenceDismissed && absenceEvent.data && (
         <AbsenceWelcome
           characterName={character.name}
+          characterImageSrc={characterEmotionSrc(characterId, "smile")}
           data={absenceEvent.data}
           onDismiss={handleAbsenceDismiss}
         />

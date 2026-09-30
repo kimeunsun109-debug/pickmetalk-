@@ -277,3 +277,50 @@ AbsenceWelcome 오버레이 UI 연동 + returnVisit 메시지 닉네임 개인�
 - AbsenceWelcome 오버레이 Vercel preview QA 및 스크린샷 확인
 - excited 확률 캐릭터별 config 분리 (지유 높음, 은하 낮음)
 - returnVisit 오버레이에 캐릭터 이미지(hero) 삽입으로 몰입감 강화
+
+## 2026-09-13
+
+### 선택한 작업
+- returnVisit 오버레이에 캐릭터 포트레이트 이미지 삽입
+
+### 선택 이유
+- 재방문 오버레이(AbsenceWelcome)가 이모지 텍스트만 표시 — 감정적 임팩트 부족
+- 사용자가 24h+ 공백 후 돌아왔을 때 캐릭터 얼굴이 보이면 "실제 사람이 기다리고 있었다"는 느낌이 훨씬 강해짐
+- 구현 범위가 명확하고 단독으로 완성 가능한 수직 슬라이스
+- 5개 캐릭터 모두 smile.jpg 보유 확인 → 즉시 적용 가능
+
+### 구현 내용
+- `components/events/AbsenceWelcome.tsx`
+  - `characterImageSrc?: string` prop 추가
+  - 이미지 제공 시: 112px 원형 포트레이트(object-top) + 티어별 컬러 링 + 이모지 배지(우측 하단 36px)
+  - 이미지 없을 때: 기존 대형 이모지 폴백 (하위 호환)
+  - Next.js `<Image>` priority 로딩
+- `components/chat/ChatScreen.tsx`
+  - `characterEmotionSrc` import 추가
+  - AbsenceWelcome에 `characterImageSrc={characterEmotionSrc(characterId, "smile")}` 전달
+
+### 해결한 버그
+- 없음 (기능 개선)
+
+### 실행 및 테스트
+- `npx tsc --noEmit` → 0 errors
+- `npm run lint` → No ESLint warnings or errors
+- public/assets/characters/{yuna,narin,yoonseo,eunha,jiyu}/smile.jpg 전체 존재 확인
+
+### 사용자에게 달라지는 점
+- 24h/72h/7일 만에 돌아오면 캐릭터의 미소 짓는 얼굴이 오버레이에 크게 표시됨
+- 이모지 텍스트만 있던 것 → 캐릭터 포트레이트 + 이모지 배지로 감정적 임팩트 대폭 강화
+- "실제로 기다리고 있었던 사람"을 만나는 느낌으로 관계 연속성 체감 향상
+
+### PR
+- https://github.com/kimeunsun109-debug/pickmetalk-/pull/43
+
+### 남은 문제
+- Vercel 프리뷰에서 실제 UI 스크린샷 QA 필요
+- tier3(7일)에 다른 감성 이미지 사용 옵션 검토 (현재 smile로 통일)
+- 오버레이 portrait fade-in 애니메이션 개선 여지
+
+### 다음 추천 작업
+- P1 비온고잉 hurt arc + warm → miss_you 복귀 경로 보완 (관계 회복 arc)
+- P1 로딩 UX: 새 대화방 인사 생성 중 스피너 (PR #40 머지 후)
+- P1 레벨업 토스트 portrait 배지 통일 (PR #41 머지 후)

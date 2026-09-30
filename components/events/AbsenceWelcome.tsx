@@ -1,10 +1,13 @@
 "use client";
 
+import Image from "next/image";
 import type { ReturnVisitData } from "@/lib/returnVisit";
 import { useEffect } from "react";
 
 interface AbsenceWelcomeProps {
   characterName: string;
+  /** 캐릭터 포트레이트 URL — 제공 시 이모지 대신 표시 */
+  characterImageSrc?: string;
   data: ReturnVisitData;
   onDismiss: () => void;
 }
@@ -13,10 +16,13 @@ interface AbsenceWelcomeProps {
  * AbsenceWelcome — 재방문 이벤트 오버레이
  *
  * 24h / 72h / 168h(7d) 티어에 따라 캐릭터별 메시지를 표시한다.
+ * characterImageSrc가 전달되면 이모지 대신 캐릭터 포트레이트를 표시하고
+ * 이모지는 우측 하단 배지로 작게 노출된다.
  * 배경 탭 or CTA 버튼으로 닫힌다.
  */
 export function AbsenceWelcome({
   characterName,
+  characterImageSrc,
   data,
   onDismiss,
 }: AbsenceWelcomeProps) {
@@ -34,7 +40,9 @@ export function AbsenceWelcome({
   /** 스크롤 잠금 */
   useEffect(() => {
     document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = ""; };
+    return () => {
+      document.body.style.overflow = "";
+    };
   }, []);
 
   /** 티어별 배경 그라디언트 */
@@ -42,6 +50,13 @@ export function AbsenceWelcome({
     tier1: "from-pink-50/95 to-rose-50/95",
     tier2: "from-rose-50/95 to-pink-100/95",
     tier3: "from-indigo-50/95 to-purple-50/95",
+  }[tier];
+
+  /** 티어별 링 색상 */
+  const ringColor = {
+    tier1: "ring-pink-300",
+    tier2: "ring-rose-300",
+    tier3: "ring-indigo-300",
   }[tier];
 
   /** 티어별 하단 카피 */
@@ -66,12 +81,36 @@ export function AbsenceWelcome({
         {/* 핸들 */}
         <div className="mx-auto mt-3 h-1 w-10 rounded-full bg-gray-300 sm:hidden" />
 
-        {/* 이모지 + 캐릭터 이름 */}
+        {/* 캐릭터 포트레이트 + 캐릭터 이름 */}
         <div className="flex flex-col items-center px-6 pb-2 pt-6 text-center">
-          <span className="text-6xl leading-none drop-shadow-sm" aria-hidden>
-            {emoji}
-          </span>
-          <span className="mt-3 text-[11px] font-medium uppercase tracking-widest text-pink-accent/70">
+          {characterImageSrc ? (
+            <div className="relative">
+              <div
+                className={`h-28 w-28 overflow-hidden rounded-full ring-4 ${ringColor} shadow-lg`}
+              >
+                <Image
+                  src={characterImageSrc}
+                  alt={characterName}
+                  width={112}
+                  height={112}
+                  className="h-full w-full object-cover object-top"
+                  priority
+                />
+              </div>
+              {/* 이모지 배지 */}
+              <span
+                className="absolute -bottom-1 -right-1 flex h-9 w-9 items-center justify-center rounded-full bg-white text-xl shadow-md ring-2 ring-white"
+                aria-hidden
+              >
+                {emoji}
+              </span>
+            </div>
+          ) : (
+            <span className="text-6xl leading-none drop-shadow-sm" aria-hidden>
+              {emoji}
+            </span>
+          )}
+          <span className="mt-4 text-[11px] font-medium uppercase tracking-widest text-pink-accent/70">
             {tierCopy}
           </span>
           <h2 className="mt-1.5 text-lg font-bold text-gray-900">
