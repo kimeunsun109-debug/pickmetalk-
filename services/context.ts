@@ -16,6 +16,12 @@ export interface UserContextData {
   recentSchedule?: string;
   /** 반려동물 이름, 가족 이름 등 대화에서 언급한 개인 정보 */
   personalFacts?: string[];
+  /** 사용자 성별 — 프로필에서 가져옴 */
+  gender?: string;
+  /** 사용자 MBTI — 프로필에서 가져옴 */
+  mbti?: string;
+  /** 사용자가 기입한 이상형 */
+  idealType?: string;
 }
 
 export interface YoonseoStats {
@@ -38,6 +44,38 @@ export interface ProfileUserContext {
   hobbies?: string;
   mbti?: string;
   idealType?: string;
+}
+
+// ─────────────────────────────────────────────
+// MBTI Behavioral Hints
+// ─────────────────────────────────────────────
+
+/**
+ * MBTI 유형별로 캐릭터가 대화 방식을 살짝 조정하도록 돕는 행동 힌트.
+ * 진단·라벨링이 아니라 "이 사람이 편하게 느끼는 대화 결"을 설명한다.
+ */
+const MBTI_HINTS: Partial<Record<string, string>> = {
+  INTJ: "계획적·목표지향적. 감언이설보단 솔직하고 명확한 대화를 선호해.",
+  INTP: "분석적·논리적. 깊이 있는 주제를 좋아하고 감정 표현이 서투를 수 있어.",
+  ENTJ: "자신감 있고 추진력이 강해. 직접적인 소통을 선호하고 결과를 중시해.",
+  ENTP: "토론과 새 아이디어를 즐겨. 예측 불가능한 대화에 잘 반응해.",
+  INFJ: "이상적이고 감수성이 풍부해. 깊은 의미 있는 대화를 중요하게 여겨.",
+  INFP: "감수성이 많고 자기만의 가치관이 있어. 진정성 있는 감정 공유를 소중히 해.",
+  ENFJ: "배려심 있고 리더십이 있어. 조화로운 관계를 추구해.",
+  ENFP: "에너지 넘치고 창의적. 새 경험과 열정적인 대화를 즐겨.",
+  ISTJ: "책임감 있고 신중해. 전통을 중시하고 약속을 잘 지켜.",
+  ISFJ: "따뜻하고 헌신적. 사람을 잘 챙기고 세심하게 기억해.",
+  ESTJ: "체계적이고 실용적. 효율적인 대화와 명확한 결론을 선호해.",
+  ESFJ: "사교적이고 배려심이 많아. 친밀한 관계를 소중히 여겨.",
+  ISTP: "독립적·실용적. 말보다 행동으로 보여주는 편이야.",
+  ISFP: "자유롭고 예술적. 자기 페이스를 중요시하고 감각적인 것을 즐겨.",
+  ESTP: "적응력 있고 에너지 넘쳐. 직접 경험과 현실적인 것을 좋아해.",
+  ESFP: "즉흥적이고 활발해. 지금 이 순간을 즐기고 주변을 밝게 해.",
+};
+
+function getMbtiHint(mbti: string): string | undefined {
+  const upper = mbti.toUpperCase().trim();
+  return MBTI_HINTS[upper];
 }
 
 // ─────────────────────────────────────────────
@@ -104,6 +142,9 @@ export function extractUserContext(
     recentStressor,
     recentSchedule,
     personalFacts: personalFacts.length > 0 ? personalFacts : undefined,
+    gender: profileCtx.gender?.trim() || undefined,
+    mbti: profileCtx.mbti?.trim() || undefined,
+    idealType: profileCtx.idealType?.trim() || undefined,
   };
 }
 
@@ -133,6 +174,27 @@ export function buildCommonContextBlock(ctx: UserContextData): string {
     );
   }
   if (ctx.userAge) lines.push(`- 나이: ${ctx.userAge}세`);
+  if (ctx.gender) {
+    const genderLabel =
+      ctx.gender === "male" || ctx.gender === "남"
+        ? "남성"
+        : ctx.gender === "female" || ctx.gender === "여"
+          ? "여성"
+          : ctx.gender;
+    lines.push(`- 성별: ${genderLabel}`);
+  }
+  if (ctx.mbti) {
+    const hint = getMbtiHint(ctx.mbti);
+    lines.push(
+      hint
+        ? `- MBTI: ${ctx.mbti.toUpperCase()} — ${hint}`
+        : `- MBTI: ${ctx.mbti.toUpperCase()}`
+    );
+  }
+  if (ctx.idealType)
+    lines.push(
+      `- 이상형 키워드: ${ctx.idealType} (대화 결·태도에 자연스럽게 반영, 직접 언급 금지)`
+    );
   if (ctx.userJob) lines.push(`- 직업/직장: ${ctx.userJob}`);
   if (ctx.recentStressor)
     lines.push(`- 최근 스트레스 요인: ${ctx.recentStressor}`);
