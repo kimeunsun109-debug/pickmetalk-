@@ -7,6 +7,7 @@ import { mapCharacterState, mapMessage, mapUserProfile } from "@/lib/db/mappers"
 import { createClient } from "@/lib/supabase/server";
 import { buildSystemPrompt } from "@/prompts";
 import { affectionToLevel, clampAffection } from "@/services/affection";
+import { getRelationshipStage } from "@/lib/relationship";
 import { runDeferredChatSideEffects } from "@/services/chatSideEffects";
 import {
   countEmotionDurationTurns,
@@ -358,6 +359,8 @@ export async function POST(request: Request) {
 
         const newAffectionPreview = clampAffection(conversation.affection + 1);
         const newLevelPreview = affectionToLevel(newAffectionPreview);
+        const oldLevelPreview = affectionToLevel(conversation.affection);
+        const didLevelUp = newLevelPreview > oldLevelPreview;
         const ongoingSession = isOngoingChatSession(history);
 
         const newEmotion = resolveCharacterEmotion(
@@ -428,11 +431,24 @@ export async function POST(request: Request) {
           characterCtxBlock = buildYoonseoStatsBlock(yoonseoStats);
         }
 
+        let levelUpBlock = "";
+        if (didLevelUp) {
+          const fromStage = getRelationshipStage(conversation.affection);
+          const toStage = getRelationshipStage(newAffectionPreview);
+          levelUpBlock = [
+            "[관계 변화 — 방금 막 이 순간]",
+            `이 사람과의 관계가 한 단계 깊어졌어. (Lv${oldLevelPreview} '${fromStage.label}' → Lv${newLevelPreview} '${toStage.label}')`,
+            "이 변화를 직접 언급하거나 설명하지 마. 그냥 자연스럽게 조금 더 가까워진 것처럼 대화해.",
+            "새 레벨에서 가능해진 표현이 슬며시 한 번 스며들어도 좋아. 느낌이 달라졌다는 걸 말 대신 온도로 보여줘.",
+          ].join("\n");
+        }
+
         const dynamicContextBlock = [
           timeContextBlock,
           shortTermMemoryBlock,
           commonCtxBlock,
           characterCtxBlock,
+          levelUpBlock,
         ]
           .filter(Boolean)
           .join("\n\n");
@@ -574,6 +590,9 @@ export async function POST(request: Request) {
           userMessageId: userMessageId ?? undefined,
           affection: newAffection,
           relationshipLevel: newLevel,
+          ...(didLevelUp
+            ? { levelUp: { from: oldLevelPreview, to: newLevel } }
+            : {}),
           emotion: newEmotion,
           follow_up,
           should_stream: true,

@@ -8,6 +8,7 @@ import { MessageList } from "@/components/chat/MessageList";
 import { PremiumModal } from "@/components/chat/PremiumModal";
 import { GiftPickerSheet } from "@/components/gifts/GiftPickerSheet";
 import { AbsenceWelcome } from "@/components/events/AbsenceWelcome";
+import { RelationshipLevelUp } from "@/components/events/RelationshipLevelUp";
 import { useChat } from "@/contexts/ChatProvider";
 import { useAbsenceEvent } from "@/hooks/useAbsenceEvent";
 import { usePerfRenderCount } from "@/lib/perf/client";
@@ -36,6 +37,8 @@ export function ChatScreen({
     sendGift,
     usageBannerMessage,
     dismissUsageBanner,
+    levelUpEvent,
+    clearLevelUpEvent,
   } = useChat();
 
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -181,6 +184,15 @@ export function ChatScreen({
           characterName={character.name}
           data={absenceEvent.data}
           onDismiss={handleAbsenceDismiss}
+        />
+      )}
+
+      {levelUpEvent && (
+        <RelationshipLevelUp
+          from={levelUpEvent.from}
+          to={levelUpEvent.to}
+          characterName={character.name}
+          onDismiss={clearLevelUpEvent}
         />
       )}
     </div>
