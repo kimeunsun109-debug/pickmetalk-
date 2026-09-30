@@ -2,6 +2,13 @@ import { normalizeEmotion } from "@/lib/emotions";
 import { isSeoulLateNight } from "@/services/timeContext";
 import type { EmotionState, Message } from "@/types";
 
+/**
+ * hurt/pouty 상태가 지속되는 최대 턴 수.
+ * 이 값 이상이면 bored·중립 메시지도 감정 복구를 허용한다.
+ * 캐릭터별 분리는 추후 config로 교체 예정 (PR #34 계획).
+ */
+export const HURT_ARC_RECOVERY_TURNS = 3;
+
 const PRAISE_PATTERN =
   /예쁘|멋|최고|고마워|잘했|칭찬|대단|훌륭|잘한다|대박|짱|최고야/i;
 
@@ -93,11 +100,33 @@ export function resolveCharacterEmotion(
 
   const text = input.userMessage.trim();
   const fromMessage = inferEmotionFromUserMessage(text);
-  if (fromMessage) return fromMessage;
+  const inHurtArc = current === "hurt" || current === "pouty";
+
+  if (fromMessage) {
+    // bored 신호가 활성 hurt/pouty 상태를 덮어쓰지 않도록 한다.
+    // 캐릭터가 서운한 상태에서 "뭐해", "ㅎㅇ" 같은 무감정 메시지를 받아도
+    // 사과·애정 표현이 없는 한 감정이 즉시 초기화되지 않는다.
+    if (fromMessage === "bored" && inHurtArc) {
+      // arc 지속 여부는 아래 ongoingSession 블록에서 결정
+    } else {
+      return fromMessage;
+    }
+  }
 
   const ongoingSession = isOngoingChatSession(history);
   const replyGapHours = hoursSince(input.lastChatAt);
   const absenceHours = hoursSince(input.lastSeenAt);
+
+  // 활성 대화 중 hurt/pouty 상태 유지 — 회복 조건이 될 때까지
+  if (inHurtArc && ongoingSession) {
+    const arcTurns = countEmotionDurationTurns(history, current);
+    if (arcTurns < HURT_ARC_RECOVERY_TURNS) {
+      // 회복 임계값 미도달 — 따뜻한 메시지(호감도 증가)가 있어야만 복구 허용
+      if (input.affectionWillIncrease) return pickPositiveEmotion(history);
+      return current;
+    }
+    // 임계값 초과 — 다음 판단 로직(시간·호감도)으로 정상 복귀
+  }
 
   if (!ongoingSession) {
     if (absenceHours != null && absenceHours >= 24) return "miss_you";

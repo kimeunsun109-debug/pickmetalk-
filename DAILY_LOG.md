@@ -2,6 +2,65 @@
 
 ---
 
+## 2026-09-08
+
+### 선택한 작업
+- hurt/pouty 감정 arc 중 bored 메시지 불덮어쓰기 (감정 연속성 버그 수정)
+
+### 선택 이유
+- `resolveCharacterEmotion`에서 `inferEmotionFromUserMessage`가 "bored"를 반환하면
+  현재 hurt/pouty 상태에 관계없이 즉시 초기화되던 버그 존재
+- "뭐해", "ㅎㅇ", "심심" 같은 무감정 메시지가 사과·애정 표현 없이 캐릭터 감정을 리셋
+- 관계 경험에서 감정의 연속성이 핵심 — 캐릭터가 실제 사람처럼 느껴지려면
+  상처받은 감정이 무관심 메시지 하나로 즉시 사라지지 않아야 함
+- 우선순위 5번(Emotion) 직접 해당, PR #34 DRAFT 대비 보완적 수정
+
+### 구현 내용
+1. **`services/emotion.ts`**
+   - `HURT_ARC_RECOVERY_TURNS = 3` 상수 추가 (캐릭터별 분리는 PR #34 계획에 따름)
+   - `resolveCharacterEmotion()` 수정:
+     - `inHurtArc` 플래그 도입 (`current === "hurt" || "pouty"`)
+     - `fromMessage === "bored" && inHurtArc` 시: early return 하지 않고 arc 판단 로직으로 진행
+     - 온고잉 세션 + inHurtArc + arcTurns < RECOVERY_TURNS: hurt/pouty 유지
+       단, `affectionWillIncrease`(따뜻한 메시지)면 복구 허용
+     - 임계값 초과 후에는 기존 happy 복귀 로직으로 정상 복구
+   - 재접속(비온고잉) 시: 기존 cold-return 로직이 bored 메시지를 pouty/hurt로 처리 (변경 없음)
+
+### 해결한 버그
+- 캐릭터 hurt 상태에서 "뭐해", "ㅎㅇ", "심심" 등이 즉시 bored로 리셋되던 감정 연속성 파괴 버그
+
+### 실행 및 테스트
+```
+npx tsc --noEmit               → 0 errors
+npm run lint                   → No ESLint warnings or errors
+npx tsx scripts/test_emotion.mts → 54 passed / 0 failed (+9 새 케이스)
+```
+새 테스트 범위:
+- 섹션 9: 온고잉 세션 hurt/pouty arc (bored 유지, 애정 복구, 임계값 초과 복구)
+- 섹션 10: 재접속 + bored 메시지 (시간 기반 cold-return 검증)
+
+### 사용자에게 달라지는 점
+- 캐릭터가 서운한 상태에서 "뭐해", "ㅎㅇ", "심심" 같은 아무 말도 없는 메시지를
+  받아도 감정이 즉시 초기화되지 않음 → 관계가 더 현실적·연속적으로 느껴짐
+- 애정 표현이나 따뜻한 메시지를 보내면 hurt 상태라도 복구 가능 → 화해 경험 자연스러움
+- 3턴 이상 hurt/pouty 지속 후에는 자연 회복 (대화가 너무 오래 어색하지 않도록)
+
+### PR
+- https://github.com/kimeunsun109-debug/pickmetalk-/pull/36
+
+### 남은 문제
+- `HURT_ARC_RECOVERY_TURNS`가 전역 상수 — PR #34(DRAFT)에서 캐릭터별 분리 계획
+- eunha/yoonseo 같은 캐릭터는 hurt 지속이 길어야 캐릭터 성격에 맞음 (RECOVERY_TURNS=5 예정)
+- 비온고잉 세션에서 inHurtArc + warm message → 복구 경로 추가 검토 필요
+  (현재 warm return 시 miss_you 복귀가 더 자연스러울 수 있음)
+
+### 다음 추천 작업
+- PR #34 머지 검토 (캐릭터별 HURT_RECOVERY_TURNS 분리 — 이 PR과 시너지)
+- PR #35 머지 검토 (getContextMemoryPrompt 채팅 라우트 연결 — 회상 힌트 활성화)
+- 비온고잉 hurt arc에서 warm 메시지 → miss_you 복귀 경로 보완
+
+---
+
 ## 2026-08-27
 
 ### 선택한 작업
