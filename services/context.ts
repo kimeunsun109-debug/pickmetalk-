@@ -16,7 +16,36 @@ export interface UserContextData {
   recentSchedule?: string;
   /** 반려동물 이름, 가족 이름 등 대화에서 언급한 개인 정보 */
   personalFacts?: string[];
+  /** 성별: '남성' | '여성' */
+  gender?: string;
+  /** MBTI 유형 (예: INFJ, ENTP) */
+  mbti?: string;
+  /** 이상형 키워드 */
+  idealType?: string;
 }
+
+/**
+ * MBTI 16유형별 대화 행동 힌트 — 라벨이 아닌 대화 결을 설명한다.
+ * 프롬프트에서 "INFJ입니다"가 아니라 실제 행동 패턴으로 삽입된다.
+ */
+const MBTI_HINTS: Record<string, string> = {
+  INTJ: "계획·논리 중심. 감정 표현보단 직접적인 분석을 선호한다. 칭찬보다 실질적인 도움에 더 반응한다.",
+  INTP: "아이디어 탐구를 즐긴다. 감정적 위로보다 흥미로운 주제 전환이나 논리적 공감에 더 반응한다.",
+  ENTJ: "주도적·목표 지향. 결론부터 말하는 편을 선호한다. 답답한 상황에 직접적인 해결책을 원한다.",
+  ENTP: "도전·토론 즐김. 새로운 시각이나 가볍게 반박하는 말에도 재미를 느낀다.",
+  INFJ: "의미와 연결을 중시한다. 깊은 공감과 '왜'를 이해받는 느낌에 반응한다. 표면적 위로보다 진심이 통한다.",
+  INFP: "가치·감정 중심. 자신만의 세계를 인정받는 것에 민감하다. 가볍게 다독이는 말보다 감정을 이름 붙여 주는 것이 효과적이다.",
+  ENFJ: "타인 중심·관계 지향. 대화에서 상대의 감정 변화를 잘 감지한다. 칭찬·인정에 에너지를 얻는다.",
+  ENFP: "열정·가능성 중심. 아이디어와 감정 공유를 좋아한다. 가끔 즉흥적인 뜬금없는 이야기에 함께 들어가 주면 좋아한다.",
+  ISTJ: "규칙·책임 중심. 감정 표현이 적은 편이다. 안정적이고 신뢰감 있는 말투에 편안함을 느낀다.",
+  ISFJ: "배려·보호 중심. 작은 것도 신경 써 주는 말에 감동받는다. 갑작스러운 변화보다 일관된 관심을 좋아한다.",
+  ESTJ: "효율·질서 중심. 두리뭉실한 위로보다 명확한 방향 제시를 선호한다.",
+  ESFJ: "화합·돌봄 중심. 사람 사이의 분위기와 관계에 예민하다. 따뜻한 말 한마디에 크게 반응한다.",
+  ISTP: "실용·조용 중심. 필요 이상의 감정 표현은 부담스럽다. 담담하지만 진심 있는 반응이 잘 맞는다.",
+  ISFP: "감각·조화 중심. 압박 없이 자연스럽게 흘러가는 대화를 좋아한다. 예쁜 것·맛있는 것·일상 소소한 것에 반응한다.",
+  ESTP: "행동·현실 중심. 빠른 리듬, 가벼운 장난, 직설적인 대화에 활기를 느낀다.",
+  ESFP: "재미·순간 중심. 신나는 분위기와 공감에 적극적으로 반응한다. 함께 즐기는 느낌을 원한다.",
+};
 
 export interface YoonseoStats {
   avgSessionGapMinutes: number | null;
@@ -90,6 +119,24 @@ export function extractUserContext(
         return a != null ? String(a) : undefined;
       })();
 
+  // 성별 정규화: male/'남'/'남자' → 남성, female/'여'/'여자' → 여성
+  const rawGender = profileCtx.gender?.trim().toLowerCase();
+  let gender: string | undefined;
+  if (rawGender) {
+    if (rawGender === "male" || rawGender.startsWith("남")) {
+      gender = "남성";
+    } else if (rawGender === "female" || rawGender.startsWith("여")) {
+      gender = "여성";
+    }
+  }
+
+  // MBTI 정규화: 대문자 변환 후 유효한 16유형인지 확인
+  const rawMbti = profileCtx.mbti?.trim().toUpperCase();
+  const mbti = rawMbti && rawMbti in MBTI_HINTS ? rawMbti : undefined;
+
+  // 이상형: 공백·없음은 undefined
+  const idealType = profileCtx.idealType?.trim() || undefined;
+
   return {
     userName: profileCtx.nickname ?? profileCtx.name ?? memoryUserName,
     userAge: derivedAge,
@@ -104,6 +151,9 @@ export function extractUserContext(
     recentStressor,
     recentSchedule,
     personalFacts: personalFacts.length > 0 ? personalFacts : undefined,
+    gender,
+    mbti,
+    idealType,
   };
 }
 
@@ -133,6 +183,15 @@ export function buildCommonContextBlock(ctx: UserContextData): string {
     );
   }
   if (ctx.userAge) lines.push(`- 나이: ${ctx.userAge}세`);
+  if (ctx.gender) lines.push(`- 성별: ${ctx.gender}`);
+  if (ctx.mbti) {
+    const hint = MBTI_HINTS[ctx.mbti];
+    lines.push(`- MBTI: ${ctx.mbti} — ${hint}`);
+  }
+  if (ctx.idealType)
+    lines.push(
+      `- 이상형 키워드: ${ctx.idealType} (직접 언급 금지 — 대화 결에 자연스럽게 반영)`
+    );
   if (ctx.userJob) lines.push(`- 직업/직장: ${ctx.userJob}`);
   if (ctx.recentStressor)
     lines.push(`- 최근 스트레스 요인: ${ctx.recentStressor}`);
