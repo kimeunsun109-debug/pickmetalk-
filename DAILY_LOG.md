@@ -277,3 +277,46 @@ AbsenceWelcome 오버레이 UI 연동 + returnVisit 메시지 닉네임 개인�
 - AbsenceWelcome 오버레이 Vercel preview QA 및 스크린샷 확인
 - excited 확률 캐릭터별 config 분리 (지유 높음, 은하 낮음)
 - returnVisit 오버레이에 캐릭터 이미지(hero) 삽입으로 몰입감 강화
+
+## 2026-10-01
+
+### 선택한 작업
+- 성별·MBTI·이상형 컨텍스트 파이프라인 — AI 시스템 프롬프트 연결
+
+### 선택 이유
+- `profiles` 테이블에 gender/mbti/idealType 컬럼이 있고 chat route에서 이미 profileCtx로 전달되나, `extractUserContext()`와 `buildCommonContextBlock()`이 이 데이터를 무시하고 있었음
+- 모든 대화에 영향을 주는 파이프라인 수정으로 효과 대비 구현 범위가 적음
+- Adaptive Personality 우선순위 항목 (사용자별 맞춤 대화 결)
+
+### 구현 내용
+- `services/context.ts`
+  - `UserContextData`에 `gender`, `mbti`, `idealType` 필드 추가
+  - `MBTI_HINTS`: 16유형 × 대화 행동 힌트 사전 (라벨이 아닌 행동 패턴으로 설명)
+  - `extractUserContext()`: gender 정규화(male/남 → 남성, female/여 → 여성), MBTI 대문자 변환 + 유효 16유형 검증, idealType 공백 처리
+  - `buildCommonContextBlock()`: 성별, MBTI+힌트, 이상형(직접 언급 금지 주석) 라인 삽입
+- `scripts/test_mbti_gender_context.mts` (신규): 35개 단위 테스트
+
+### 해결한 버그
+- 프로필에 성별/MBTI/이상형을 입력했음에도 AI가 전혀 반영하지 못하던 문제
+
+### 실행 및 테스트
+- `npx tsx scripts/test_mbti_gender_context.mts` → 35/35 통과
+- `npx tsc --noEmit` → 오류 0
+- `npm run lint` → 경고·오류 0
+
+### 사용자에게 달라지는 점
+- AI가 사용자의 성별을 알고 자연스러운 호칭·말투를 선택
+- MBTI별 행동 힌트가 주입되어 대화 결이 사용자에게 맞게 조정 (예: ENTP는 토론형, ISFJ는 따뜻하고 일관된 관심)
+- 이상형 키워드가 직접 언급 없이 대화 방식에 자연스럽게 반영
+
+### PR
+- https://github.com/kimeunsun109-debug/pickmetalk-/pull/61
+
+### 남은 문제
+- profiles 설정 UI에서 MBTI/이상형을 입력하는 UX가 미완성 (현재 user_context JSONB 직접 수정 필요)
+- idealType 캐릭터별 세분화 힌트 미구현 (지유 ↔ 나린 각각 다른 방향으로 반영)
+
+### 다음 추천 작업
+- 설정 페이지에 MBTI/이상형 입력 필드 추가 (profiles.mbti, profiles.idealType 컬럼 직접 저장)
+- 사용자 감정 감지 + 공감 응답 힌트 주입 (PR #59의 핵심 기능, main에 미포함)
+- 관계 레벨업 토스트 — 호감도 레벨 상승 시 축하 애니메이션 (PR #54 DRAFT 참고)
