@@ -8,6 +8,22 @@ import { t } from "@/lib/i18n";
 import Link from "next/link";
 import { useState } from "react";
 
+const MBTI_TYPES = [
+  "INTJ", "INTP", "ENTJ", "ENTP",
+  "INFJ", "INFP", "ENFJ", "ENFP",
+  "ISTJ", "ISFJ", "ESTJ", "ESFJ",
+  "ISTP", "ISFP", "ESTP", "ESFP",
+];
+
+const IDEAL_TYPE_OPTIONS = [
+  { value: "", label: "선택 안 함" },
+  { value: "warm", label: "다정하고 따뜻한 타입" },
+  { value: "funny", label: "유머 있고 재미있는 타입" },
+  { value: "calm", label: "차분하고 든든한 타입" },
+  { value: "passionate", label: "열정적이고 에너지 넘치는 타입" },
+  { value: "intellectual", label: "섬세하고 깊이 있는 타입" },
+];
+
 interface CharacterState {
   character_id: string;
   affection: number;
@@ -22,6 +38,8 @@ interface SettingsClientProps {
   todayMsgCount: number;
   isPremium: boolean;
   sessionDates: string[];
+  initialMbti: string | null;
+  initialIdealType: string | null;
 }
 
 const CHAR_NAMES: Record<string, string> = {
@@ -58,6 +76,8 @@ export function SettingsClient({
   todayMsgCount,
   isPremium,
   sessionDates,
+  initialMbti,
+  initialIdealType,
 }: SettingsClientProps) {
   const streak = calcStreak(sessionDates);
   const remaining = isPremium
@@ -70,6 +90,12 @@ export function SettingsClient({
     "idle"
   );
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // 내 정보 편집 상태
+  const [mbti, setMbti] = useState(initialMbti ?? "");
+  const [idealType, setIdealType] = useState(initialIdealType ?? "");
+  const [infoSaveState, setInfoSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [infoError, setInfoError] = useState<string | null>(null);
 
   const statCards = [
     {
@@ -103,6 +129,36 @@ export function SettingsClient({
       color: "bg-purple-50",
     },
   ];
+
+  async function handleSaveMyInfo() {
+    const trimmedMbti = mbti.trim().toUpperCase();
+    if (trimmedMbti && !MBTI_TYPES.includes(trimmedMbti)) {
+      setInfoError("유효한 MBTI 유형을 입력해주세요 (예: ENFP)");
+      return;
+    }
+    setInfoSaveState("saving");
+    setInfoError(null);
+    try {
+      const res = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mbti: trimmedMbti || undefined,
+          idealType: idealType || undefined,
+        }),
+      });
+      if (!res.ok) {
+        const d = await res.json();
+        throw new Error(d.error ?? "저장 실패");
+      }
+      setMbti(trimmedMbti);
+      setInfoSaveState("saved");
+      setTimeout(() => setInfoSaveState("idle"), 2000);
+    } catch (e) {
+      setInfoError(e instanceof Error ? e.message : "저장 중 오류가 발생했습니다.");
+      setInfoSaveState("error");
+    }
+  }
 
   async function handleDeleteAccount() {
     setDeleteStep("loading");
@@ -189,6 +245,86 @@ export function SettingsClient({
           </div>
         </section>
       )}
+
+      {/* 내 정보 */}
+      <section className="mb-6">
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-400">
+          내 정보
+        </h2>
+        <div className="flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-sm">
+          <p className="text-xs text-gray-400 leading-relaxed">
+            캐릭터가 나를 더 잘 이해할 수 있도록 정보를 알려주세요.
+          </p>
+
+          {/* MBTI */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">
+              MBTI
+            </label>
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {MBTI_TYPES.map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => setMbti(mbti === type ? "" : type)}
+                  className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
+                    mbti === type
+                      ? "bg-pink-accent text-white"
+                      : "bg-gray-100 text-gray-600 active:bg-gray-200"
+                  }`}
+                >
+                  {type}
+                </button>
+              ))}
+            </div>
+            {mbti && !MBTI_TYPES.includes(mbti.toUpperCase()) && (
+              <p className="text-xs text-red-500 mt-1">유효한 MBTI 유형을 선택해주세요</p>
+            )}
+          </div>
+
+          {/* 이상형 */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">
+              선호하는 이상형
+            </label>
+            <select
+              value={idealType}
+              onChange={(e) => setIdealType(e.target.value)}
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-700 focus:border-pink-300 focus:outline-none focus:ring-1 focus:ring-pink-200"
+            >
+              {IDEAL_TYPE_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {infoError && (
+            <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
+              ⚠️ {infoError}
+            </p>
+          )}
+
+          <button
+            onClick={handleSaveMyInfo}
+            disabled={infoSaveState === "saving"}
+            className={`w-full rounded-xl py-2.5 text-sm font-semibold transition-colors ${
+              infoSaveState === "saved"
+                ? "bg-green-500 text-white"
+                : infoSaveState === "saving"
+                  ? "bg-gray-200 text-gray-400"
+                  : "bg-pink-accent text-white active:bg-pink-500"
+            }`}
+          >
+            {infoSaveState === "saving"
+              ? "저장 중…"
+              : infoSaveState === "saved"
+                ? "✓ 저장됐어요!"
+                : "저장하기"}
+          </button>
+        </div>
+      </section>
 
       {/* 알림·앨범 */}
       <section className="mb-6">

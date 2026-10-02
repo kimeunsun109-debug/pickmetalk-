@@ -2,6 +2,44 @@
 
 ---
 
+## 2026-10-02
+
+### 선택한 작업
+- 설정 페이지 내 정보 섹션 — MBTI/이상형 편집 UI 추가
+
+### 선택 이유
+- PR #61에서 AI 시스템 프롬프트에 MBTI/이상형 컨텍스트를 주입하는 파이프라인이 구현됐지만, 가입 이후 이 값을 변경할 UI가 없었음
+- 데이터베이스(migration 008), API(/api/profile PATCH), 맵퍼(mapUserProfile)는 이미 완비 — UI만 누락
+- 기존 사용자가 MBTI/이상형을 설정하면 캐릭터 대화 품질 즉시 향상 가능
+
+### 구현 내용
+- `SettingsClient.tsx`: MBTI 16종 탭 토글 + 이상형 드롭다운 + 저장 버튼 "내 정보" 섹션 추가
+- `settings/page.tsx`: profiles.mbti / profiles.ideal_type 값을 클라이언트로 전달, mapUserProfile 중복 호출 제거
+
+### 해결한 버그
+- page.tsx에서 mapUserProfile이 내부 블록과 반환문 직전 두 번 호출되던 중복 제거
+
+### 실행 및 테스트
+- `npx tsc --noEmit` → 오류 없음
+- `npm run lint` → ESLint 경고/오류 없음
+
+### 사용자에게 달라지는 점
+- 설정 페이지에서 MBTI(16종 탭 선택)와 이상형 타입(드롭다운)을 직접 설정할 수 있음
+- 저장 즉시 profiles 테이블 업데이트 → PR #61 머지 후 AI 대화에 즉시 반영
+
+### PR
+- [#62 — feat(settings): 내 정보 섹션 — MBTI/이상형 편집 UI 추가](https://github.com/kimeunsun109-debug/pickmetalk-/pull/62)
+
+### 남은 문제
+- PR #61 (MBTI 컨텍스트 AI 주입)이 아직 main에 미머지. UI는 준비됐으나 AI 반영은 PR #61 머지 후 완성
+- 다수의 DRAFT PR(#51~#61)이 검토 대기 중
+
+### 다음 추천 작업
+- P0: 닉네임·관심사 등 나머지 프로필 필드도 설정 페이지에서 편집 가능하게 확장
+- P0: PR #54 관계 레벨업 토스트 구현 검토
+
+---
+
 ## 2026-08-27
 
 ### 선택한 작업

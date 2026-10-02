@@ -42,9 +42,9 @@ export default async function SettingsPage() {
 
   let todayMsgCount = 0;
   let isPremium = false;
+  const mapped = profile ? mapUserProfile(profile) : null;
 
-  if (profile) {
-    const mapped = mapUserProfile(profile);
+  if (mapped) {
     const { count, needsReset } = normalizeDailyUsage(mapped);
     if (needsReset) {
       const fresh = await ensureDailyUsageFresh(
@@ -69,6 +69,8 @@ export default async function SettingsPage() {
       todayMsgCount={todayMsgCount}
       isPremium={isPremium}
       sessionDates={(sessionRows ?? []).map((r) => r.created_at)}
+      initialMbti={mapped?.mbti ?? null}
+      initialIdealType={mapped?.idealType ?? null}
     />
   );
 }
