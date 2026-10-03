@@ -277,3 +277,50 @@ AbsenceWelcome 오버레이 UI 연동 + returnVisit 메시지 닉네임 개인�
 - AbsenceWelcome 오버레이 Vercel preview QA 및 스크린샷 확인
 - excited 확률 캐릭터별 config 분리 (지유 높음, 은하 낮음)
 - returnVisit 오버레이에 캐릭터 이미지(hero) 삽입으로 몰입감 강화
+
+## 2026-10-03
+
+### 선택한 작업
+- 설정 페이지 "내 정보" 편집 섹션 — 닉네임·관심사·취미 UI 추가
+
+### 선택 이유
+- AI 시스템 프롬프트(`buildCommonContextBlock`)는 이미 닉네임·관심사·취미를 활용하지만,
+  설정 페이지에 해당 정보를 입력할 UI가 없어 대부분 사용자의 데이터가 비어 있었음
+- 기존 DRAFT PR #62(MBTI/이상형 편집)와 겹치지 않는 P1 작업
+- 소규모·자급적 변경으로 즉시 구현·검증 가능
+
+### 구현 내용
+- `app/(main)/settings/SettingsClient.tsx`
+  - `InfoRow` 헬퍼 컴포넌트 추가 (읽기 모드 행 표시)
+  - "내 정보" 섹션: 닉네임(displayName)·관심사(interests)·취미(hobbies) 인라인 편집
+  - 편집/취소/저장 버튼, 저장 성공 토스트, 에러 인라인 표시
+  - PATCH /api/profile 호출로 저장
+- `app/(main)/settings/page.tsx`
+  - profile에서 `display_name`, `user_context.interests`, `user_context.hobbies` 읽어 전달
+- `app/api/profile/route.ts`
+  - interests/hobbies 빈 문자열 전송 시 userContext에서 해당 키 삭제 (null-safe 처리)
+
+### 해결한 버그
+- PATCH API: interests/hobbies를 빈 문자열로 보내도 userContext가 갱신되지 않던 문제 수정
+
+### 실행 및 테스트
+- `npx tsc --noEmit` → 오류 0
+- `npm run lint` → 경고·오류 0
+
+### 사용자에게 달라지는 점
+- 설정 → 내 정보 섹션에서 닉네임·관심사·취미 직접 입력 가능
+- 저장 즉시 AI 시스템 프롬프트에 반영 → 다음 대화부터 AI가 사용자 이름을 부르고
+  관심사·취미를 대화에 자연스럽게 활용
+
+### PR
+- https://github.com/kimeunsun109-debug/pickmetalk-/pull/63
+
+### 남은 문제
+- PR #62(MBTI/이상형 편집)가 머지되면 내 정보 섹션을 통합하는 작업 필요
+- 닉네임 변경 후 AI가 즉시 반응하는지 실제 DeepSeek 호출로 QA 필요
+
+### 다음 추천 작업
+- PR #62 내 정보 섹션과 통합(MBTI·이상형·닉네임·관심사·취미 한 섹션)
+- Adaptive Personality: 대화 반응 패턴 분석 → 캐릭터 말투 미세 조정
+- 관계 레벨업 토스트 PR #54 사용자 검토 후 머지
+

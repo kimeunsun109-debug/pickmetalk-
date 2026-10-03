@@ -82,8 +82,20 @@ export async function PATCH(request: Request) {
   }
   if (body.mbti) userContext.mbti = body.mbti;
   if (body.idealType) userContext.idealType = body.idealType;
-  if (body.interests) userContext.interests = body.interests;
-  if (body.hobbies) userContext.hobbies = body.hobbies;
+  if (body.interests != null) {
+    if (body.interests.trim()) {
+      userContext.interests = body.interests.trim();
+    } else {
+      delete userContext.interests;
+    }
+  }
+  if (body.hobbies != null) {
+    if (body.hobbies.trim()) {
+      userContext.hobbies = body.hobbies.trim();
+    } else {
+      delete userContext.hobbies;
+    }
+  }
 
   const patch: Record<string, unknown> = { user_context: userContext };
 

@@ -7,6 +7,7 @@ import { FREE_DAILY_MESSAGE_LIMIT } from "@/lib/constants";
 import { t } from "@/lib/i18n";
 import Link from "next/link";
 import { useState } from "react";
+import type { ProfileUpdateBody } from "@/app/api/profile/route";
 
 interface CharacterState {
   character_id: string;
@@ -22,6 +23,9 @@ interface SettingsClientProps {
   todayMsgCount: number;
   isPremium: boolean;
   sessionDates: string[];
+  displayName: string | null;
+  interests: string | null;
+  hobbies: string | null;
 }
 
 const CHAR_NAMES: Record<string, string> = {
@@ -51,6 +55,27 @@ function calcStreak(dates: string[]): number {
   return streak;
 }
 
+function InfoRow({
+  label,
+  value,
+  placeholder,
+}: {
+  label: string;
+  value: string | null;
+  placeholder: string;
+}) {
+  return (
+    <div className="flex items-baseline justify-between gap-2">
+      <span className="min-w-[48px] text-xs text-gray-400">{label}</span>
+      <span
+        className={`flex-1 text-right text-sm ${value ? "text-gray-800" : "text-gray-300"}`}
+      >
+        {value ?? placeholder}
+      </span>
+    </div>
+  );
+}
+
 export function SettingsClient({
   email,
   joinedDaysAgo,
@@ -58,6 +83,9 @@ export function SettingsClient({
   todayMsgCount,
   isPremium,
   sessionDates,
+  displayName: initialDisplayName,
+  interests: initialInterests,
+  hobbies: initialHobbies,
 }: SettingsClientProps) {
   const streak = calcStreak(sessionDates);
   const remaining = isPremium
@@ -65,11 +93,49 @@ export function SettingsClient({
     : Math.max(0, FREE_DAILY_MESSAGE_LIMIT - todayMsgCount);
   const mostChatted = characterStates[0];
 
+  // 내 정보 편집 상태
+  const [isEditingInfo, setIsEditingInfo] = useState(false);
+  const [displayName, setDisplayName] = useState(initialDisplayName ?? "");
+  const [interests, setInterests] = useState(initialInterests ?? "");
+  const [hobbies, setHobbies] = useState(initialHobbies ?? "");
+  const [infoSaving, setInfoSaving] = useState(false);
+  const [infoError, setInfoError] = useState<string | null>(null);
+  const [infoSuccess, setInfoSuccess] = useState(false);
+
   // 계정 삭제 상태
   const [deleteStep, setDeleteStep] = useState<"idle" | "confirm" | "loading">(
     "idle"
   );
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  async function handleSaveInfo() {
+    setInfoSaving(true);
+    setInfoError(null);
+    setInfoSuccess(false);
+    try {
+      const body: ProfileUpdateBody = {
+        ...(displayName.trim() ? { displayName: displayName.trim() } : {}),
+        interests: interests,
+        hobbies: hobbies,
+      };
+      const res = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error ?? "저장 실패");
+      }
+      setInfoSuccess(true);
+      setIsEditingInfo(false);
+      setTimeout(() => setInfoSuccess(false), 3000);
+    } catch (e) {
+      setInfoError(e instanceof Error ? e.message : "저장 중 오류가 발생했습니다.");
+    } finally {
+      setInfoSaving(false);
+    }
+  }
 
   const statCards = [
     {
@@ -139,6 +205,107 @@ export function SettingsClient({
           </p>
         </section>
       )}
+
+      {/* 내 정보 */}
+      <section className="mb-6">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+            내 정보
+          </h2>
+          {!isEditingInfo && (
+            <button
+              onClick={() => { setIsEditingInfo(true); setInfoError(null); }}
+              className="text-xs text-pink-500 active:opacity-70"
+            >
+              편집
+            </button>
+          )}
+        </div>
+        <div className="flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-sm">
+          <p className="text-[11px] leading-relaxed text-gray-400">
+            AI가 대화할 때 참고해요. 더 자연스러운 대화를 위해 채워주세요.
+          </p>
+
+          {isEditingInfo ? (
+            <div className="flex flex-col gap-3">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-600">
+                  닉네임
+                </label>
+                <input
+                  type="text"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="AI가 부를 이름"
+                  maxLength={20}
+                  className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-800 placeholder:text-gray-300 focus:border-pink-300 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-600">
+                  관심사
+                </label>
+                <input
+                  type="text"
+                  value={interests}
+                  onChange={(e) => setInterests(e.target.value)}
+                  placeholder="예: 영화, 음악, 요리 (쉼표로 구분)"
+                  maxLength={100}
+                  className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-800 placeholder:text-gray-300 focus:border-pink-300 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-600">
+                  취미
+                </label>
+                <input
+                  type="text"
+                  value={hobbies}
+                  onChange={(e) => setHobbies(e.target.value)}
+                  placeholder="예: 독서, 등산, 게임"
+                  maxLength={100}
+                  className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-800 placeholder:text-gray-300 focus:border-pink-300 focus:outline-none"
+                />
+              </div>
+
+              {infoError && (
+                <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
+                  ⚠️ {infoError}
+                </p>
+              )}
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => { setIsEditingInfo(false); setInfoError(null); }}
+                  disabled={infoSaving}
+                  className="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm text-gray-600 active:bg-gray-50 disabled:opacity-50"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={handleSaveInfo}
+                  disabled={infoSaving}
+                  className="flex-1 rounded-xl bg-pink-500 py-2.5 text-sm font-semibold text-white active:bg-pink-600 disabled:opacity-60"
+                >
+                  {infoSaving ? "저장 중…" : "저장"}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <InfoRow label="닉네임" value={displayName || null} placeholder="미설정" />
+              <InfoRow label="관심사" value={interests || null} placeholder="미설정" />
+              <InfoRow label="취미" value={hobbies || null} placeholder="미설정" />
+            </div>
+          )}
+
+          {infoSuccess && (
+            <p className="rounded-lg bg-green-50 px-3 py-2 text-xs text-green-700">
+              ✓ 저장되었어요! AI가 다음 대화부터 반영해요.
+            </p>
+          )}
+        </div>
+      </section>
 
       {/* 통계 그리드 */}
       <section className="mb-6">
