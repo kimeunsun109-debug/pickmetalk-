@@ -61,6 +61,8 @@ export default async function SettingsPage() {
     }
   }
 
+  const userCtx = (profile?.user_context ?? {}) as Record<string, string>;
+
   return (
     <SettingsClient
       email={user.email ?? ""}
@@ -69,6 +71,9 @@ export default async function SettingsPage() {
       todayMsgCount={todayMsgCount}
       isPremium={isPremium}
       sessionDates={(sessionRows ?? []).map((r) => r.created_at)}
+      displayName={profile?.display_name ?? null}
+      interests={userCtx.interests ?? null}
+      hobbies={userCtx.hobbies ?? null}
     />
   );
 }
