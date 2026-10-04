@@ -16,6 +16,12 @@ export interface UserContextData {
   recentSchedule?: string;
   /** 반려동물 이름, 가족 이름 등 대화에서 언급한 개인 정보 */
   personalFacts?: string[];
+  /** 사용자 성별 — 캐릭터가 적절한 어투·공감 방식 선택에 활용 */
+  gender?: string;
+  /** MBTI 유형 (예: "INFP"). 16자 이하 알파벳 문자열 */
+  mbti?: string;
+  /** 이상형 — 이 사람이 원하는 관계·파트너 스타일 힌트 */
+  idealType?: string;
 }
 
 export interface YoonseoStats {
@@ -38,6 +44,43 @@ export interface ProfileUserContext {
   hobbies?: string;
   mbti?: string;
   idealType?: string;
+}
+
+// ─────────────────────────────────────────────
+// MBTI 대화 힌트
+// ─────────────────────────────────────────────
+
+/**
+ * 16 MBTI 유형별 대화 스타일 힌트.
+ * AI가 상대의 성격 유형에 맞춰 공감·질문·리액션 방식을 미세 조정하는 데 사용.
+ * 규칙이 아니라 참고 정보로만 활용할 것.
+ */
+export const MBTI_HINTS: Record<string, string> = {
+  INTJ: "논리와 효율을 중시하며 깊은 주제를 선호. 피상적 수다보다 의미 있는 대화를 즐김. 감정 표현이 직접적이지 않아도 관심을 기울이고 있음.",
+  INTP: "지적 탐구를 즐기고 가설-검증형 대화를 좋아함. 반론도 자연스럽게 받아들임. 감정적 위로보다 논리적 공감이 더 잘 통함.",
+  ENTJ: "목표 지향적이고 결단력 있음. 솔직하고 직접적인 대화를 선호. 성취 이야기를 나눌 때 에너지가 높아짐.",
+  ENTP: "아이디어와 논쟁을 즐기는 타입. 관습에 얽매이지 않고 유머 감각이 풍부. 다양한 주제를 빠르게 전환하는 대화를 좋아함.",
+  INFJ: "깊은 의미와 가치를 중시하며 타인의 감정에 민감. 표면보다 내면을 보려 함. 진정성 있는 대화에서 마음을 열고, 피상적인 잡담은 불편해할 수 있음.",
+  INFP: "감성적이고 이상주의적. 자신만의 가치관이 강함. 공감과 경청을 원하며, 판단받는 느낌을 싫어함. 창의적 주제나 감성적 대화에서 활발해짐.",
+  ENFJ: "타인을 돌보는 것을 좋아하며 공감 능력이 뛰어남. 관계의 조화를 중시하고 격려·인정에 잘 반응함. 주변 사람들 이야기에 관심이 많음.",
+  ENFP: "열정적이고 가능성을 탐색하는 걸 좋아함. 감정 표현이 풍부하고 다양한 이야기를 펼침. 자유로운 대화 흐름을 선호하며 규칙적인 패턴을 답답해할 수 있음.",
+  ISTJ: "신뢰와 책임을 중시하며 구체적·사실적 대화를 선호. 익숙한 것에서 안정감을 찾음. 감정보다 사실 기반 소통이 편함.",
+  ISFJ: "따뜻하고 세심하며 타인을 잘 기억함. 안정적이고 예측 가능한 관계를 원함. 작은 배려에 큰 감동을 받고, 갑작스러운 변화를 불편해할 수 있음.",
+  ESTJ: "실용적이고 계획적이며 책임감이 강함. 명확한 목표와 결과 중심 대화를 선호. 효율을 중시하고 모호한 대화를 답답해함.",
+  ESFJ: "사교적이고 주변을 잘 챙기는 타입. 관계와 화합을 중시하며 타인의 감정에 빠르게 반응. 인정받고 싶은 욕구가 강하고 갈등 상황을 피하려 함.",
+  ISTP: "논리적이고 침착하며 실질적인 문제 해결을 좋아함. 불필요한 감정 소모를 피하고 간결한 소통을 선호. 혼자만의 시간이 필요한 편.",
+  ISFP: "온화하고 감성적이며 예술·자연·감각적 경험을 즐김. 갈등을 피하려 하고 진심 어린 공감을 원함. 말보다 행동으로 마음을 표현하는 경향.",
+  ESTP: "행동 지향적이고 즉흥적이며 현재를 즐김. 유머와 에너지가 넘침. 긴 설명보다 빠른 대화와 직접적인 경험 이야기를 선호.",
+  ESFP: "밝고 활동적이며 새로운 경험을 즐김. 분위기를 띄우는 것을 좋아하고 유머와 재미를 중시. 감정 공유에 솔직하고 깊은 대화보다 즐거운 일상 이야기를 선호.",
+};
+
+/**
+ * MBTI 유형 문자열을 검증한다. 유효하지 않으면 undefined 반환.
+ */
+export function validateMbti(raw: string | undefined): string | undefined {
+  if (!raw) return undefined;
+  const upper = raw.trim().toUpperCase();
+  return upper in MBTI_HINTS ? upper : undefined;
 }
 
 // ─────────────────────────────────────────────
@@ -90,6 +133,15 @@ export function extractUserContext(
         return a != null ? String(a) : undefined;
       })();
 
+  const rawGender = profileCtx.gender?.trim();
+  const normalizedGender = rawGender
+    ? rawGender === "male"
+      ? "남성"
+      : rawGender === "female"
+        ? "여성"
+        : rawGender
+    : undefined;
+
   return {
     userName: profileCtx.nickname ?? profileCtx.name ?? memoryUserName,
     userAge: derivedAge,
@@ -104,6 +156,9 @@ export function extractUserContext(
     recentStressor,
     recentSchedule,
     personalFacts: personalFacts.length > 0 ? personalFacts : undefined,
+    gender: normalizedGender,
+    mbti: validateMbti(profileCtx.mbti),
+    idealType: profileCtx.idealType?.trim() || undefined,
   };
 }
 
@@ -143,6 +198,21 @@ export function buildCommonContextBlock(ctx: UserContextData): string {
   if (ctx.personalFacts && ctx.personalFacts.length > 0)
     lines.push(
       `- 유저가 알려준 정보: ${ctx.personalFacts.join(", ")} (자연스럽게 활용, 같은 질문 반복 금지)`
+    );
+
+  if (ctx.gender) lines.push(`- 성별: ${ctx.gender}`);
+
+  if (ctx.mbti) {
+    const hint = MBTI_HINTS[ctx.mbti];
+    lines.push(`- MBTI: ${ctx.mbti} — ${hint}`);
+    lines.push(
+      `  ※ MBTI는 참고 정보일 뿐. 고정관념으로 대하지 말고 이 사람 자체에 집중할 것.`
+    );
+  }
+
+  if (ctx.idealType)
+    lines.push(
+      `- 이상형·원하는 관계 스타일: ${ctx.idealType} (억지로 맞추려 하지 말고 자연스럽게 참고만 할 것)`
     );
 
   if (lines.length === 0) return "";
