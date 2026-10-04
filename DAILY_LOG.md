@@ -277,3 +277,48 @@ AbsenceWelcome 오버레이 UI 연동 + returnVisit 메시지 닉네임 개인�
 - AbsenceWelcome 오버레이 Vercel preview QA 및 스크린샷 확인
 - excited 확률 캐릭터별 config 분리 (지유 높음, 은하 낮음)
 - returnVisit 오버레이에 캐릭터 이미지(hero) 삽입으로 몰입감 강화
+
+---
+
+## 2026-10-04
+
+### 선택한 작업
+- gender/MBTI/idealType → AI 시스템 프롬프트 파이프라인 연결 (context.ts 버그 수정)
+
+### 선택 이유
+- `profiles.gender`, `profiles.mbti`, `profiles.ideal_type`이 chat route에서 DB 조회는 되지만 `UserContextData` 인터페이스에 해당 필드가 없어 `buildCommonContextBlock()`에 미주입되던 버그 존재
+- 사용자가 MBTI/성별/이상형을 설정해도 AI가 전혀 참고하지 못하는 상태
+- 데이터 파이프라인 완성으로 대화 품질·개인화 즉시 향상 가능
+
+### 구현 내용
+- `UserContextData` 인터페이스에 `gender`, `mbti`, `idealType` 필드 추가
+- `MBTI_HINTS`: 16개 MBTI 유형 × 대화 스타일 힌트 사전 (AI 참고용)
+- `validateMbti()`: 대소문자 정규화 + 유효하지 않은 유형 필터링
+- `extractUserContext()`: gender(male/female → 남성/여성 변환), mbti(검증), idealType(trim) 추출 추가
+- `buildCommonContextBlock()`: 성별·MBTI+힌트·이상형 라인 삽입 (미설정 시 해당 라인 생략)
+- 단위 테스트 30개 추가 — validateMbti / extractUserContext / buildCommonContextBlock 전 케이스 검증
+
+### 해결한 버그
+- chat route에서 profile.mbti/gender/idealType을 profileCtx에 포함하지만 extractUserContext()가 이를 UserContextData에 포함시키지 않아 AI 프롬프트에 미주입되던 버그
+
+### 실행 및 테스트
+- `npx tsx scripts/test_mbti_gender_context.mts` → 30 passed, 0 failed
+- `npx tsc --noEmit` → 오류 없음
+- `npm run lint` → 경고/오류 없음
+
+### 사용자에게 달라지는 점
+- MBTI를 설정한 사용자는 캐릭터가 해당 MBTI 유형의 대화 성향(공감 방식, 질문 깊이, 리액션 톤)을 참고해 자연스럽게 적응
+- 성별에 따라 AI 어투와 공감 방식이 달라짐
+- 이상형 설정이 관계 경험의 연속성 강화에 활용됨
+
+### PR
+- https://github.com/kimeunsun109-debug/pickmetalk-/pull/64
+
+### 남은 문제
+- 설정 페이지 UI에서 MBTI/성별/이상형 편집 기능 없음 (PR #62/#63이 DRAFT — 검토 후 머지 필요)
+- 모든 이전 DRAFT PR (#51~#63)이 main에 미머지 상태
+
+### 다음 추천 작업
+- PR #62/#63 (설정 UI — MBTI/이상형/닉네임/관심사 편집) 검토 및 머지
+- idealType 캐릭터별 세분화 힌트 (어떤 이상형이 어떤 캐릭터 스타일과 잘 맞는지)
+- 사용자 감정 감지 + 공감 힌트 (PR #59 DRAFT 검토)
