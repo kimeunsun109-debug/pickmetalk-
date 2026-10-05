@@ -277,3 +277,60 @@ AbsenceWelcome 오버레이 UI 연동 + returnVisit 메시지 닉네임 개인�
 - AbsenceWelcome 오버레이 Vercel preview QA 및 스크린샷 확인
 - excited 확률 캐릭터별 config 분리 (지유 높음, 은하 낮음)
 - returnVisit 오버레이에 캐릭터 이미지(hero) 삽입으로 몰입감 강화
+
+---
+
+## 2026-10-05
+
+### 선택한 작업
+생활 패턴 컨텍스트 → AI 시스템 프롬프트 연결
+
+### 선택 이유
+- `chatSideEffects.ts`가 대화에서 기상·출근·점심·퇴근·운동·취침 패턴을 매 턴 추론·저장하지만,
+  실제 채팅 라우트가 이 데이터를 한 번도 AI 프롬프트에 주입하지 않았음
+- `prompts/patternNudges.ts`의 `buildDailyPatternPromptBlock` 함수가 준비되어 있었음에도 미연결 상태
+- 우선순위 2순위 (대화 품질) — 캐릭터가 사용자의 일상 루틴을 알고 자연스럽게 챙겨주면
+  실제 관계처럼 느껴지는 핵심 경험 강화
+
+### 구현 내용
+1. **`app/api/chat/route.ts`**
+   - `getDailyPatternsForUser` import 추가
+   - `buildDailyPatternPromptBlock` import 추가
+   - 병렬 DB fetch(5번째 항목)에 `patternPromise` 추가 (confidence ≥ 50 필터)
+   - `dynamicContextBlock` 조립 시 `patternNudgeBlock` 삽입 (commonCtxBlock 뒤, characterCtxBlock 앞)
+
+2. **`prompts/patternNudges.ts`** 개선
+   - `evidenceCount < 2` 패턴 자동 제외 (단발 관측 노이즈 방지)
+   - KST 기준 현재 시각 계산 → 접근/활성 패턴에 `← 지금 이 시간대` 마커 추가
+   - 자정을 넘는 취침 윈도우(23:00–01:00) 처리 로직 포함
+
+3. **`scripts/test_pattern_nudges.mts`** (신규)
+   - 9개 단위 테스트 — evidenceCount 필터, 최대 4개 패턴, 시간 인식 마커 전부 통과
+
+### 해결한 버그
+- 생활 패턴이 수집되고 있었으나 AI가 전혀 인식하지 못하던 구조적 결함 수정
+
+### 실행 및 테스트
+- `npx tsx scripts/test_pattern_nudges.mts` → 9/9 통과
+- `npx tsx scripts/test_daily_patterns.mts` → 정상 출력
+- `npx tsc --noEmit` → 오류 0
+- `npm run lint` → 경고·오류 0
+
+### 사용자에게 달라지는 점
+- AI 캐릭터가 사용자의 일상 루틴(기상·점심·퇴근·취침 시간대)을 실제로 인식하고 자연스럽게 챙김
+  예: "지금 점심 시간이네~ 뭐 먹을 생각이야?" / "슬슬 퇴근각 아니야? 고생했어"
+- '지금 이 시간대' 마커로 현재 시각과 겹치는 패턴을 AI가 우선 참고 가능
+- evidenceCount ≥ 2 필터로 노이즈 감소, 충분히 학습된 루틴만 반영
+
+### PR
+- 생성 예정
+
+### 남은 문제
+- confidence ≥ 50 기준이 너무 높으면 초기 사용자에게 패턴이 오래 표시 안 될 수 있음
+  (현재 40에서 50으로 상향 — 추후 A/B 테스트 고려)
+- 패턴이 없는 경우(`patternNudgeBlock = ""`) AI 동작 변화 없음 (안전)
+
+### 다음 추천 작업
+- gender/MBTI/idealType → AI 프롬프트 파이프라인 완성 (main에 미반영)
+- 관계 레벨업 토스트 UI (PR #54 DRAFT) 검토 및 재구현
+- 사용자 감정 감지 + 공감 힌트 주입 (PR #59 DRAFT) 검토
