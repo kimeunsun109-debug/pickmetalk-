@@ -1,5 +1,14 @@
 import type { UserDailyPattern } from "@/types";
 
+const KST_OFFSET_MINUTES = 9 * 60;
+
+/** Returns current KST time as minutes-since-midnight (0–1439). */
+function kstNowMinute(): number {
+  const now = new Date();
+  const kst = new Date(now.getTime() + KST_OFFSET_MINUTES * 60_000);
+  return kst.getUTCHours() * 60 + kst.getUTCMinutes();
+}
+
 function minuteToClock(minute: number): string {
   const hh = Math.floor(minute / 60)
     .toString()
@@ -27,14 +36,49 @@ function labelForType(type: UserDailyPattern["patternType"]): string {
   }
 }
 
-export function buildDailyPatternPromptBlock(patterns: UserDailyPattern[]): string {
-  if (!patterns.length) return "";
-  const rows = patterns
-    .slice(0, 4)
-    .map(
-      (p) =>
-        `- ${labelForType(p.patternType)} 추정 ${minuteToClock(p.timeStartMinute)}~${minuteToClock(p.timeEndMinute)} (신뢰도 ${Math.round(p.confidence)}%, 관측 ${p.evidenceCount}회)`
+/**
+ * Returns true if the pattern window is active or approaching within the next
+ * 60 minutes (based on KST current time).
+ */
+function isApproachingOrActive(
+  nowMinute: number,
+  startMinute: number,
+  endMinute: number
+): boolean {
+  const lookahead = 60;
+  const windowStart = startMinute - lookahead;
+
+  if (startMinute <= endMinute) {
+    return nowMinute >= windowStart && nowMinute <= endMinute;
+  }
+  // Wraps midnight (e.g., sleep 23:00–01:00)
+  return nowMinute >= windowStart || nowMinute <= endMinute;
+}
+
+/**
+ * Builds a daily-lifestyle-pattern prompt block from the user's inferred
+ * patterns. Only patterns with evidenceCount ≥ 2 are shown.
+ *
+ * If any pattern window is active or approaching in the next 60 minutes,
+ * that pattern is explicitly marked so the character can naturally reference it.
+ */
+export function buildDailyPatternPromptBlock(
+  patterns: UserDailyPattern[]
+): string {
+  const qualified = patterns.filter((p) => p.evidenceCount >= 2);
+  if (!qualified.length) return "";
+
+  const nowMinute = kstNowMinute();
+
+  const rows = qualified.slice(0, 4).map((p) => {
+    const approaching = isApproachingOrActive(
+      nowMinute,
+      p.timeStartMinute,
+      p.timeEndMinute
     );
+    const base = `- ${labelForType(p.patternType)} 추정 ${minuteToClock(p.timeStartMinute)}~${minuteToClock(p.timeEndMinute)} (신뢰도 ${Math.round(p.confidence)}%, 관측 ${p.evidenceCount}회)`;
+    return approaching ? `${base} ← 지금 이 시간대` : base;
+  });
 
   return [
     "[생활 패턴 힌트 — 추정치]",
