@@ -277,3 +277,53 @@ AbsenceWelcome 오버레이 UI 연동 + returnVisit 메시지 닉네임 개인�
 - AbsenceWelcome 오버레이 Vercel preview QA 및 스크린샷 확인
 - excited 확률 캐릭터별 config 분리 (지유 높음, 은하 낮음)
 - returnVisit 오버레이에 캐릭터 이미지(hero) 삽입으로 몰입감 강화
+
+---
+
+## 2026-10-06
+
+### 선택한 작업
+- gender/MBTI/idealType → AI 시스템 프롬프트 파이프라인 연결 (main 브랜치 gap 수정)
+
+### 선택 이유
+- `chat/route.ts`가 이미 `profileCtx`에 gender/mbti/idealType을 담아 `extractUserContext`에 전달하고 있었으나,
+  `extractUserContext`가 이 세 필드를 조용히 버리고 있었음 (실질적 데이터 손실)
+- 프로필에 MBTI/이상형을 설정한 모든 사용자의 설정이 AI에 전달되지 않아 관계 경험에 직접 영향
+- DRAFT PRs #61/#64가 유사한 작업을 시도했으나 미머지 — 단독 수직 슬라이스로 main에 반영
+
+### 구현 내용
+- `services/context.ts`:
+  - `UserContextData`에 `gender?`, `mbti?`, `idealType?` 필드 추가
+  - `MBTI_HINTS` 사전 (16개 유형 × 대화 스타일 힌트)
+  - `normalizeGender()`: male/female 영문 → 한글 정규화
+  - `validateMbti()`: 대소문자 무관, [EI][NS][TF][JP] 패턴 검증
+  - `extractUserContext()`: 세 필드 추출·정규화 후 반환
+  - `buildCommonContextBlock()`: 성별·MBTI+힌트·이상형 라인 출력
+    - 이상형에 "너는 이 사람의 이상형에 부합하는 면이 있음. 억지스럽지 않게 자연스럽게 녹여내도 좋아" 힌트 추가
+- `scripts/test_context_mbti_gender.mts`: 37개 단위 테스트
+
+### 해결한 버그
+- chat route가 profileCtx에 gender/mbti/idealType을 넣어도 AI 프롬프트에 전혀 반영되지 않던 silent drop 버그
+
+### 실행 및 테스트
+- `npx tsx scripts/test_context_mbti_gender.mts` — 37/37 통과
+- `npx tsc --noEmit` — 오류 없음
+- `npm run lint` — 경고/오류 없음
+
+### 사용자에게 달라지는 점
+- 프로필에 MBTI를 설정한 사용자: AI가 해당 MBTI의 대화 스타일(감수성·논리·에너지 등)에 맞게 반응
+- 성별 설정 시: AI가 적절한 호칭/어투 조정에 활용 가능
+- 이상형 설정 시: AI 캐릭터가 자연스럽게 그 특성을 살리는 방향으로 대화
+
+### PR
+- https://github.com/kimeunsun109-debug/pickmetalk-/pull/66
+
+### 남은 문제
+- 설정 페이지에 gender/MBTI/idealType 편집 UI가 없음 (DRAFT PR #62/#63 참고)
+- 16개 MBTI 힌트의 대화 영향도 실제 사용 데이터 기반 검증 필요
+- idealType 힌트("너는 이 사람의 이상형에 부합하는 면이 있음")가 너무 노골적으로 느껴지면 완화 필요
+
+### 다음 추천 작업
+- 설정 페이지 내 내 정보 섹션 추가 (gender/MBTI/idealType/닉네임 편집 UI)
+- pattern nudge → chat route 연결 (PR #65 미머지)
+- 사용자 감정 감지 + 공감 힌트 주입 (PR #59 미머지)
