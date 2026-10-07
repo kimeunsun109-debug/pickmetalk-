@@ -53,6 +53,8 @@ import type { ChatRequestBody } from "@/types/api";
 import type { Message, UserCharacterState } from "@/types";
 import { ageFromBirthDate } from "@/lib/userAge";
 import { markPhotoDeliveryReplied } from "@/services/photoPush/followup";
+import { getDailyPatternsForUser } from "@/lib/db/dailyPatterns";
+import { buildDailyPatternPromptBlock } from "@/prompts/patternNudges";
 import type {
   PostgrestResponse,
   PostgrestSingleResponse,
@@ -226,12 +228,14 @@ export async function POST(request: Request) {
           historyResult,
           ucsResult,
           shortTermMemoryBlock,
+          dailyPatterns,
         ] = await trace.span<
           [
             PostgrestSingleResponse<Record<string, unknown>>,
             PostgrestResponse<Record<string, unknown>>,
             PostgrestSingleResponse<Record<string, unknown>>,
             string,
+            import("@/types").UserDailyPattern[],
           ]
         >("Parallel DB — context load", async () => {
           const shortTermPromise = (async (): Promise<string> => {
@@ -251,6 +255,10 @@ export async function POST(request: Request) {
               return "";
             }
           })();
+
+          const patternPromise = getDailyPatternsForUser(supabase, userId, 50)
+            .then((ps) => ps.filter((p) => p.evidenceCount >= 2))
+            .catch(() => []);
 
           return Promise.all([
             supabase
@@ -272,6 +280,7 @@ export async function POST(request: Request) {
               .eq("character_id", characterId)
               .maybeSingle(),
             shortTermPromise,
+            patternPromise,
           ]);
         });
 
@@ -415,6 +424,8 @@ export async function POST(request: Request) {
         const userCtx = extractUserContext(updatedMemory, profileCtx);
         const commonCtxBlock = buildCommonContextBlock(userCtx);
 
+        const patternNudgeBlock = buildDailyPatternPromptBlock(dailyPatterns);
+
         const freshChatStart = Boolean(
           profile?.chatHistoryResetAt &&
             Date.now() - new Date(profile.chatHistoryResetAt).getTime() <
@@ -431,6 +442,7 @@ export async function POST(request: Request) {
         const dynamicContextBlock = [
           timeContextBlock,
           shortTermMemoryBlock,
+          patternNudgeBlock,
           commonCtxBlock,
           characterCtxBlock,
         ]
