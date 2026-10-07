@@ -277,3 +277,57 @@ AbsenceWelcome 오버레이 UI 연동 + returnVisit 메시지 닉네임 개인�
 - AbsenceWelcome 오버레이 Vercel preview QA 및 스크린샷 확인
 - excited 확률 캐릭터별 config 분리 (지유 높음, 은하 낮음)
 - returnVisit 오버레이에 캐릭터 이미지(hero) 삽입으로 몰입감 강화
+
+---
+
+## 2026-10-07
+
+### 선택한 작업
+- gender/MBTI/idealType + 생활 패턴 컨텍스트 → AI 시스템 프롬프트 연결
+
+### 선택 이유
+- ProfileUserContext에 gender/mbti/idealType 필드가 있지만 extractUserContext()에서 완전히 드롭되어 AI가 전혀 활용 불가
+- 동일 버그를 PR #60–#66에서 반복 시도했으나 미머지 상태 — 이번에 main 기준으로 완성
+- 생활 패턴 컨텍스트(patternNudge)도 chat route에 미연결 (PR #65 DRAFT) → 동시 해결
+- 두 개선 모두 "캐릭터가 사용자를 실제로 아는 사람처럼 느끼게" 하는 핵심 요소
+
+### 구현 내용
+**services/context.ts**
+- `UserContextData`에 `gender?/mbti?/idealType?` 필드 추가
+- `MBTI_HINTS`: 16개 유형별 대화 스타일 힌트 사전 (INTJ→ESFP)
+- `normalizeGender()`: male/female/남자/여자 → 남성/여성 정규화
+- `validateMbti()`: 대소문자 무관 [EI][NS][TF][JP] 패턴 검증
+- `extractUserContext()`: profileCtx.gender/mbti/idealType 추출·정규화 후 반환
+- `buildCommonContextBlock()`: 성별 / MBTI+힌트 / 이상형+활용힌트 라인 출력
+
+**app/api/chat/route.ts**
+- `getDailyPatternsForUser` + `buildDailyPatternPromptBlock` import
+- 병렬 DB fetch에 patternPromise 추가 (confidence≥50, evidenceCount≥2 필터)
+- `patternNudgeBlock` → `dynamicContextBlock`에 삽입
+
+### 해결한 버그
+- profileCtx에 gender/mbti/idealType이 있어도 AI 프롬프트에 전혀 반영되지 않던 silent drop
+- 생활 패턴(취침·기상·퇴근 시간 추정)이 AI에 전달되지 않던 문제
+
+### 실행 및 테스트
+- `npx tsc --noEmit` → 오류 0
+- `npm run lint` → 경고·오류 0
+- `npx tsx scripts/test_context_mbti_gender.mts` → 61/61 통과
+
+### 사용자에게 달라지는 점
+- MBTI가 설정된 경우 AI가 유형별 대화 스타일 힌트로 더 맞춤화된 응답 생성
+- 성별 정보가 AI에 전달되어 더 자연스러운 호칭·공감 표현 가능
+- 이상형 설명이 AI의 대화 분위기 조율에 활용됨 (직접 언급 금지 가이드 포함)
+- 생활 패턴(기상·퇴근·취침 추정)이 AI에 전달되어 시간대 맞춤 챙김 대화 가능
+
+### PR
+- https://github.com/kimeunsun109-debug/pickmetalk-/pull/67 (예정)
+
+### 남은 문제
+- 기존 DRAFT PR #60–#66은 동일 기능을 시도한 선행 PR — 검토 후 close 권장
+- 생활 패턴 DB 테이블(`user_daily_patterns`)이 없는 로컬 환경에서는 빈 배열 반환 (정상 처리)
+
+### 다음 추천 작업
+- P0: 관계 레벨업 토스트 UI 연결 (PR #54 DRAFT 검토)
+- P0: 사용자 감정 감지 + 공감 힌트 (PR #59 DRAFT 검토)
+- P1: 설정 UI 내 gender/MBTI/idealType 편집 화면 (PR #62/#63 DRAFT 검토)
