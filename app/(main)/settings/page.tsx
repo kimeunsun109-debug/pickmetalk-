@@ -61,6 +61,8 @@ export default async function SettingsPage() {
     }
   }
 
+  const mappedProfile = profile ? mapUserProfile(profile) : null;
+
   return (
     <SettingsClient
       email={user.email ?? ""}
@@ -69,6 +71,10 @@ export default async function SettingsPage() {
       todayMsgCount={todayMsgCount}
       isPremium={isPremium}
       sessionDates={(sessionRows ?? []).map((r) => r.created_at)}
+      displayName={mappedProfile?.displayName ?? null}
+      gender={mappedProfile?.gender ?? null}
+      mbti={mappedProfile?.mbti ?? null}
+      idealType={mappedProfile?.idealType ?? null}
     />
   );
 }

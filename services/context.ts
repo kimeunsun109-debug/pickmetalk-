@@ -16,6 +16,53 @@ export interface UserContextData {
   recentSchedule?: string;
   /** 반려동물 이름, 가족 이름 등 대화에서 언급한 개인 정보 */
   personalFacts?: string[];
+  /** 성별: "남성" | "여성" | undefined */
+  gender?: string;
+  /** MBTI (예: "INTJ") */
+  mbti?: string;
+  /** 이상형 설명 */
+  idealType?: string;
+}
+
+/** MBTI 유형별 대화 스타일 힌트 */
+export const MBTI_HINTS: Record<string, string> = {
+  INTJ: "논리적이고 독립적. 결론 중심 대화 선호. 과도한 감성적 공감보다 실질적 조언을 좋아함.",
+  INTP: "분석적이고 호기심 많음. 개념 탐구를 즐기며 즉흥적 공감보다 깊은 이야기를 선호.",
+  ENTJ: "목표 지향적이고 직접적. 효율 중시, 칭찬보다 솔직한 피드백 선호.",
+  ENTP: "창의적이고 토론 좋아함. 유머·반전 있는 대화에 반응 잘함.",
+  INFJ: "공감 능력 높고 의미 있는 대화 중시. 깊은 연결과 진심 어린 소통을 원함.",
+  INFP: "감수성 풍부하고 가치 중심. 강요 없는 편안한 분위기와 진정성 있는 말에 반응.",
+  ENFJ: "사람 중심적이고 따뜻함. 관계와 감정 공유를 중시, 적극적 공감에 잘 반응.",
+  ENFP: "열정적이고 아이디어 풍부. 즉흥적이고 유쾌한 대화, 가능성 탐구를 즐김.",
+  ISTJ: "신뢰와 책임감 중시. 일관성 있는 태도와 약속 이행에 신뢰를 느낌.",
+  ISFJ: "배려심 깊고 안정 추구. 세심한 챙김과 일상 공유에 편안함을 느낌.",
+  ESTJ: "현실적이고 체계적. 명확한 소통과 일 이야기를 편하게 함.",
+  ESFJ: "사교적이고 따뜻함. 관계 중심이며 칭찬과 인정에 긍정적으로 반응.",
+  ISTP: "실용적이고 독립적. 간결한 대화 선호, 불필요한 감정 과잉 싫어함.",
+  ISFP: "온화하고 예술적 감수성. 강요 없는 분위기에서 감정 표현이 자연스럽게 나옴.",
+  ESTP: "활동적이고 현실적. 유머·현재 경험 중심 대화에 활기차게 반응.",
+  ESFP: "밝고 사교적. 즐거운 분위기와 즉흥적 대화를 좋아하며 감정 표현이 풍부.",
+};
+
+/**
+ * 성별 문자열 정규화 ("male"/"female"/한글 혼용 → "남성"/"여성").
+ */
+export function normalizeGender(raw: string | undefined): string | undefined {
+  if (!raw) return undefined;
+  const v = raw.toLowerCase().trim();
+  if (v === "male" || v === "남자" || v === "남성") return "남성";
+  if (v === "female" || v === "여자" || v === "여성") return "여성";
+  return undefined;
+}
+
+/**
+ * MBTI 문자열 검증 및 정규화. 유효하지 않으면 undefined 반환.
+ */
+export function validateMbti(raw: string | undefined): string | undefined {
+  if (!raw) return undefined;
+  const upper = raw.toUpperCase().trim();
+  if (/^[EI][NS][TF][JP]$/.test(upper)) return upper;
+  return undefined;
 }
 
 export interface YoonseoStats {
@@ -104,6 +151,9 @@ export function extractUserContext(
     recentStressor,
     recentSchedule,
     personalFacts: personalFacts.length > 0 ? personalFacts : undefined,
+    gender: normalizeGender(profileCtx.gender),
+    mbti: validateMbti(profileCtx.mbti),
+    idealType: profileCtx.idealType?.trim() || undefined,
   };
 }
 
@@ -143,6 +193,19 @@ export function buildCommonContextBlock(ctx: UserContextData): string {
   if (ctx.personalFacts && ctx.personalFacts.length > 0)
     lines.push(
       `- 유저가 알려준 정보: ${ctx.personalFacts.join(", ")} (자연스럽게 활용, 같은 질문 반복 금지)`
+    );
+  if (ctx.gender) lines.push(`- 성별: ${ctx.gender}`);
+  if (ctx.mbti) {
+    const hint = MBTI_HINTS[ctx.mbti];
+    lines.push(
+      hint
+        ? `- MBTI: ${ctx.mbti} — ${hint}`
+        : `- MBTI: ${ctx.mbti}`
+    );
+  }
+  if (ctx.idealType)
+    lines.push(
+      `- 이상형: ${ctx.idealType} (대화 스타일·분위기 참고용, 직접 언급 금지)`
     );
 
   if (lines.length === 0) return "";
