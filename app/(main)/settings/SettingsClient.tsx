@@ -22,6 +22,10 @@ interface SettingsClientProps {
   todayMsgCount: number;
   isPremium: boolean;
   sessionDates: string[];
+  displayName: string | null;
+  gender: string | null;
+  mbti: string | null;
+  idealType: string | null;
 }
 
 const CHAR_NAMES: Record<string, string> = {
@@ -51,6 +55,22 @@ function calcStreak(dates: string[]): number {
   return streak;
 }
 
+const MBTI_OPTIONS = [
+  "INTJ","INTP","ENTJ","ENTP",
+  "INFJ","INFP","ENFJ","ENFP",
+  "ISTJ","ISFJ","ESTJ","ESFJ",
+  "ISTP","ISFP","ESTP","ESFP",
+];
+
+const IDEAL_TYPE_OPTIONS = [
+  { value: "", label: "선택 안 함" },
+  { value: "warm", label: "다정하고 따뜻한 타입" },
+  { value: "funny", label: "유머 있고 재미있는 타입" },
+  { value: "calm", label: "차분하고 든든한 타입" },
+  { value: "passionate", label: "열정적이고 에너지 넘치는 타입" },
+  { value: "intellectual", label: "섬세하고 깊이 있는 타입" },
+];
+
 export function SettingsClient({
   email,
   joinedDaysAgo,
@@ -58,6 +78,10 @@ export function SettingsClient({
   todayMsgCount,
   isPremium,
   sessionDates,
+  displayName,
+  gender,
+  mbti,
+  idealType,
 }: SettingsClientProps) {
   const streak = calcStreak(sessionDates);
   const remaining = isPremium
@@ -70,6 +94,16 @@ export function SettingsClient({
     "idle"
   );
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // 내 정보 편집 상태
+  const [myInfoOpen, setMyInfoOpen] = useState(false);
+  const [editNickname, setEditNickname] = useState(displayName ?? "");
+  const [editGender, setEditGender] = useState(gender ?? "");
+  const [editMbti, setEditMbti] = useState(mbti ?? "");
+  const [editIdealType, setEditIdealType] = useState(idealType ?? "");
+  const [myInfoSaving, setMyInfoSaving] = useState(false);
+  const [myInfoSaved, setMyInfoSaved] = useState(false);
+  const [myInfoError, setMyInfoError] = useState<string | null>(null);
 
   const statCards = [
     {
@@ -103,6 +137,37 @@ export function SettingsClient({
       color: "bg-purple-50",
     },
   ];
+
+  async function handleSaveMyInfo() {
+    setMyInfoSaving(true);
+    setMyInfoError(null);
+    setMyInfoSaved(false);
+    try {
+      const body: Record<string, string> = {};
+      if (editNickname.trim()) body.displayName = editNickname.trim();
+      if (editGender) body.gender = editGender;
+      if (editMbti) body.mbti = editMbti;
+      if (editIdealType) body.idealType = editIdealType;
+      const res = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error((d as { error?: string }).error ?? "저장 실패");
+      }
+      setMyInfoSaved(true);
+      setTimeout(() => {
+        setMyInfoOpen(false);
+        setMyInfoSaved(false);
+      }, 1200);
+    } catch (e) {
+      setMyInfoError(e instanceof Error ? e.message : "저장 중 오류 발생");
+    } finally {
+      setMyInfoSaving(false);
+    }
+  }
 
   async function handleDeleteAccount() {
     setDeleteStep("loading");
@@ -157,6 +222,168 @@ export function SettingsClient({
           ))}
         </div>
       </section>
+
+      {/* 내 정보 */}
+      <section className="mb-6">
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-400">
+          내 정보
+        </h2>
+        <div className="rounded-2xl bg-white px-4 py-4 shadow-sm">
+          <div className="flex flex-col gap-2 text-sm text-gray-700">
+            <div className="flex items-center justify-between">
+              <span className="text-gray-500">닉네임</span>
+              <span className="font-medium">{displayName ?? "미설정"}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-500">성별</span>
+              <span className="font-medium">
+                {gender === "male" || gender === "남성" || gender === "남자"
+                  ? "남성"
+                  : gender === "female" || gender === "여성" || gender === "여자"
+                    ? "여성"
+                    : "미설정"}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-500">MBTI</span>
+              <span className="font-medium">{mbti ? mbti.toUpperCase() : "미설정"}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-500">이상형</span>
+              <span className="font-medium text-right max-w-[180px] truncate">
+                {IDEAL_TYPE_OPTIONS.find((o) => o.value === idealType)?.label ?? (idealType || "미설정")}
+              </span>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              setEditNickname(displayName ?? "");
+              setEditGender(gender ?? "");
+              setEditMbti(mbti ?? "");
+              setEditIdealType(idealType ?? "");
+              setMyInfoOpen(true);
+              setMyInfoError(null);
+              setMyInfoSaved(false);
+            }}
+            className="mt-4 w-full rounded-xl border border-pink-200 py-2.5 text-sm font-medium text-pink-600 transition-colors active:bg-pink-50"
+          >
+            편집
+          </button>
+        </div>
+      </section>
+
+      {/* 내 정보 편집 모달 */}
+      {myInfoOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40">
+          <div className="w-full max-w-md rounded-t-3xl bg-white px-6 pb-10 pt-6">
+            <div className="mb-5 flex items-center justify-between">
+              <h3 className="text-base font-bold text-gray-900">내 정보 편집</h3>
+              <button
+                onClick={() => setMyInfoOpen(false)}
+                className="text-gray-400 text-lg"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="flex flex-col gap-4">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-500">
+                  닉네임
+                </label>
+                <input
+                  type="text"
+                  value={editNickname}
+                  onChange={(e) => setEditNickname(e.target.value)}
+                  placeholder="닉네임을 입력하세요"
+                  className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-pink-300 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-500">
+                  성별
+                </label>
+                <div className="flex gap-2">
+                  {[
+                    { value: "male", label: "남성" },
+                    { value: "female", label: "여성" },
+                  ].map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() =>
+                        setEditGender(editGender === opt.value ? "" : opt.value)
+                      }
+                      className={`flex-1 rounded-xl border py-2.5 text-sm font-medium transition-colors ${
+                        editGender === opt.value
+                          ? "border-pink-400 bg-pink-50 text-pink-700"
+                          : "border-gray-200 text-gray-600 active:bg-gray-50"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-500">
+                  MBTI
+                </label>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {MBTI_OPTIONS.map((type) => (
+                    <button
+                      key={type}
+                      onClick={() =>
+                        setEditMbti(editMbti === type ? "" : type)
+                      }
+                      className={`rounded-lg border py-2 text-xs font-medium transition-colors ${
+                        editMbti === type
+                          ? "border-pink-400 bg-pink-50 text-pink-700"
+                          : "border-gray-200 text-gray-600 active:bg-gray-50"
+                      }`}
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-500">
+                  이상형
+                </label>
+                <select
+                  value={editIdealType}
+                  onChange={(e) => setEditIdealType(e.target.value)}
+                  className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-pink-300 focus:outline-none"
+                >
+                  {IDEAL_TYPE_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {myInfoError && (
+                <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
+                  ⚠️ {myInfoError}
+                </p>
+              )}
+              {myInfoSaved && (
+                <p className="rounded-lg bg-green-50 px-3 py-2 text-xs text-green-600">
+                  ✅ 저장되었습니다!
+                </p>
+              )}
+
+              <button
+                onClick={handleSaveMyInfo}
+                disabled={myInfoSaving}
+                className="w-full rounded-xl bg-pink-500 py-3 text-sm font-semibold text-white transition-colors disabled:bg-pink-300 active:bg-pink-600"
+              >
+                {myInfoSaving ? "저장 중..." : "저장"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 캐릭터 관계 목록 */}
       {characterStates.length > 0 && (

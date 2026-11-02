@@ -2,6 +2,65 @@
 
 ---
 
+## 2026-11-02
+
+### 선택한 작업
+gender/MBTI/이상형 → AI 시스템 프롬프트 연결 + 설정 편집 UI + 생활 패턴 힌트 주입
+
+### 선택 이유
+- 사용자가 가입 시 설정한 성별·MBTI·이상형 정보가 DB에 저장되어 있었으나, `buildCommonContextBlock`이 이를 AI 프롬프트에 포함하지 않아 완전히 사장되고 있었음
+- MBTI는 AI 대화 스타일 개인화의 핵심 신호 — INFP 사용자에게는 감성적 공감 위주, INTJ 사용자에게는 결론 중심 대화를 유도할 수 있음
+- 생활 패턴(`patternNudgeBlock`) 서비스도 이미 구현되어 있으나 chat route에서 미연결 상태
+- 가입 후 MBTI/이상형을 변경할 설정 UI가 없어 기존 사용자가 정보를 수정할 수 없었음
+
+### 구현 내용
+- `services/context.ts`:
+  - `UserContextData`에 `gender?`, `mbti?`, `idealType?` 필드 추가
+  - `MBTI_HINTS` 사전: 16개 유형 × 대화 스타일 힌트
+  - `normalizeGender()`: male/female/한글 혼용 → 남성/여성 정규화
+  - `validateMbti()`: 대소문자 무관 [EI][NS][TF][JP] 검증
+  - `extractUserContext()`: 세 필드 추출·정규화 후 반환
+  - `buildCommonContextBlock()`: 성별·MBTI+힌트·이상형 라인 출력 추가
+- `app/api/chat/route.ts`:
+  - `getDailyPatternsForUser` + `buildDailyPatternPromptBlock` import
+  - Parallel DB fetch에 `patternPromise` 추가 (confidence≥50, evidenceCount≥2)
+  - `dynamicContextBlock`에 `patternNudgeBlock` 주입
+- `app/(main)/settings/SettingsClient.tsx` + `page.tsx`:
+  - "내 정보" 섹션 추가: 닉네임·성별·MBTI·이상형 현재 값 표시
+  - 바텀시트 편집 모달: MBTI 4×4 그리드, 성별 토글, 이상형 드롭다운, 닉네임 입력
+  - `PATCH /api/profile` 호출로 즉시 저장
+- `scripts/test_context_mbti_gender.mts`: 79개 단위 테스트 신규 작성
+
+### 해결한 버그
+- 없음 (신규 기능)
+
+### 실행 및 테스트
+```
+npx tsx scripts/test_context_mbti_gender.mts → 79 passed / 0 failed
+npx tsc --noEmit                             → 0 errors
+npm run lint                                 → No ESLint warnings or errors
+npm run build                                → Build 성공
+```
+
+### 사용자에게 달라지는 점
+- AI가 사용자의 MBTI에 맞는 대화 스타일로 응답 (INFP → 감성 공감 위주, INTJ → 결론 중심 등)
+- 누적된 생활 패턴(기상·출근·점심 등)을 AI가 자연스럽게 활용
+- 가입 후에도 설정 화면에서 MBTI/이상형/닉네임 편집 가능
+
+### PR
+- https://github.com/kimeunsun109-debug/pickmetalk-/pull/68
+
+### 남은 문제
+- 설정 UI에서 생년월일·직업·관심사 편집 미구현 (후속 작업 가능)
+- 이상형 값이 "warm/funny/calm/passionate/intellectual" 코드값 — 한글 레이블로 DB 저장 고려
+
+### 다음 추천 작업
+- P2: Adaptive Personality — 최근 대화 반응 패턴 기반 말투 미세 조정
+- P1: 관계 레벨업 토스트 UI (PR #54 DRAFT 재검토)
+- P1: 설정 UI 생년월일·직업·관심사 편집 추가
+
+---
+
 ## 2026-08-27
 
 ### 선택한 작업
