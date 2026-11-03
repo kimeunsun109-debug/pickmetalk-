@@ -1,0 +1,62 @@
+name: Daily development task
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  create-daily-task:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create today's development issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const now = new Date();
+            const date = new Intl.DateTimeFormat('en-CA', {
+              timeZone: 'Asia/Seoul',
+              year: 'numeric', month: '2-digit', day: '2-digit'
+            }).format(now);
+            const title = `[Daily Dev ${date}] Pick one high-value improvement`;
+            const existing = await github.paginate(github.rest.issues.listForRepo, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100
+            });
+            if (existing.some(issue => issue.title === title)) {
+              core.info(`Issue already exists: ${title}`);
+              return;
+            }
+            const body = `## Goal
+
+Choose and complete exactly one highest-value improvement for PickMeTalk, prioritizing:
+1. Critical bugs and data-loss prevention
+2. Conversation quality, memory, relationship, and emotion
+3. Adaptive personality and proactive behavior
+4. Photo push and UI/UX
+
+## Required workflow
+
+- Read \\`AGENTS.md\\` and recent commits/issues before changing code.
+- Preserve \\`.env\\`, API keys, database/Supabase configuration, and user data.
+- Implement the smallest complete change; do not make unrelated edits.
+- Run the smallest relevant tests, then lint/typecheck/build when applicable.
+- Create a branch and pull request titled \\`[Daily Dev ${date}] <work>\\`.
+- Update \\`DAILY_LOG.md\\` with the reason, implementation, validation, user impact, PR, and remaining issues.
+
+## Completion criteria
+
+The work is not complete until the change is verified and the PR plus daily log entry exist. If blocked, record reproduction steps, cause, and blocker in \\`BUGS.md\\` instead of claiming success.`;
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body
+            });
+            core.info(`Created: ${title}`);
