@@ -3,10 +3,9 @@
  *
  * 계정 삭제 흐름:
  *   1. 현재 로그인 사용자 확인
- *   2. profiles 테이블 삭제 → CASCADE 로 messages · user_character_states 등 자동 삭제
- *   3. SUPABASE_SERVICE_ROLE_KEY 가 있으면 auth.users 까지 삭제 (완전 삭제)
- *      없으면 데이터만 삭제하고 세션 종료 (auth 계정은 관리자 수동 삭제 필요)
- *   4. 세션 종료 (signOut)
+ *   2. 서비스 롤 설정 확인 (인증 계정까지 삭제해야 완전한 탈퇴 가능)
+ *   3. profiles 테이블 삭제 → CASCADE 로 messages · user_character_states 등 자동 삭제
+ *   4. auth.users 삭제 후 세션 종료 (signOut)
  *
  * 응답: { ok: true } | { ok: false, error: string }
  */
@@ -29,6 +28,21 @@ export async function DELETE() {
     }
 
     const userId = user.id;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+    if (!serviceRoleKey || !supabaseUrl) {
+      console.error(
+        "[account/delete] missing service role configuration; refusing partial deletion"
+      );
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "계정 삭제 기능이 현재 준비되지 않았습니다. 잠시 후 다시 시도해 주세요.",
+        },
+        { status: 503 }
+      );
+    }
 
     // ── Step 1: profiles 삭제 (CASCADE → 모든 관련 데이터 삭제) ──────
     const { error: profileDeleteError } = await supabase
@@ -38,24 +52,29 @@ export async function DELETE() {
 
     if (profileDeleteError) {
       console.error("[account/delete] profiles delete error:", profileDeleteError);
-      // 실패해도 계속 진행 (이미 없을 수 있음)
+      return NextResponse.json(
+        { ok: false, error: "계정 데이터 삭제에 실패했습니다. 다시 시도해 주세요." },
+        { status: 500 }
+      );
     }
 
     // ── Step 2: auth.users 삭제 (서비스 롤 키 필요) ──────────────────
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const admin = createAdminClient(supabaseUrl, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const { error: authDeleteError } = await admin.auth.admin.deleteUser(userId);
 
-    if (serviceRoleKey && supabaseUrl) {
-      const admin = createAdminClient(supabaseUrl, serviceRoleKey, {
-        auth: { autoRefreshToken: false, persistSession: false },
-      });
-      const { error: authDeleteError } =
-        await admin.auth.admin.deleteUser(userId);
-
-      if (authDeleteError) {
-        console.error("[account/delete] auth.users delete error:", authDeleteError);
-        // auth 삭제 실패해도 데이터는 이미 지워졌으므로 계속
-      }
+    if (authDeleteError) {
+      console.error("[account/delete] auth.users delete error:", authDeleteError);
+      await supabase.auth.signOut();
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            "계정 데이터는 삭제됐지만 인증 계정 삭제에 실패했습니다. 고객센터에 문의해 주세요.",
+        },
+        { status: 502 }
+      );
     }
 
     // ── Step 3: 세션 종료 ──────────────────────────────────────────────
