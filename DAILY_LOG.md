@@ -2,6 +2,70 @@
 
 ---
 
+## 2026-11-03 (17:00 UTC)
+
+### 선택한 작업
+관계 레벨업 토스트 — 호감도 레벨 상승 시 축하 애니메이션 오버레이
+
+### 선택 이유
+- `ChatProvider`에서 `relationshipLevel` SSE 응답이 이미 추적되고 있었으나, 레벨이 올라가도 사용자에게 아무런 시각적 피드백이 없었음
+- 관계 진전이 감정적으로 체감되지 않으면 대화 동기가 낮아짐 (우선순위 4 Relationship → UX)
+- 기존 draft PR #54가 같은 방향이었으나 main에 미머지 상태 — 이번에 main 기준으로 클린하게 구현
+
+### 구현 내용
+1. **`components/chat/LevelUpToast.tsx`** (신규)
+   - 하단 고정 spring-in 애니메이션 오버레이
+   - 캐릭터 'happy' 아바타 + 새 관계 단계명 (e.g. "호감이 자라는 중") + 5단계 레벨 도트
+   - 단계별 이모지/하트 파티클 6개 (staggered heart-float 애니메이션)
+   - 3.6초 자동 닫힘 + 탭/X버튼 즉시 닫기
+   - `role="status"` + `aria-live="polite"` 접근성
+
+2. **`contexts/ChatProvider.tsx`**
+   - `LevelUpEvent` 타입 + `levelUpEvent` 상태 추가
+   - `prevRelationshipLevelRef`로 이전 레벨 추적
+   - `sendMessage` chunk.done: 새 레벨 > 이전 레벨이면 이벤트 발생
+   - `sendGift`: 동일한 레벨업 감지 로직
+   - `syncHistoryInBackground`: 서버 동기화 시 ref만 조용히 갱신 (오진 방지)
+   - 대화방 전환 `useEffect`: ref 초기화 + 이벤트 클리어
+   - `clearLevelUpEvent` 콜백 + 컨텍스트 노출
+
+3. **`tailwind.config.ts`**
+   - `level-up-in`: cubic-bezier spring 슬라이드업
+   - `level-up-out`: 페이드아웃
+   - `sparkle-pop`: 회전 팝 (파티클 보조)
+
+4. **`components/chat/ChatScreen.tsx`**
+   - `LevelUpToast` 조건부 렌더링 추가
+
+### 해결한 버그
+- 없음 (신규 기능)
+
+### 실행 및 테스트
+```
+npx tsc --noEmit → 오류 0
+npm run lint     → 경고·오류 0
+npm run build    → 빌드 성공 (모든 페이지 컴파일, /chat/[id] 포함)
+```
+
+### 사용자에게 달라지는 점
+- 대화 중 호감도가 다음 단계로 올라가면 채팅 화면 하단에 캐릭터 아바타 + 단계명 + 하트 파티클이 있는 축하 오버레이가 자동 표시
+- 선물 전송으로 레벨업 시에도 동일하게 작동
+- 관계 진전이 감정적으로 체감되어 계속 대화하고 싶은 동기 강화
+
+### PR
+- 커밋 후 PR 생성 예정
+
+### 남은 문제
+- 실제 레벨업 트리거는 Vercel 환경 + 실제 대화 필요 (로컬에서 직접 QA 불가)
+- `AbsenceWelcome` 오버레이와 동시 발생 가능 — z-index 50으로 레이어 처리됨
+
+### 다음 추천 작업
+- PR 머지 후 Vercel Preview에서 대화 50턴 이후 레벨업 수동 QA
+- 설정 화면에 레벨업 히스토리 뷰 추가 (선택)
+- gender/MBTI/idealType → AI 시스템 프롬프트 연결 (PR #68 기반)
+
+---
+
 ## 2026-08-27
 
 ### 선택한 작업
