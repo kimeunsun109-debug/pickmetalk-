@@ -8,6 +8,7 @@ import { markBrowserSessionActive } from "@/lib/auth/browserSession";
 import { deviceSessionHeaders } from "@/lib/auth/deviceSession";
 import { normalizeEmotion } from "@/lib/emotions";
 import { resolveCharacterId } from "@/lib/chatRoute";
+import { RELATIONSHIP_STAGES } from "@/lib/relationship";
 import { useConversationRealtime } from "@/hooks/useConversationRealtime";
 import { useRefreshOnVisible } from "@/hooks/useRefreshOnVisible";
 import { perfClientTrace, usePerfRenderCount } from "@/lib/perf/client";
@@ -35,6 +36,11 @@ export interface ChatMessage {
   photoDeliveryId?: string | null;
 }
 
+export interface LevelUpEvent {
+  newLevel: RelationshipLevel;
+  stageName: string;
+}
+
 interface ChatContextValue {
   character: PublicCharacter;
   characterId: string;
@@ -59,6 +65,9 @@ interface ChatContextValue {
   dismissUsageBanner: () => void;
   openPremiumModal: (reason?: "daily_limit" | "content") => void;
   closePremiumModal: () => void;
+  /** 레벨업 이벤트 — null이면 미발생 */
+  levelUpEvent: LevelUpEvent | null;
+  clearLevelUpEvent: () => void;
 }
 
 const ChatContext = createContext<ChatContextValue | null>(null);
@@ -172,6 +181,9 @@ export function ChatProvider({
     initialEmotion ?? resolvedCharacter.defaultEmotion ?? "happy"
   );
   const [lastChatAt, setLastChatAt] = useState<string | null>(initialLastChatAt);
+  const [levelUpEvent, setLevelUpEvent] = useState<LevelUpEvent | null>(null);
+  /** 직전 세션 레벨 — 실제 레벨업(sendMessage/sendGift) 전용, 서버 동기화 시 조용히 갱신 */
+  const prevRelationshipLevelRef = useRef<RelationshipLevel>(initialRelationshipLevel);
   const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [premiumModalReason, setPremiumModalReason] = useState<
     "daily_limit" | "content" | null
@@ -332,9 +344,11 @@ export function ChatProvider({
 
           if (relRes.ok && relData.state) {
             setAffection((relData.state.affection as number) ?? 0);
-            setRelationshipLevel(
-              (relData.state.relationshipLevel as RelationshipLevel) ?? 1
-            );
+            const syncedLevel =
+              (relData.state.relationshipLevel as RelationshipLevel) ?? 1;
+            // 서버 동기화 — 레벨업 이벤트 없이 ref만 조용히 갱신
+            prevRelationshipLevelRef.current = syncedLevel;
+            setRelationshipLevel(syncedLevel);
             setEmotion(normalizeEmotion(relData.state.emotion as string));
             setLastChatAt((relData.state.lastChatAt as string) ?? null);
           }
@@ -397,7 +411,9 @@ export function ChatProvider({
     setMessages(msgs);
     setIsTyping(false);
     setAffection(snap.initialAffection);
+    prevRelationshipLevelRef.current = snap.initialRelationshipLevel;
     setRelationshipLevel(snap.initialRelationshipLevel);
+    setLevelUpEvent(null);
     setEmotion(
       snap.initialEmotion ?? resolvedCharacter.defaultEmotion ?? "happy"
     );
@@ -553,10 +569,20 @@ export function ChatProvider({
 
             if (chunk.done) {
               if (chunk.affection != null) setAffection(chunk.affection);
-              if (chunk.relationshipLevel != null)
-                setRelationshipLevel(
-                  chunk.relationshipLevel as RelationshipLevel
-                );
+              if (chunk.relationshipLevel != null) {
+                const newLevel = chunk.relationshipLevel as RelationshipLevel;
+                if (newLevel > prevRelationshipLevelRef.current) {
+                  const stage = RELATIONSHIP_STAGES.find(
+                    (s) => s.level === newLevel
+                  );
+                  setLevelUpEvent({
+                    newLevel,
+                    stageName: stage?.label ?? "",
+                  });
+                }
+                prevRelationshipLevelRef.current = newLevel;
+                setRelationshipLevel(newLevel);
+              }
               if (chunk.emotion) setEmotion(normalizeEmotion(chunk.emotion));
               if (!resend) {
                 void refreshUsage();
@@ -663,6 +689,7 @@ export function ChatProvider({
     setPremiumModalReason(null);
   }, []);
   const dismissUsageBanner = useCallback(() => setUsageBannerMessage(null), []);
+  const clearLevelUpEvent = useCallback(() => setLevelUpEvent(null), []);
 
   const sendGift = useCallback(
     async (giftId: string) => {
@@ -692,7 +719,15 @@ export function ChatProvider({
       }
 
       setAffection(data.affection);
-      setRelationshipLevel(data.relationshipLevel as RelationshipLevel);
+      const giftNewLevel = data.relationshipLevel as RelationshipLevel;
+      if (giftNewLevel > prevRelationshipLevelRef.current) {
+        const stage = RELATIONSHIP_STAGES.find(
+          (s) => s.level === giftNewLevel
+        );
+        setLevelUpEvent({ newLevel: giftNewLevel, stageName: stage?.label ?? "" });
+      }
+      prevRelationshipLevelRef.current = giftNewLevel;
+      setRelationshipLevel(giftNewLevel);
       setEmotion(normalizeEmotion(data.emotion) as EmotionState);
       setLastChatAt(data.assistantCreatedAt);
       setMessages((prev) => [
@@ -734,6 +769,8 @@ export function ChatProvider({
       dismissUsageBanner,
       openPremiumModal,
       closePremiumModal,
+      levelUpEvent,
+      clearLevelUpEvent,
     }),
     [
       resolvedCharacter,
@@ -758,6 +795,8 @@ export function ChatProvider({
       dismissUsageBanner,
       openPremiumModal,
       closePremiumModal,
+      levelUpEvent,
+      clearLevelUpEvent,
     ]
   );
 

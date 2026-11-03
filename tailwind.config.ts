@@ -30,6 +30,9 @@ const config: Config = {
         "heart-float": "heart-float 1.5s ease-out forwards",
         "typing-dot": "typing-dot 1.4s infinite ease-in-out both",
         "fadeIn": "fade-in 0.25s ease-out both",
+        "level-up-in": "level-up-in 0.45s cubic-bezier(0.34,1.56,0.64,1) both",
+        "level-up-out": "level-up-out 0.3s ease-in both",
+        "sparkle-pop": "sparkle-pop 0.6s ease-out both",
       },
       keyframes: {
         "pulse-soft": {
@@ -47,6 +50,20 @@ const config: Config = {
         "fade-in": {
           "0%": { opacity: "0", transform: "translateY(-4px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        "level-up-in": {
+          "0%": { opacity: "0", transform: "translateY(100%) scale(0.92)" },
+          "65%": { transform: "translateY(-5%) scale(1.03)" },
+          "100%": { opacity: "1", transform: "translateY(0) scale(1)" },
+        },
+        "level-up-out": {
+          "0%": { opacity: "1", transform: "translateY(0) scale(1)" },
+          "100%": { opacity: "0", transform: "translateY(-10px) scale(0.95)" },
+        },
+        "sparkle-pop": {
+          "0%": { opacity: "0", transform: "scale(0) rotate(-20deg)" },
+          "60%": { opacity: "1", transform: "scale(1.2) rotate(10deg)" },
+          "100%": { opacity: "1", transform: "scale(1) rotate(0deg)" },
         },
       },
     },
