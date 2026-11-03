@@ -35,24 +35,24 @@ jobs:
             }
             const body = `## Goal
 
-Choose and complete exactly one highest-value improvement for PickMeTalk, prioritizing:
-1. Critical bugs and data-loss prevention
-2. Conversation quality, memory, relationship, and emotion
-3. Adaptive personality and proactive behavior
-4. Photo push and UI/UX
+            Choose and complete exactly one highest-value improvement for PickMeTalk, prioritizing:
+            1. Critical bugs and data-loss prevention
+            2. Conversation quality, memory, relationship, and emotion
+            3. Adaptive personality and proactive behavior
+            4. Photo push and UI/UX
 
-## Required workflow
+            ## Required workflow
 
-- Read \\`AGENTS.md\\` and recent commits/issues before changing code.
-- Preserve \\`.env\\`, API keys, database/Supabase configuration, and user data.
-- Implement the smallest complete change; do not make unrelated edits.
-- Run the smallest relevant tests, then lint/typecheck/build when applicable.
-- Create a branch and pull request titled \\`[Daily Dev ${date}] <work>\\`.
-- Update \\`DAILY_LOG.md\\` with the reason, implementation, validation, user impact, PR, and remaining issues.
+            - Read \\`AGENTS.md\\` and recent commits/issues before changing code.
+            - Preserve \\`.env\\`, API keys, database/Supabase configuration, and user data.
+            - Implement the smallest complete change; do not make unrelated edits.
+            - Run the smallest relevant tests, then lint/typecheck/build when applicable.
+            - Create a branch and pull request titled \\`[Daily Dev ${date}] <work>\\`.
+            - Update \\`DAILY_LOG.md\\` with the reason, implementation, validation, user impact, PR, and remaining issues.
 
-## Completion criteria
+            ## Completion criteria
 
-The work is not complete until the change is verified and the PR plus daily log entry exist. If blocked, record reproduction steps, cause, and blocker in \\`BUGS.md\\` instead of claiming success.`;
+            The work is not complete until the change is verified and the PR plus daily log entry exist. If blocked, record reproduction steps, cause, and blocker in \\`BUGS.md\\` instead of claiming success.`;
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
