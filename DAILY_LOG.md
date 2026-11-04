@@ -2,6 +2,58 @@
 
 ---
 
+## 2026-11-04
+
+### 선택한 작업
+gender/MBTI/이상형 → AI 시스템 프롬프트 주입 (`services/context.ts`)
+
+### 선택 이유
+- `profiles` 테이블에 `gender`, `mbti`, `idealType` 컬럼이 존재하고 채팅 API가 이를 `profileCtx`에 담지만, `extractUserContext`와 `buildCommonContextBlock`이 해당 필드를 사용하지 않아 AI에 전혀 전달되지 않았음
+- 사용자가 설정 화면에서 MBTI·이상형을 입력해도 AI 대화에 아무 영향을 주지 못하는 P0 버그
+- 대화 개인화 품질의 가장 큰 미연결 고리 (우선순위 2: 대화 품질, 우선순위 7: Adaptive Personality)
+
+### 구현 내용
+1. **`services/context.ts`**
+   - `UserContextData`에 `gender`, `mbti`, `idealType` 필드 추가
+   - `MBTI_HINTS`: 16개 유형별 AI 대화 힌트 사전 추가 (INTJ~ESFP)
+   - `normalizeGender()`: 남/남자/male/m → '남성', 여/여자/female/f → '여성' 정규화
+   - `validateMbti()`: 소문자 허용, [EI][NS][TF][JP] 패턴 검증, 대문자 정규화
+   - `extractUserContext()`: profileCtx.gender/mbti/idealType 추출·정규화 적용
+   - `buildCommonContextBlock()`: 성별·MBTI+힌트·이상형을 AI 프롬프트 블록에 출력
+2. **`scripts/test_context_mbti_gender.mts`** (신규)
+   - 46개 단위 테스트: normalizeGender, validateMbti, MBTI_HINTS 커버리지, extractUserContext, buildCommonContextBlock
+
+### 해결한 버그
+- 사용자가 설정한 gender/MBTI/이상형이 AI 대화에 전달되지 않던 문제
+
+### 실행 및 테스트
+```
+npx tsc --noEmit → 0 errors
+npm run lint → No ESLint warnings or errors
+npx tsx scripts/test_context_mbti_gender.mts → 46 passed / 0 failed
+npx tsx scripts/test_personal_memory.mts → 22 passed / 0 failed (기존 회귀 없음)
+```
+
+### 사용자에게 달라지는 점
+- MBTI가 `INFP`인 사용자와 대화 시 AI가 "이상주의적·감성적, 가치와 감정 중심 대화 선호"를 고려해 응답 생성
+- 성별 정보가 있으면 적절한 호칭(오빠/언니 등)을 더 자연스럽게 활용
+- 이상형 텍스트가 대화 흐름에 간접적으로 반영
+
+### PR
+- https://github.com/kimeunsun109-debug/pickmetalk-/pull/73
+
+### 남은 문제
+- 설정 UI에서 gender/MBTI/idealType 편집 기능 미구현 (PR #68 DRAFT 참조)
+- `patternNudgeBlock` 연결 미완료 (일일 패턴 힌트 추가 필요)
+- PR #72 (레벨업 토스트), #71 (계정 삭제), #68 (설정 UI) DRAFT 상태로 미머지
+
+### 다음 추천 작업
+- P0: 설정 UI에 gender/MBTI/idealType 편집 추가 (PR #68 참조, 별도 PR로 클린하게 구현)
+- P0: `patternNudgeBlock` 연결 (일일 패턴 → AI 대화 힌트)
+- P1: PR #72 레벨업 토스트 사용자 검토 후 머지
+
+---
+
 ## 2026-08-27
 
 ### 선택한 작업
