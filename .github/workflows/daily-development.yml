@@ -43,16 +43,16 @@ jobs:
 
             ## Required workflow
 
-            - Read \\`AGENTS.md\\` and recent commits/issues before changing code.
-            - Preserve \\`.env\\`, API keys, database/Supabase configuration, and user data.
+            - Read AGENTS.md and recent commits/issues before changing code.
+            - Preserve .env, API keys, database/Supabase configuration, and user data.
             - Implement the smallest complete change; do not make unrelated edits.
             - Run the smallest relevant tests, then lint/typecheck/build when applicable.
-            - Create a branch and pull request titled \\`[Daily Dev ${date}] <work>\\`.
-            - Update \\`DAILY_LOG.md\\` with the reason, implementation, validation, user impact, PR, and remaining issues.
+            - Create a branch and pull request titled [Daily Dev ${date}] <work>.
+            - Update DAILY_LOG.md with the reason, implementation, validation, user impact, PR, and remaining issues.
 
             ## Completion criteria
 
-            The work is not complete until the change is verified and the PR plus daily log entry exist. If blocked, record reproduction steps, cause, and blocker in \\`BUGS.md\\` instead of claiming success.`;
+            The work is not complete until the change is verified and the PR plus daily log entry exist. If blocked, record reproduction steps, cause, and blocker in BUGS.md instead of claiming success.`;
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
