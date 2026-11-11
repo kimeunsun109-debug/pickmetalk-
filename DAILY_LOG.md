@@ -277,3 +277,60 @@ AbsenceWelcome 오버레이 UI 연동 + returnVisit 메시지 닉네임 개인�
 - AbsenceWelcome 오버레이 Vercel preview QA 및 스크린샷 확인
 - excited 확률 캐릭터별 config 분리 (지유 높음, 은하 낮음)
 - returnVisit 오버레이에 캐릭터 이미지(hero) 삽입으로 몰입감 강화
+
+---
+
+## 2026-11-11
+
+### 선택한 작업
+- Copilot/일일 개발 **관리 감독** 체계 복구 + P0 성별·MBTI·이상형 AI 프롬프트 연결
+
+### 선택 이유
+- GitHub Copilot Space는 자동 스케줄이 없음. `daily-development.yml`이 11-07부터 SyntaxError로 매일 실패해 이슈·작업이 끊김.
+- 가입 시 수집한 MBTI/성별/이상형이 `main`에서 AI 프롬프트에 빠져 있어 출시 품질 P0.
+
+### 구현 내용
+1. **`.github/workflows/daily-development.yml`** — escaped backticks 제거, `daily-dev` 라벨, LAUNCH_BACKLOG 참조
+2. **`.github/workflows/daily-supervisor.yml`** — 미완료 Daily Dev 이슈 알림 + 이슈 생성 백업
+3. **`docs/LAUNCH_BACKLOG.md`**, **`docs/COPILOT_SUPERVISION.md`**, **`.github/copilot-instructions.md`**
+4. **`services/context.ts`** — gender/MBTI/idealType 추출·프롬프트 블록
+5. **`scripts/test_context_mbti_gender.mts`**
+
+### 실행 및 테스트
+- `npx tsx scripts/test_context_mbti_gender.mts` → 전체 통과
+- `npx tsc --noEmit` / `npm run lint` (아래 CI와 동일)
+
+### 사용자에게 달라지는 점
+- AI가 프로필의 성별·MBTI·이상형을 대화 스타일에 반영
+- 매일 GitHub 이슈가 다시 생성되어 Copilot/Cursor가 따라갈 큐가 생김
+
+### 남은 문제
+- 드래프트 PR #60–#73 정리·머지 필요
+- PR #71 계정 삭제, 플레이스토어 자산 등 LAUNCH_BACKLOG P0 잔여
+
+### 다음 추천 작업
+1. PR #71 머지
+2. 생활 패턴 → chat route 연결
+3. 레벨업 토스트 PR #54 또는 #72 하나 선택 머지
+
+---
+
+## 2026-11-11 (후속)
+
+### 선택한 작업
+- P0 계정 삭제 실패 처리 강화 + P1 생활 패턴 AI 프롬프트 연결
+
+### 구현 내용
+- `app/api/account/delete/route.ts` — 서비스 롤 없으면 503, profiles 실패 500, auth 실패 502+signOut
+- `app/api/chat/route.ts` — `getDailyPatternsForUser` + `buildDailyPatternPromptBlock` 병렬 로드
+- `docs/DRAFT_PR_TRIAGE.md` — 드래프트 PR #60–#74 정리 가이드
+
+### 실행 및 테스트
+- `npx tsx scripts/test_context_mbti_gender.mts`
+- `npx tsx scripts/test_daily_patterns.mts` (있을 때)
+- `npx tsc --noEmit`, `npm run lint`
+
+### 다음 추천 작업
+1. PR #75 머지 후 Actions workflow_dispatch
+2. PR #54 레벨업 토스트 rebase·머지
+3. 드래프트 PR 일괄 close (`docs/DRAFT_PR_TRIAGE.md`)

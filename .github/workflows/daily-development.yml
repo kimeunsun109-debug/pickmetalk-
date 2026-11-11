@@ -17,6 +17,26 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
+            async function ensureLabel(name) {
+              try {
+                await github.rest.issues.getLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  name
+                });
+              } catch (e) {
+                if (e.status !== 404) throw e;
+                await github.rest.issues.createLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  name,
+                  color: '1d76db',
+                  description: 'Daily development task'
+                });
+              }
+            }
+            await ensureLabel('daily-dev');
+
             const now = new Date();
             const date = new Intl.DateTimeFormat('en-CA', {
               timeZone: 'Asia/Seoul',
@@ -43,20 +63,24 @@ jobs:
 
             ## Required workflow
 
-            - Read \\`AGENTS.md\\` and recent commits/issues before changing code.
-            - Preserve \\`.env\\`, API keys, database/Supabase configuration, and user data.
+            - Read AGENTS.md, docs/LAUNCH_BACKLOG.md, and recent commits/issues before changing code.
+            - Preserve .env, API keys, database/Supabase configuration, and user data.
             - Implement the smallest complete change; do not make unrelated edits.
             - Run the smallest relevant tests, then lint/typecheck/build when applicable.
-            - Create a branch and pull request titled \\`[Daily Dev ${date}] <work>\\`.
-            - Update \\`DAILY_LOG.md\\` with the reason, implementation, validation, user impact, PR, and remaining issues.
+            - Create a branch and pull request titled [Daily Dev ${date}] <work>.
+            - Update DAILY_LOG.md with the reason, implementation, validation, user impact, PR, and remaining issues.
+            - Pick work from the top unchecked item in docs/LAUNCH_BACKLOG.md when unsure.
 
             ## Completion criteria
 
-            The work is not complete until the change is verified and the PR plus daily log entry exist. If blocked, record reproduction steps, cause, and blocker in \\`BUGS.md\\` instead of claiming success.`;
+            The work is not complete until the change is verified and the PR plus daily log entry exist. If blocked, record reproduction steps, cause, and blocker in BUGS.md instead of claiming success.
+
+            Label: daily-dev`;
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
               title,
+              labels: ['daily-dev'],
               body
             });
             core.info(`Created: ${title}`);

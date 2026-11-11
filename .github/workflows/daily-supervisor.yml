@@ -1,0 +1,120 @@
+name: Daily development supervisor
+
+on:
+  schedule:
+    # 01:00 UTC = 10:00 KST — after daily issue workflow (00:00 UTC)
+    - cron: '0 1 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  supervise:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Nudge stale Daily Dev issues
+        uses: actions/github-script@v7
+        with:
+          script: |
+            async function ensureLabel(name) {
+              try {
+                await github.rest.issues.getLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  name
+                });
+              } catch (e) {
+                if (e.status !== 404) throw e;
+                await github.rest.issues.createLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  name,
+                  color: '1d76db',
+                  description: 'Daily development task'
+                });
+              }
+            }
+            await ensureLabel('daily-dev');
+
+            const now = Date.now();
+            const dayMs = 24 * 60 * 60 * 1000;
+            const today = new Intl.DateTimeFormat('en-CA', {
+              timeZone: 'Asia/Seoul',
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit'
+            }).format(new Date());
+
+            const openIssues = await github.paginate(github.rest.issues.listForRepo, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100
+            });
+
+            const dailyOpen = openIssues.filter((i) =>
+              i.title.startsWith('[Daily Dev ')
+            );
+
+            for (const issue of dailyOpen) {
+              const ageDays = (now - new Date(issue.created_at).getTime()) / dayMs;
+              if (ageDays < 1.25) continue;
+
+              const comments = await github.rest.issues.listComments({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                per_page: 100
+              });
+              const alreadyNudged = comments.data.some((c) =>
+                c.body?.includes('<!-- daily-supervisor-nudge -->')
+              );
+              if (alreadyNudged) continue;
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: [
+                  '<!-- daily-supervisor-nudge -->',
+                  '## 관리 감독 알림',
+                  '',
+                  `이 Daily Dev 이슈가 **${Math.floor(ageDays)}일**째 열려 있습니다. 출시 전에는 하루 1건 이상 PR이 main에 반영되어야 합니다.`,
+                  '',
+                  '**다음 액션**',
+                  '1. `docs/LAUNCH_BACKLOG.md`에서 P0/P1 항목 1개 선택',
+                  '2. 작은 PR + `DAILY_LOG.md` 기록',
+                  '3. 이 이슈 또는 PR에서 완료 체크',
+                  '',
+                  `오늘(KST) 기준 날짜: **${today}**`,
+                  '',
+                  '> GitHub Copilot Space만으로는 자동 실행되지 않습니다. 이 저장소의 Actions 스케줄 + 이슈/PR 워크플로를 따르세요.'
+                ].join('\n')
+              });
+              core.info(`Nudged issue #${issue.number}`);
+            }
+
+            const todayTitle = `[Daily Dev ${today}] Pick one high-value improvement`;
+            const hasToday = dailyOpen.some((i) => i.title === todayTitle);
+            if (!hasToday) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: todayTitle,
+                labels: ['daily-dev'],
+                body: [
+                  '## Goal',
+                  '',
+                  'Supervisor backup: the scheduled issue creator may have failed. Complete **one** launch-critical item today.',
+                  '',
+                  'See `docs/LAUNCH_BACKLOG.md` and AGENTS.md.',
+                  '',
+                  '## Completion criteria',
+                  '',
+                  'Verified change + PR + DAILY_LOG.md entry.'
+                ].join('\n')
+              });
+              core.info(`Created backup issue for ${today}`);
+            }
