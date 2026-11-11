@@ -334,3 +334,16 @@ AbsenceWelcome 오버레이 UI 연동 + returnVisit 메시지 닉네임 개인�
 1. PR #75 머지 후 Actions workflow_dispatch
 2. PR #54 레벨업 토스트 rebase·머지
 3. 드래프트 PR 일괄 close (`docs/DRAFT_PR_TRIAGE.md`)
+
+---
+
+## 2026-11-11 (레벨업 토스트)
+
+### 선택한 작업
+- 관계 레벨업 축하 오버레이 (`LevelUpToast`) — main 기준 재적용
+
+### 구현 내용
+- `components/chat/LevelUpToast.tsx`, `ChatProvider` 레벨업 감지, `ChatScreen` 렌더, tailwind 키프레임
+
+### 테스트
+- `npx tsc --noEmit`, `npm run lint`, `npm run build` 성공

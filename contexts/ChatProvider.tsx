@@ -7,6 +7,7 @@ import {
 import { markBrowserSessionActive } from "@/lib/auth/browserSession";
 import { deviceSessionHeaders } from "@/lib/auth/deviceSession";
 import { normalizeEmotion } from "@/lib/emotions";
+import { RELATIONSHIP_STAGES } from "@/lib/relationship";
 import { resolveCharacterId } from "@/lib/chatRoute";
 import { useConversationRealtime } from "@/hooks/useConversationRealtime";
 import { useRefreshOnVisible } from "@/hooks/useRefreshOnVisible";
@@ -59,6 +60,8 @@ interface ChatContextValue {
   dismissUsageBanner: () => void;
   openPremiumModal: (reason?: "daily_limit" | "content") => void;
   closePremiumModal: () => void;
+  levelUpEvent: { newLevel: RelationshipLevel; stageName: string } | null;
+  clearLevelUpEvent: () => void;
 }
 
 const ChatContext = createContext<ChatContextValue | null>(null);
@@ -168,6 +171,12 @@ export function ChatProvider({
   const [affection, setAffection] = useState(initialAffection);
   const [relationshipLevel, setRelationshipLevel] =
     useState<RelationshipLevel>(initialRelationshipLevel);
+  const [levelUpEvent, setLevelUpEvent] = useState<{
+    newLevel: RelationshipLevel;
+    stageName: string;
+  } | null>(null);
+  const prevRelationshipLevelRef = useRef<RelationshipLevel>(initialRelationshipLevel);
+  const clearLevelUpEvent = useCallback(() => setLevelUpEvent(null), []);
   const [emotion, setEmotion] = useState<EmotionState>(
     initialEmotion ?? resolvedCharacter.defaultEmotion ?? "happy"
   );
@@ -553,10 +562,20 @@ export function ChatProvider({
 
             if (chunk.done) {
               if (chunk.affection != null) setAffection(chunk.affection);
-              if (chunk.relationshipLevel != null)
-                setRelationshipLevel(
-                  chunk.relationshipLevel as RelationshipLevel
-                );
+              if (chunk.relationshipLevel != null) {
+                const newLevel = chunk.relationshipLevel as RelationshipLevel;
+                if (newLevel > prevRelationshipLevelRef.current) {
+                  const stage = RELATIONSHIP_STAGES.find(
+                    (s) => s.level === newLevel
+                  );
+                  setLevelUpEvent({
+                    newLevel,
+                    stageName: stage?.label ?? `Lv.${newLevel}`,
+                  });
+                }
+                prevRelationshipLevelRef.current = newLevel;
+                setRelationshipLevel(newLevel);
+              }
               if (chunk.emotion) setEmotion(normalizeEmotion(chunk.emotion));
               if (!resend) {
                 void refreshUsage();
@@ -692,7 +711,18 @@ export function ChatProvider({
       }
 
       setAffection(data.affection);
-      setRelationshipLevel(data.relationshipLevel as RelationshipLevel);
+      {
+        const newLevel = data.relationshipLevel as RelationshipLevel;
+        if (newLevel > prevRelationshipLevelRef.current) {
+          const stage = RELATIONSHIP_STAGES.find((s) => s.level === newLevel);
+          setLevelUpEvent({
+            newLevel,
+            stageName: stage?.label ?? `Lv.${newLevel}`,
+          });
+        }
+        prevRelationshipLevelRef.current = newLevel;
+        setRelationshipLevel(newLevel);
+      }
       setEmotion(normalizeEmotion(data.emotion) as EmotionState);
       setLastChatAt(data.assistantCreatedAt);
       setMessages((prev) => [
@@ -734,6 +764,8 @@ export function ChatProvider({
       dismissUsageBanner,
       openPremiumModal,
       closePremiumModal,
+      levelUpEvent,
+      clearLevelUpEvent,
     }),
     [
       resolvedCharacter,
@@ -758,6 +790,8 @@ export function ChatProvider({
       dismissUsageBanner,
       openPremiumModal,
       closePremiumModal,
+      levelUpEvent,
+      clearLevelUpEvent,
     ]
   );
 
