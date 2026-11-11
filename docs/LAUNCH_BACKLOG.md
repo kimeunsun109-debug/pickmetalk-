@@ -8,14 +8,14 @@ Copilot Space·Cursor Agent·수동 개발 공통 기준. **하루 1건 이상**
 
 - [x] **일일 개발 스케줄러** — `.github/workflows/daily-development.yml` SyntaxError 수정 + `daily-supervisor.yml`
 - [x] **프로필 성별·MBTI·이상형 → AI 프롬프트** — `services/context.ts` (가입 정보가 AI에 전달되도록)
-- [ ] **계정 삭제 안전 처리** — PR #71 검토·머지
+- [x] **계정 삭제 안전 처리** — 부분 삭제 방지 (503/500/502) · PR #75
 - [ ] **프로덕션 Supabase 마이그레이션 동기** — `008_user_profile_signup.sql` 등 (`scripts/verify_supabase_migrations.mts`)
 - [ ] **플레이스토어 필수 자산** — `docs/launch/` (아이콘, 스크린샷, 개인정보처리방침 URL)
 - [ ] **OAuth 로그인 스모크** — 카카오/구글 (`docs/AUTH_OAUTH.md`)
 
 ## P1 — 출시 직후 품질
 
-- [ ] **생활 패턴 → 채팅 프롬프트** — `patternNudges` + `user_daily_patterns`
+- [x] **생활 패턴 → 채팅 프롬프트** — `patternNudges` + `user_daily_patterns` · PR #75
 - [ ] **관계 레벨업 UI** — LevelUpToast (PR #54/#72 중 하나 정리·머지)
 - [ ] **사용자 감정 공감 힌트** — PR #59
 - [ ] **Web Push (사진 푸시 알림)** — `docs/PHOTO_PUSH.md` 로드맵 1번

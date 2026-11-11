@@ -37,6 +37,8 @@ import {
   computeYoonseoStats,
   buildYoonseoStatsBlock,
 } from "@/services/context";
+import { getDailyPatternsForUser } from "@/lib/db/dailyPatterns";
+import { buildDailyPatternPromptBlock } from "@/prompts/patternNudges";
 import {
   buildTimeAwareContext,
   buildTimeContextPromptBlock,
@@ -226,11 +228,13 @@ export async function POST(request: Request) {
           historyResult,
           ucsResult,
           shortTermMemoryBlock,
+          patternNudgeBlock,
         ] = await trace.span<
           [
             PostgrestSingleResponse<Record<string, unknown>>,
             PostgrestResponse<Record<string, unknown>>,
             PostgrestSingleResponse<Record<string, unknown>>,
+            string,
             string,
           ]
         >("Parallel DB — context load", async () => {
@@ -247,6 +251,19 @@ export async function POST(request: Request) {
                 now
               );
               return buildShortTermMemoryContextBlock(activeShortTermMemories);
+            } catch {
+              return "";
+            }
+          })();
+
+          const patternPromise = (async (): Promise<string> => {
+            try {
+              const patterns = await getDailyPatternsForUser(
+                supabase,
+                userId,
+                50
+              );
+              return buildDailyPatternPromptBlock(patterns);
             } catch {
               return "";
             }
@@ -272,6 +289,7 @@ export async function POST(request: Request) {
               .eq("character_id", characterId)
               .maybeSingle(),
             shortTermPromise,
+            patternPromise,
           ]);
         });
 
@@ -432,6 +450,7 @@ export async function POST(request: Request) {
           timeContextBlock,
           shortTermMemoryBlock,
           commonCtxBlock,
+          patternNudgeBlock,
           characterCtxBlock,
         ]
           .filter(Boolean)

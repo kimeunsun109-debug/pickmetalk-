@@ -312,3 +312,25 @@ AbsenceWelcome 오버레이 UI 연동 + returnVisit 메시지 닉네임 개인�
 1. PR #71 머지
 2. 생활 패턴 → chat route 연결
 3. 레벨업 토스트 PR #54 또는 #72 하나 선택 머지
+
+---
+
+## 2026-11-11 (후속)
+
+### 선택한 작업
+- P0 계정 삭제 실패 처리 강화 + P1 생활 패턴 AI 프롬프트 연결
+
+### 구현 내용
+- `app/api/account/delete/route.ts` — 서비스 롤 없으면 503, profiles 실패 500, auth 실패 502+signOut
+- `app/api/chat/route.ts` — `getDailyPatternsForUser` + `buildDailyPatternPromptBlock` 병렬 로드
+- `docs/DRAFT_PR_TRIAGE.md` — 드래프트 PR #60–#74 정리 가이드
+
+### 실행 및 테스트
+- `npx tsx scripts/test_context_mbti_gender.mts`
+- `npx tsx scripts/test_daily_patterns.mts` (있을 때)
+- `npx tsc --noEmit`, `npm run lint`
+
+### 다음 추천 작업
+1. PR #75 머지 후 Actions workflow_dispatch
+2. PR #54 레벨업 토스트 rebase·머지
+3. 드래프트 PR 일괄 close (`docs/DRAFT_PR_TRIAGE.md`)
