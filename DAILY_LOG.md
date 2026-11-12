@@ -347,3 +347,24 @@ AbsenceWelcome 오버레이 UI 연동 + returnVisit 메시지 닉네임 개인�
 
 ### 테스트
 - `npx tsc --noEmit`, `npm run lint`, `npm run build` 성공
+
+---
+
+## 2026-11-12
+
+### 선택한 작업
+- 사용자 메시지 감정 공감 힌트 + Supabase 마이그레이션 출시 런북
+
+### 구현 내용
+- `services/userEmotionDetector.ts` — 키워드 감지 → `buildUserEmotionHintBlock`
+- `prompts/natural.ts`, `app/api/chat/route.ts` 연결
+- `scripts/test_user_emotion_detector.mts` (16/16)
+- `docs/SUPABASE_MIGRATION_LAUNCH.md`
+
+### 테스트
+- `npx tsx scripts/test_user_emotion_detector.mts`, `tsc`, `lint`
+
+### 다음 추천 작업
+1. 설정 UI MBTI/성별 편집
+2. `verify_supabase_migrations.mts` 프로덕션 실행
+3. 플레이스토어 자산
