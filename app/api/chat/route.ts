@@ -32,6 +32,10 @@ import {
 import { getStreamFallback } from "@/services/chatFallback";
 import { postProcessAssistantReply } from "@/services/responsePostProcess";
 import {
+  buildUserEmotionHintBlock,
+  detectUserEmotion,
+} from "@/services/userEmotionDetector";
+import {
   extractUserContext,
   buildCommonContextBlock,
   computeYoonseoStats,
@@ -456,6 +460,11 @@ export async function POST(request: Request) {
           .filter(Boolean)
           .join("\n\n");
 
+        const userEmotionDetection = detectUserEmotion(userText);
+        const userEmotionHintBlock = userEmotionDetection
+          ? buildUserEmotionHintBlock(userEmotionDetection)
+          : null;
+
         const systemPrompt = trace.sync("Prompt Build", () =>
           buildSystemPrompt({
             characterId,
@@ -465,6 +474,7 @@ export async function POST(request: Request) {
             memorySummary: summary,
             emotionDurationTurns,
             dynamicContextBlock,
+            userEmotionHintBlock,
             speechProfile,
             freshChatStart,
           })
