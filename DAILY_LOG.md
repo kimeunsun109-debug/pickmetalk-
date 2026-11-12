@@ -368,3 +368,24 @@ AbsenceWelcome 오버레이 UI 연동 + returnVisit 메시지 닉네임 개인�
 1. 설정 UI MBTI/성별 편집
 2. `verify_supabase_migrations.mts` 프로덕션 실행
 3. 플레이스토어 자산
+
+---
+
+## 2026-11-12 (플레이스토어)
+
+### 선택한 작업
+- Google Play 출시 체크리스트·데이터 보안 초안 + Capacitor 프로덕션 URL 기본값
+
+### 구현 내용
+- `docs/launch/PLAY_STORE_CHECKLIST.md`, `data-safety-play-console.md`
+- `capacitor.config.ts` — 기본 `https://pickmetalk.com`, `cap:sync:android:prod/dev`
+- `scripts/verify_play_store_ready.mts`, `android/KEYSTORE.md`, `store-assets/play/`
+- `versionName` 1.0.0-beta.1
+
+### 테스트
+- `npx tsx scripts/verify_play_store_ready.mts`, `npm run lint`
+
+### 다음 (운영자)
+1. `npm run cap:sync:android:prod` → signed AAB
+2. 스토어 PNG (512, 1024×500, 스크린샷) 제작·업로드
+3. Play Console 데이터 보안 설문 입력

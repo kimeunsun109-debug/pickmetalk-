@@ -10,7 +10,7 @@ Copilot Space·Cursor Agent·수동 개발 공통 기준. **하루 1건 이상**
 - [x] **프로필 성별·MBTI·이상형 → AI 프롬프트** — `services/context.ts` (가입 정보가 AI에 전달되도록)
 - [x] **계정 삭제 안전 처리** — 부분 삭제 방지 (503/500/502) · PR #75
 - [~] **프로덕션 Supabase 마이그레이션 동기** — 런북 `docs/SUPABASE_MIGRATION_LAUNCH.md` + `verify_supabase_migrations.mts` (원격 push는 운영자 실행)
-- [ ] **플레이스토어 필수 자산** — `docs/launch/` (아이콘, 스크린샷, 개인정보처리방침 URL)
+- [~] **플레이스토어 필수 자산** — `docs/launch/PLAY_STORE_CHECKLIST.md` + Capacitor prod URL (`cap:sync:android:prod`); Console 업로드·PNG 자산은 운영자
 - [ ] **OAuth 로그인 스모크** — 카카오/구글 (`docs/AUTH_OAUTH.md`)
 
 ## P1 — 출시 직후 품질

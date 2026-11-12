@@ -1,5 +1,7 @@
 # 플레이스토어 등록 문구
 
+> **출시 절차:** `PLAY_STORE_CHECKLIST.md` · **데이터 보안:** `data-safety-play-console.md`
+
 > 기준: 구글 플레이 스토어 한국어 등록
 > 앱 이름 기준: **픽미톡** (상표) · 도메인 **pickmetalk.com**
 
