@@ -1,5 +1,11 @@
 import type { CapacitorConfig } from "@capacitor/cli";
 
+/** 프로덕션 WebView URL. 개발: CAPACITOR_SERVER_URL=http://10.0.2.2:3000 */
+const DEFAULT_SERVER_URL = "https://pickmetalk.com";
+const serverUrl = process.env.CAPACITOR_SERVER_URL ?? DEFAULT_SERVER_URL;
+const isCleartextHttp =
+  serverUrl.startsWith("http://") && !serverUrl.startsWith("https://");
+
 /**
  * capacitor.config.ts
  *
@@ -41,9 +47,9 @@ const config: CapacitorConfig = {
    *   프로덕션: "https://pickmetalk.com"
    */
   server: {
-    url: "http://10.0.2.2:3000",
-    cleartext: true, // HTTP 허용 (개발용). HTTPS 배포 후 제거 가능
+    url: serverUrl,
     androidScheme: "https",
+    ...(isCleartextHttp ? { cleartext: true as const } : {}),
   },
 
   android: {
