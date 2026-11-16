@@ -22,7 +22,7 @@
 |------|-----|
 | 앱 이름 | `픽미톡 - 감성 AI 채팅` (15자) |
 | 짧은 설명 | `play-store-listing.md` §짧은 설명 |
-| 전체 설명 | `play-store-listing.md` §전체 설명 |
+| 전체 설명 | `store-assets/play/full-description-ko.txt` (설문: `PLAY_CONSOLE_QUESTIONNAIRES.md`) |
 | 카테고리 | 엔터테인먼트 (보조: 소셜) |
 | 연락 이메일 | kimeunsun109@gmail.com |
 | 웹사이트 | https://pickmetalk.com |
@@ -33,9 +33,9 @@
 
 | 자산 | 규격 | 상태 |
 |------|------|------|
-| 앱 아이콘 | 512×512 PNG | `android/mipmap-*` (1024 원본은 `store-assets/`에 보관 권장) |
-| 기능 그래픽 | 1024×500 | 미제작 → `icon-concepts.md` A안 기반 제작 |
-| 스크린샷 | 1080×1920, 4~8장 | `screenshot-copy.md` 문구 + 실제 UI 캡처 |
+| 앱 아이콘 | 512×512 PNG | `store-assets/play/icon-512.png` (`npm run icons`) |
+| 기능 그래픽 | 1024×500 | `store-assets/play/feature-graphic-1024x500.png` (`npm run play:feature-graphic`) |
+| 스크린샷 | 1080×1920, 2장+ | `npm run play:screenshots` (기본: pickmetalk.com 홈·로그인) |
 | 프로모 영상 | 선택 | — |
 
 제작 후 `store-assets/play/` 폴더에 넣고 Play Console에 업로드 (git에는 PNG 제외 가능 — `store-assets/.gitkeep`만)
