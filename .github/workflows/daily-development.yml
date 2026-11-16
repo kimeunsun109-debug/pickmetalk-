@@ -69,7 +69,7 @@ jobs:
             - Run the smallest relevant tests, then lint/typecheck/build when applicable.
             - Create a branch and pull request titled [Daily Dev ${date}] <work>.
             - Update DAILY_LOG.md with the reason, implementation, validation, user impact, PR, and remaining issues.
-            - Pick work from the top unchecked item in docs/LAUNCH_BACKLOG.md when unsure.
+            - Pick work from docs/COPILOT_APP_SPRINT.md (캐릭터 이미지 제작 중) or top unchecked item in docs/LAUNCH_BACKLOG.md when unsure.
 
             ## Completion criteria
 

@@ -6,7 +6,7 @@ You are working on **pickmetalk-** (Next.js 15, Supabase, DeepSeek). Product: pi
 
 Complete **exactly one** high-value item per calendar day (Asia/Seoul):
 
-1. Open GitHub issue titled `[Daily Dev YYYY-MM-DD] ...` or pick the top unchecked **P0/P1** line in `docs/LAUNCH_BACKLOG.md`.
+1. Open GitHub issue titled `[Daily Dev YYYY-MM-DD] ...`, or **`docs/COPILOT_APP_SPRINT.md` 큐 1개**, or top unchecked **P0/P1** in `docs/LAUNCH_BACKLOG.md`.
 2. Read `AGENTS.md` before editing.
 3. Smallest complete change; no drive-by refactors.
 4. Run `npx tsc --noEmit` and `npm run lint`; add/run focused scripts under `scripts/` when relevant.
@@ -20,7 +20,7 @@ Complete **exactly one** high-value item per calendar day (Asia/Seoul):
 
 ## Launch priorities
 
-See `docs/LAUNCH_BACKLOG.md`. Prefer P0 until empty.
+See `docs/LAUNCH_BACKLOG.md`. **캐릭터 이미지 제작 중이면** `docs/COPILOT_APP_SPRINT.md` 우선 (이슈 #89–#91). Prefer P0 until empty.
 
 ## Stack notes
 

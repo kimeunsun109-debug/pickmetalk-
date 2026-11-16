@@ -10,8 +10,16 @@ Copilot Space·Cursor Agent·수동 개발 공통 기준. **하루 1건 이상**
 - [x] **프로필 성별·MBTI·이상형 → AI 프롬프트** — `services/context.ts` (가입 정보가 AI에 전달되도록)
 - [x] **계정 삭제 안전 처리** — 부분 삭제 방지 (503/500/502) · PR #75
 - [~] **프로덕션 Supabase 마이그레이션 동기** — 런북 `docs/SUPABASE_MIGRATION_LAUNCH.md` + `verify_supabase_migrations.mts` (원격 push는 운영자 실행)
-- [~] **플레이스토어** — Console 설문·스토어 등록(텍스트/그래픽/스크린샷) 완료; **AAB 내부 테스트 업로드**·판매자 정보(유료 시) 남음 — `store-assets/play/`, `PLAY_CONSOLE_QUESTIONNAIRES.md`
+- [~] **플레이스토어** — AAB `1.0.0-beta.1` 내부 테스트 초안 업로드; **게시·테스터 목록**·스크린샷(캐릭터 완성 후) 남음 — `PLAY_INTERNAL_TEST.md`
 - [ ] **OAuth 로그인 스모크** — 카카오/구글 (`docs/AUTH_OAUTH.md`)
+
+## P1 — 베타 기능 (Copilot, 이미지 무관)
+
+- [ ] **설정 프로필 편집** — #89 · `SettingsClient` + `PATCH /api/profile`
+- [ ] **OAuth 스모크 문서·스크립트** — #90 · `AUTH_OAUTH.md`
+- [ ] **내부 테스트 운영 가이드** — #91
+
+스프린트: `docs/COPILOT_APP_SPRINT.md`
 
 ## P1 — 출시 직후 품질
 
