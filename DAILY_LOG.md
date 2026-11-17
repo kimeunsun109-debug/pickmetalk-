@@ -437,3 +437,22 @@ AbsenceWelcome 오버레이 UI 연동 + returnVisit 메시지 닉네임 개인�
 
 ### PR
 - `[Daily Dev 2026-11-18] OAuth 스모크 검증 문서화`
+
+---
+
+## 2026-11-19
+
+### 선택한 작업
+- 이슈 #91 Play 내부 테스트 운영 가이드 polish
+
+### 구현 내용
+- `docs/launch/PLAY_INTERNAL_TEST.md`에 `PLAY_STORE_CHECKLIST.md` 링크와 게시 전 체크리스트 추가
+- 테스터 목록·Opt-in URL 공유 절차와 테스터 전달 템플릿 정리
+- 내부 테스트 출시 노트 템플릿 추가
+- `docs/COPILOT_APP_SPRINT.md` 큐 #3 완료 표시
+
+### 검증
+- 문서 링크 및 Markdown 변경 검토
+
+### PR
+- `[Daily Dev 2026-11-19] Play 내부 테스트 운영 가이드 polish`
