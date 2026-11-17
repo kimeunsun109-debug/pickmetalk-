@@ -39,31 +39,37 @@ export default async function SettingsPage() {
           (1000 * 60 * 60 * 24)
       )
     : 0;
+  const mappedProfile = profile ? mapUserProfile(profile) : null;
 
   let todayMsgCount = 0;
   let isPremium = false;
 
-  if (profile) {
-    const mapped = mapUserProfile(profile);
-    const { count, needsReset } = normalizeDailyUsage(mapped);
+  if (mappedProfile) {
+    const { count, needsReset } = normalizeDailyUsage(mappedProfile);
     if (needsReset) {
       const fresh = await ensureDailyUsageFresh(
         supabase,
         user.id,
-        mapped,
+        mappedProfile,
         user.email
       );
       todayMsgCount = fresh.count;
       isPremium = fresh.isPremium;
     } else {
       todayMsgCount = count;
-      isPremium = hasUnlimitedChatAccess(mapped, user.email);
+      isPremium = hasUnlimitedChatAccess(mappedProfile, user.email);
     }
   }
 
   return (
     <SettingsClient
       email={user.email ?? ""}
+      profile={{
+        displayName: mappedProfile?.displayName ?? "",
+        gender: mappedProfile?.gender ?? "",
+        mbti: mappedProfile?.mbti ?? "",
+        idealType: mappedProfile?.idealType ?? "",
+      }}
       joinedDaysAgo={joinedDaysAgo}
       characterStates={ucsRows ?? []}
       todayMsgCount={todayMsgCount}

@@ -389,3 +389,31 @@ AbsenceWelcome 오버레이 UI 연동 + returnVisit 메시지 닉네임 개인�
 1. `npm run cap:sync:android:prod` → signed AAB
 2. 스토어 PNG (512, 1024×500, 스크린샷) 제작·업로드
 3. Play Console 데이터 보안 설문 입력
+
+---
+
+## 2026-11-17
+
+### 선택한 작업
+- 설정 화면 프로필 편집 — 닉네임, 성별, MBTI, 이상형
+
+### 선택 이유
+- 이슈 #89의 최우선 미완료 항목으로, 가입 후 사용자 프로필을 직접 수정할 수 있게 해 설정 경험을 완성했습니다.
+
+### 구현 내용
+- `/settings`에서 `mapUserProfile` 초기값을 `SettingsClient`에 전달하고 편집 폼 추가
+- 가입 폼과 동일한 성별·이상형 옵션을 공통 상수로 사용
+- `PATCH /api/profile` 저장 연동 및 성공/실패 인라인 피드백 추가
+- 선택값 초기화가 가능하도록 PATCH의 `null` 업데이트 지원
+- `docs/LAUNCH_BACKLOG.md`의 설정 프로필 편집을 완료 처리
+
+### 검증
+- `npx tsc --noEmit` 통과
+- `npm run lint` 통과
+- 로컬 플로우: 로그인 후 `/settings`에서 초기 프로필을 확인하고 값을 수정한 뒤 `프로필 저장`을 누르면 PATCH 요청 후 성공 메시지가 표시됩니다. 새로고침하면 서버에 저장된 값이 다시 초기값으로 반영됩니다.
+
+### PR
+- https://github.com/kimeunsun109-debug/pickmetalk-/pull/93
+
+### 이슈
+- #89 완료 코멘트 등록 완료
