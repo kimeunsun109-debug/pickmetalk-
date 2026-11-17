@@ -413,7 +413,7 @@ AbsenceWelcome 오버레이 UI 연동 + returnVisit 메시지 닉네임 개인�
 - 로컬 플로우: 로그인 후 `/settings`에서 초기 프로필을 확인하고 값을 수정한 뒤 `프로필 저장`을 누르면 PATCH 요청 후 성공 메시지가 표시됩니다. 새로고침하면 서버에 저장된 값이 다시 초기값으로 반영됩니다.
 
 ### PR
-- 생성 예정: `[Daily Dev 2026-11-17] settings profile edit`
+- https://github.com/kimeunsun109-debug/pickmetalk-/pull/93
 
 ### 이슈
-- #89 완료 코멘트는 PR 생성 후 등록
+- #89 완료 코멘트 등록 완료
