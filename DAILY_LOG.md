@@ -417,3 +417,23 @@ AbsenceWelcome 오버레이 UI 연동 + returnVisit 메시지 닉네임 개인�
 
 ### 이슈
 - #89 완료 코멘트 등록 완료
+
+---
+
+## 2026-11-18
+
+### 선택한 작업
+- 이슈 #90 OAuth 스모크 — redirect URL 검증 및 Vercel 확인 절차
+
+### 구현 내용
+- `npm run test:oauth`로 Google/Kakao scopes, callback redirect URL, 안전한 `next` 경로를 검증
+- `docs/AUTH_OAUTH.md`에 Vercel Preview/Production 검증 절차 추가
+- `docs/COPILOT_APP_SPRINT.md` 큐 #2 완료 표시
+
+### 검증
+- `npm run test:oauth` 통과
+- `npx tsc --noEmit` 통과
+- `npm run lint` 통과
+
+### PR
+- `[Daily Dev 2026-11-18] OAuth 스모크 검증 문서화`

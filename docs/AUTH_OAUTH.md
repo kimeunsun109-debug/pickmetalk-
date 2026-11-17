@@ -92,6 +92,28 @@ on email identity. Fix the Kakao consent-item mismatch instead.
 - [ ] No provider secret appears in Vercel client environment variables, source,
       browser bundles, logs, or the PR.
 
+## Vercel verification
+
+Run the local redirect and safety smoke before checking a deployment:
+
+```bash
+npm run test:oauth
+```
+
+For a Vercel Preview or Production deployment:
+
+1. In Vercel → **Settings → Environment Variables**, confirm
+   `NEXT_PUBLIC_APP_URL` matches the deployment origin (`https://pickmetalk.com`
+   for Production). Do not add Google or Kakao secrets to Vercel.
+2. Open the deployment's `/login` page and confirm both provider buttons are
+   present. The browser request to Supabase must use
+   `/api/auth/callback?next=%2Fcharacters` on the same deployment origin.
+3. Complete one Google and one Kakao login, then verify the callback lands on
+   `/characters?session_start=1` and a refresh keeps the session.
+4. If a provider fails, inspect the Vercel Function log for `/api/auth/callback`
+   and confirm the provider's Supabase callback URL and Supabase redirect allow
+   list match this document. Never paste client secrets into logs or issues.
+
 ## Env vars (app)
 
 Already required:
