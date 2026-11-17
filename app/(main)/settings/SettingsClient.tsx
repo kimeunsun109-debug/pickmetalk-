@@ -5,6 +5,7 @@ import { WebPushEnableButton } from "@/components/settings/WebPushEnableButton";
 import { clearClientSessionData } from "@/lib/auth/clearClientSession";
 import { FREE_DAILY_MESSAGE_LIMIT } from "@/lib/constants";
 import { t } from "@/lib/i18n";
+import { GENDER_OPTIONS, IDEAL_TYPE_OPTIONS } from "@/lib/profileOptions";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -17,6 +18,12 @@ interface CharacterState {
 
 interface SettingsClientProps {
   email: string;
+  profile: {
+    displayName: string;
+    gender: string;
+    mbti: string;
+    idealType: string;
+  };
   joinedDaysAgo: number;
   characterStates: CharacterState[];
   todayMsgCount: number;
@@ -53,6 +60,7 @@ function calcStreak(dates: string[]): number {
 
 export function SettingsClient({
   email,
+  profile,
   joinedDaysAgo,
   characterStates,
   todayMsgCount,
@@ -70,6 +78,53 @@ export function SettingsClient({
     "idle"
   );
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState(profile.displayName);
+  const [gender, setGender] = useState(profile.gender);
+  const [mbti, setMbti] = useState(profile.mbti);
+  const [idealType, setIdealType] = useState(profile.idealType);
+  const [profileStatus, setProfileStatus] = useState<
+    { type: "success" | "error"; message: string } | null
+  >(null);
+  const [profileSaving, setProfileSaving] = useState(false);
+
+  async function handleProfileSave(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const trimmedName = displayName.trim();
+    if (!trimmedName) {
+      setProfileStatus({ type: "error", message: "닉네임을 입력해 주세요." });
+      return;
+    }
+
+    setProfileSaving(true);
+    setProfileStatus(null);
+    try {
+      const res = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          displayName: trimmedName,
+          gender: gender || null,
+          mbti: mbti.trim().toUpperCase() || null,
+          idealType: idealType || null,
+        }),
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) throw new Error(data.error ?? "프로필 저장에 실패했습니다.");
+      setDisplayName(trimmedName);
+      setMbti(mbti.trim().toUpperCase());
+      setProfileStatus({ type: "success", message: "프로필을 저장했습니다." });
+    } catch (error) {
+      setProfileStatus({
+        type: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "프로필 저장 중 오류가 발생했습니다.",
+      });
+    } finally {
+      setProfileSaving(false);
+    }
+  }
 
   const statCards = [
     {
@@ -125,6 +180,83 @@ export function SettingsClient({
     <main className="min-h-screen bg-ivory px-4 pb-24 pt-10">
       <h1 className="mb-1 text-xl font-bold text-gray-900">설정</h1>
       <p className="mb-6 text-sm text-gray-400">{email}</p>
+
+      <section className="mb-6 rounded-2xl bg-white p-4 shadow-sm">
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-400">
+          프로필 편집
+        </h2>
+        <form onSubmit={handleProfileSave} className="flex flex-col gap-3">
+          <label className="text-sm font-medium text-gray-700">
+            닉네임
+            <input
+              type="text"
+              required
+              maxLength={20}
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              className="mt-1 w-full rounded-xl border px-4 py-3 text-sm"
+            />
+          </label>
+          <label className="text-sm font-medium text-gray-700">
+            성별
+            <select
+              value={gender}
+              onChange={(e) => setGender(e.target.value)}
+              className="mt-1 w-full rounded-xl border px-4 py-3 text-sm"
+            >
+              <option value="">선택해 주세요</option>
+              {GENDER_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm font-medium text-gray-700">
+            MBTI
+            <input
+              type="text"
+              maxLength={4}
+              value={mbti}
+              onChange={(e) => setMbti(e.target.value.toUpperCase())}
+              className="mt-1 w-full rounded-xl border px-4 py-3 text-sm"
+              placeholder="ENFP"
+            />
+          </label>
+          <label className="text-sm font-medium text-gray-700">
+            선호하는 이상형
+            <select
+              value={idealType}
+              onChange={(e) => setIdealType(e.target.value)}
+              className="mt-1 w-full rounded-xl border px-4 py-3 text-sm"
+            >
+              {IDEAL_TYPE_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          {profileStatus && (
+            <p
+              className={`rounded-lg px-3 py-2 text-sm ${
+                profileStatus.type === "success"
+                  ? "bg-green-50 text-green-700"
+                  : "bg-red-50 text-red-600"
+              }`}
+            >
+              {profileStatus.message}
+            </p>
+          )}
+          <button
+            type="submit"
+            disabled={profileSaving}
+            className="rounded-xl bg-pink-accent py-3 text-sm font-semibold text-white disabled:opacity-50"
+          >
+            {profileSaving ? "저장 중..." : "프로필 저장"}
+          </button>
+        </form>
+      </section>
 
       {!isPremium && (
         <section className="mb-6 rounded-2xl border border-pink-200 bg-white p-4 shadow-sm">

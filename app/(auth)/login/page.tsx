@@ -9,19 +9,11 @@ import {
   setDeviceSessionId,
 } from "@/lib/auth/deviceSession";
 import { BRAND } from "@/lib/brand";
+import { GENDER_OPTIONS, IDEAL_TYPE_OPTIONS } from "@/lib/profileOptions";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
-
-const IDEAL_TYPE_OPTIONS = [
-  { value: "", label: "선택 안 함" },
-  { value: "warm", label: "다정하고 따뜻한 타입" },
-  { value: "funny", label: "유머 있고 재미있는 타입" },
-  { value: "calm", label: "차분하고 든든한 타입" },
-  { value: "passionate", label: "열정적이고 에너지 넘치는 타입" },
-  { value: "intellectual", label: "섬세하고 깊이 있는 타입" },
-];
 
 function LoginForm() {
   const router = useRouter();
@@ -234,9 +226,11 @@ function LoginForm() {
                 className={inputClass}
               >
                 <option value="">선택해 주세요</option>
-                <option value="male">남성</option>
-                <option value="female">여성</option>
-                <option value="other">기타 / 밝히지 않음</option>
+                {GENDER_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
               </select>
             </label>
 
