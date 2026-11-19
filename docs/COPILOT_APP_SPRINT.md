@@ -17,7 +17,7 @@
 | 3 | #91 | **Play 내부 테스트 운영 가이드** ✅ | `docs/launch/PLAY_INTERNAL_TEST.md` — 테스터 추가, opt-in 링크, 출시 노트 템플릿 |
 | 4 | — | **Web Push 1단계** ✅ | `WebPushEnableButton` 오류 UX, 구독 실패 시 안내 (`docs/PHOTO_PUSH.md` 1절) |
 | 5 | — | **채팅 온보딩 copy polish** ✅ | `components/chat` 온보딩/킥라인 텍스트, 이미지 변경 없음 |
-| 6 | — | **일일 메시지 한도 UI** | 설정 화면에 리셋 시각·한도 설명 명확화 (`FREE_DAILY_MESSAGE_LIMIT`) |
+| 6 | — | **일일 메시지 한도 UI** ✅ | 설정 화면에 리셋 시각·한도 설명 명확화 (`FREE_DAILY_MESSAGE_LIMIT`) |
 
 ---
 

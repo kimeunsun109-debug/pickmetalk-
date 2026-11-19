@@ -264,7 +264,10 @@ export function SettingsClient({
             ⭐ Premium — {t("premium.primaryBenefit")}
           </p>
           <p className="mt-1 text-xs text-gray-500">
-            오늘 {todayMsgCount}/{FREE_DAILY_MESSAGE_LIMIT}회 사용
+            오늘 {todayMsgCount}/{FREE_DAILY_MESSAGE_LIMIT}회 사용 · 남은 {remaining}회
+          </p>
+          <p className="mt-1 text-xs text-gray-500">
+            매일 한국 시간 자정(KST 00:00)에 무료 한도가 다시 채워져요.
           </p>
           <p className="mt-2 text-xs text-gray-400">
             {t("premium.paymentPreparing")}
