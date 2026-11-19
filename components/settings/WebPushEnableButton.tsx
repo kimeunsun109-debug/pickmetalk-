@@ -21,21 +21,36 @@ export function WebPushEnableButton() {
     if (typeof window === "undefined") return;
     if (!("Notification" in window) || !("serviceWorker" in navigator)) {
       setStatus("unsupported");
+      setMessage("이 브라우저나 앱 환경에서는 사진 알림을 사용할 수 없어요.");
       return;
     }
-    void fetch("/api/push/vapid-public-key")
-      .then((r) => r.json())
-      .then((j: { configured?: boolean }) => {
+    void (async () => {
+      if (Notification.permission === "denied") {
+        setStatus("error");
+        setMessage("알림 권한이 차단되어 있어요. 브라우저 설정에서 픽미톡 알림을 허용해 주세요.");
+        return;
+      }
+
+      try {
+        const keyRes = await fetch("/api/push/vapid-public-key");
+        if (!keyRes.ok) throw new Error("키 정보를 확인하지 못했어요.");
+        const j = (await keyRes.json()) as { configured?: boolean };
         if (!j.configured) {
           setStatus("unsupported");
-          setMessage("알림 키가 아직 설정되지 않았어요.");
-        } else {
-          setStatus(
-            Notification.permission === "granted" ? "ready" : "ready"
-          );
+          setMessage("사진 알림 기능을 준비 중이에요. 현재는 인앱 알림만 사용할 수 있어요.");
+          return;
         }
-      })
-      .catch(() => setStatus("unsupported"));
+
+        const reg = await navigator.serviceWorker.getRegistration();
+        const existingSubscription = await reg?.pushManager.getSubscription();
+        setStatus(existingSubscription ? "subscribed" : "ready");
+        setMessage(existingSubscription ? "사진 알림이 켜져 있어요." : null);
+      } catch (e) {
+        console.error(e);
+        setStatus("error");
+        setMessage("알림 설정 상태를 확인하지 못했어요. 잠시 후 다시 시도해 주세요.");
+      }
+    })();
   }, []);
 
   const enable = useCallback(async () => {
@@ -43,20 +58,21 @@ export function WebPushEnableButton() {
     setMessage(null);
     try {
       const keyRes = await fetch("/api/push/vapid-public-key");
+      if (!keyRes.ok) throw new Error("키 정보를 확인하지 못했어요.");
       const { publicKey, configured } = (await keyRes.json()) as {
         publicKey: string | null;
         configured: boolean;
       };
       if (!configured || !publicKey) {
         setStatus("unsupported");
-        setMessage("알림 키가 아직 설정되지 않았어요.");
+        setMessage("사진 알림 기능을 준비 중이에요. 현재는 인앱 알림만 사용할 수 있어요.");
         return;
       }
 
       const permission = await Notification.requestPermission();
       if (permission !== "granted") {
         setStatus("error");
-        setMessage("알림 권한이 거부되었어요.");
+        setMessage("알림 권한이 차단되어 있어요. 브라우저 설정에서 픽미톡 알림을 허용해 주세요.");
         return;
       }
 
@@ -89,13 +105,21 @@ export function WebPushEnableButton() {
     } catch (e) {
       console.error(e);
       setStatus("error");
-      setMessage("알림 설정에 실패했어요. 잠시 후 다시 시도해 주세요.");
+      if (e instanceof DOMException && e.name === "NotAllowedError") {
+        setMessage("알림 권한이 차단되어 있어요. 브라우저 설정에서 픽미톡 알림을 허용해 주세요.");
+      } else if (e instanceof DOMException && e.name === "SecurityError") {
+        setMessage("보안 연결(HTTPS) 또는 브라우저 설정을 확인해 주세요.");
+      } else if (e instanceof Error && e.message === "구독 저장 실패") {
+        setMessage("알림 구독은 만들었지만 서버 저장에 실패했어요. 잠시 후 다시 시도해 주세요.");
+      } else {
+        setMessage("브라우저에서 알림 구독을 만들지 못했어요. 잠시 후 다시 시도해 주세요.");
+      }
     }
   }, []);
 
   if (status === "unsupported") {
     return (
-      <p className="text-xs text-gray-500">
+      <p className="text-xs leading-relaxed text-gray-500" role="status" aria-live="polite">
         {message ?? "이 환경에서는 브라우저 알림을 사용할 수 없어요."}
       </p>
     );
@@ -115,7 +139,19 @@ export function WebPushEnableButton() {
             ? "설정 중…"
             : "사진 알림 켜기"}
       </button>
-      {message ? <p className="text-xs text-gray-500">{message}</p> : null}
+      {message ? (
+        <p
+          className={
+            status === "error"
+              ? "text-xs leading-relaxed text-red-600"
+              : "text-xs leading-relaxed text-gray-500"
+          }
+          role={status === "error" ? "alert" : "status"}
+          aria-live="polite"
+        >
+          {message}
+        </p>
+      ) : null}
     </div>
   );
 }

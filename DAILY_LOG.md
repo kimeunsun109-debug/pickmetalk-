@@ -456,3 +456,23 @@ AbsenceWelcome 오버레이 UI 연동 + returnVisit 메시지 닉네임 개인�
 
 ### PR
 - `[Daily Dev 2026-11-19] Play 내부 테스트 운영 가이드 polish`
+
+---
+
+## 2026-11-19
+
+### 선택한 작업
+- 스프린트 큐 #4 Web Push 1단계 — 사진 푸시 전제 UX
+
+### 구현 내용
+- `components/settings/WebPushEnableButton.tsx`의 미지원 환경, 알림 키 미설정, 권한 거부, 구독 저장 실패 안내를 인라인 문구로 분리
+- 이미 구독된 브라우저는 초기 상태에서 `알림 켜짐`을 표시
+- `docs/COPILOT_APP_SPRINT.md` 큐 #4 완료 표시
+- `docs/LAUNCH_BACKLOG.md` Web Push 항목에 진행 메모 추가
+
+### 검증
+- `npx tsc --noEmit`
+- `npm run lint`
+
+### PR
+- `[Daily Dev 2026-11-19] web push enable UX`
