@@ -16,8 +16,8 @@ Copilot Space·Cursor Agent·수동 개발 공통 기준. **하루 1건 이상**
 ## P1 — 베타 기능 (Copilot, 이미지 무관)
 
 - [x] **설정 프로필 편집** — #89 · `SettingsClient` + `PATCH /api/profile`
-- [ ] **OAuth 스모크 문서·스크립트** — #90 · `AUTH_OAUTH.md`
-- [ ] **내부 테스트 운영 가이드** — #91
+- [x] **OAuth 스모크 문서·스크립트** — #90 · `AUTH_OAUTH.md`
+- [x] **내부 테스트 운영 가이드** — #91 · `PLAY_INTERNAL_TEST.md`
 
 스프린트: `docs/COPILOT_APP_SPRINT.md`
 
