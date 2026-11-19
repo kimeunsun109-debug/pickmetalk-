@@ -19,7 +19,7 @@ Copilot Space·Cursor Agent·수동 개발 공통 기준. **하루 1건 이상**
 - [x] **OAuth 스모크 문서·스크립트** — #90 · `AUTH_OAUTH.md`
 - [x] **내부 테스트 운영 가이드** — #91 · `PLAY_INTERNAL_TEST.md`
 
-스프린트: `docs/COPILOT_APP_SPRINT.md`
+스프린트: `docs/COPILOT_APP_SPRINT.md` (2단계 #103–#105: 채팅 한도 안내 · 단일 기기 UX · Premium 스텁)
 
 ## P1 — 출시 직후 품질
 

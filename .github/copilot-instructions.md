@@ -20,7 +20,7 @@ Complete **exactly one** high-value item per calendar day (Asia/Seoul):
 
 ## Launch priorities
 
-See `docs/LAUNCH_BACKLOG.md`. **캐릭터 이미지 제작 중이면** `docs/COPILOT_APP_SPRINT.md` 우선 (이슈 #89–#91). Prefer P0 until empty.
+See `docs/LAUNCH_BACKLOG.md`. **캐릭터 이미지 제작 중이면** `docs/COPILOT_APP_SPRINT.md` 큐 #7–#9 (`#103`–`#105`). Prefer P0 until empty.
 
 ## Stack notes
 
