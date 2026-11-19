@@ -18,16 +18,30 @@
 | 4 | — | **Web Push 1단계** ✅ | `WebPushEnableButton` 오류 UX, 구독 실패 시 안내 (`docs/PHOTO_PUSH.md` 1절) |
 | 5 | — | **채팅 온보딩 copy polish** ✅ | `components/chat` 온보딩/킥라인 텍스트, 이미지 변경 없음 |
 | 6 | — | **일일 메시지 한도 UI** ✅ | 설정 화면에 리셋 시각·한도 설명 명확화 (`FREE_DAILY_MESSAGE_LIMIT`) |
+| 7 | #103 | **채팅 무료 한도 안내** | `FreeUsageBanner`·`PremiumModal`·`messages/ko.json` — 10/5회·한도 도달 문구에 **KST 자정 리셋** 안내, 결제 미연동은 `paymentPreparing` 톤 유지 |
+| 8 | #104 | **단일 기기 세션 UX** | `DeviceSessionGuard` 끊김 오버레이 문구 다듬기 + 로그인 CTA; 로직 변경 없음 |
+| 9 | #105 | **Premium CTA 스텁 정리** | `PremiumModal`·설정 Premium 카드: `POST /api/premium/checkout` 503 시 사용자 안내 일관화 (`docs/PAYMENT.md`) |
+
+**스프린트 1 (#89–#91, #4–#6)** 완료. **스프린트 2**는 #7부터.
 
 ---
 
 ## Copilot Space 붙여넣기
 
 ```
-오늘은 docs/COPILOT_APP_SPRINT.md 큐에서 맨 위 미완 항목 1개만 구현해.
-열린 이슈 #89→#90→#91 중 아직 PR이 없는 것을 우선해.
-AGENTS.md, docs/LAUNCH_BACKLOG.md 읽고 최소 diff. tsc + lint. DAILY_LOG.md + PR.
-캐릭터 이미지·public/ 에셋·스토어 PNG는 건드리지 마.
+main pull 후 docs/COPILOT_APP_SPRINT.md에서 미완 중 맨 위 1건만 (#7→#8→#9).
+대응 이슈 #103→#104→#105 확인.
+AGENTS.md, docs/LAUNCH_BACKLOG.md 읽고 최소 diff. tsc + lint. DAILY_LOG.md + PR [Daily Dev YYYY-MM-DD] ….
+캐릭터 이미지·public/ 에셋·스토어 PNG·실결제 연동 금지.
+```
+
+### 오늘 #7 전용
+
+```
+이슈 #103: 채팅 무료 한도 안내
+- components/chat/FreeUsageBanner.tsx, PremiumModal.tsx, messages/ko.json (필요 시 ChatProvider)
+- PAYMENT.md: 10·5회 배너는 유지, 문구에 자정 리셋·설정 링크(/settings) 고려
+- 한도 계산·API 변경 없음
 ```
 
 ---
