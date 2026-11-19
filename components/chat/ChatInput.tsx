@@ -48,7 +48,7 @@ export const ChatInput = memo(function ChatInput({
           type="text"
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder={isWaitingReply ? "답변 작성 중…" : "메시지 입력"}
+          placeholder={isWaitingReply ? "답변 기다리는 중…" : "지금 마음을 편하게 써보세요"}
           disabled={disabled}
           enterKeyHint="send"
           className="min-w-0 flex-1 rounded-[20px] border border-gray-200 bg-gray-50 px-4 py-2.5 text-[15px] outline-none transition-colors focus:border-pink-accent/50 focus:bg-white"

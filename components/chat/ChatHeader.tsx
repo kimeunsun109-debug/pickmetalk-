@@ -67,14 +67,14 @@ export const ChatHeader = memo(function ChatHeader({
       });
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error ?? "새 대화를 만들 수 없습니다.");
+        throw new Error(data.error ?? "새 대화를 만들지 못했어요.");
       }
       goToCharacterChat(router, characterId, data.conversation.id);
     } catch (e) {
       setCreateError(
         e instanceof Error
           ? e.message
-          : "새 대화를 만들 수 없습니다. 잠시 후 다시 시도해주세요."
+          : "새 대화를 만들지 못했어요. 잠시 후 다시 시도해 주세요."
       );
     } finally {
       setCreating(false);

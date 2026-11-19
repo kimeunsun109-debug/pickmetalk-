@@ -476,3 +476,23 @@ AbsenceWelcome 오버레이 UI 연동 + returnVisit 메시지 닉네임 개인�
 
 ### PR
 - `[Daily Dev 2026-11-19] web push enable UX`
+
+---
+
+## 2026-11-19
+
+### 선택한 작업
+- 스프린트 큐 #5 채팅 온보딩·킥라인 문구 polish
+
+### 구현 내용
+- `components/chat/ChatOnboarding.tsx`의 온보딩 안내와 첫 대화 예시 문구를 자연스럽고 짧게 다듬음
+- 채팅 입력 placeholder와 전송 실패 안내 문구를 일관된 톤으로 정리
+- 새 대화 생성 실패 문구를 친절한 재시도 안내로 수정
+- `docs/COPILOT_APP_SPRINT.md` 큐 #5 완료 표시
+
+### 검증
+- `npx tsc --noEmit`
+- `npm run lint`
+
+### PR
+- `[Daily Dev 2026-11-19] chat onboarding copy`

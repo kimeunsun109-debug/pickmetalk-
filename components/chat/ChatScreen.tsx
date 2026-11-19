@@ -106,7 +106,7 @@ export function ChatScreen({
         await sendMessage(text);
         trackEvent("message_sent", characterId);
       } catch {
-        setSendError("메시지 전송에 실패했어요. 잠시 후 다시 시도해 주세요.");
+        setSendError("메시지를 보내지 못했어요. 잠시 후 다시 시도해 주세요.");
       }
     },
     [sendMessage, characterId]
