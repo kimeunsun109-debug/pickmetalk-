@@ -15,7 +15,7 @@
 | 1 | #89 | **설정: 프로필 편집 UI** (닉네임·성별·MBTI·이상형) | `/settings`에서 PATCH `/api/profile` 연동, 가입 폼과 동일 옵션, 저장 토스트 |
 | 2 | #90 | **OAuth 스모크** ✅ | `npm run test:oauth` 문서화 + `docs/AUTH_OAUTH.md` 체크리스트에 Vercel 검증 절 추가; 스크립트가 redirect URL만 검증해도 됨 (실제 로그인은 수동) |
 | 3 | #91 | **Play 내부 테스트 운영 가이드** ✅ | `docs/launch/PLAY_INTERNAL_TEST.md` — 테스터 추가, opt-in 링크, 출시 노트 템플릿 |
-| 4 | — | **Web Push 1단계** | `WebPushEnableButton` 오류 UX, 구독 실패 시 안내 (`docs/PHOTO_PUSH.md` 1절) |
+| 4 | — | **Web Push 1단계** ✅ | `WebPushEnableButton` 오류 UX, 구독 실패 시 안내 (`docs/PHOTO_PUSH.md` 1절) |
 | 5 | — | **채팅 온보딩 copy polish** | `components/chat` 온보딩/킥라인 только 텍스트, 이미지 변경 없음 |
 | 6 | — | **일일 메시지 한도 UI** | 설정 화면에 리셋 시각·한도 설명 명확화 (`FREE_DAILY_MESSAGE_LIMIT`) |
 

@@ -26,7 +26,7 @@ Copilot Space·Cursor Agent·수동 개발 공통 기준. **하루 1건 이상**
 - [x] **생활 패턴 → 채팅 프롬프트** — `patternNudges` + `user_daily_patterns` · PR #75
 - [x] **관계 레벨업 UI** — LevelUpToast · #76
 - [x] **사용자 감정 공감 힌트** — `userEmotionDetector` · #80
-- [ ] **Web Push (사진 푸시 알림)** — `docs/PHOTO_PUSH.md` 로드맵 1번
+- [~] **Web Push (사진 푸시 알림)** — 사진 푸시 전제 UX 완료; 구독 실패·미지원·권한 거부 안내 구현 (`docs/PHOTO_PUSH.md` 1번)
 - [ ] **일일 메시지 제한·프리미엄** — `docs/PAYMENT.md`
 
 ## P2 — 성장
