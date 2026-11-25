@@ -2,6 +2,7 @@
 
 import { useChat } from "@/contexts/ChatProvider";
 import { t } from "@/lib/i18n";
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 export function PremiumModal() {
@@ -97,6 +98,17 @@ export function PremiumModal() {
             {t("premium.primaryBenefit")}
           </span>
         </p>
+        {limitReached && (
+          <p className="mt-2 text-center text-xs text-gray-500">
+            {t("premium.limitReset")}{" "}
+            <Link
+              href="/settings"
+              className="font-medium text-pink-accent underline underline-offset-2"
+            >
+              {t("premium.usageSettings")}
+            </Link>
+          </p>
+        )}
 
         <ul className="mt-5 space-y-2 rounded-2xl bg-ivory p-4 text-sm text-gray-700">
           <li className="font-semibold text-pink-accent">

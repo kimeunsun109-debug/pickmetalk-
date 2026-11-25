@@ -516,3 +516,24 @@ AbsenceWelcome 오버레이 UI 연동 + returnVisit 메시지 닉네임 개인�
 
 ### PR
 - `[Daily Dev 2026-11-19] chat onboarding copy`
+
+---
+
+## 2026-11-26
+
+### 선택한 작업
+- 이슈 #103 스프린트 큐 #7 채팅 무료 한도 안내
+
+### 구현 내용
+- 무료 대화 10회·5회 배너와 한도 도달 안내에 매일 KST 자정 리셋 문구 추가
+- 한도 도달 모달에서 `/settings` 사용량 화면으로 이동할 수 있도록 안내
+- Premium 결제는 연동 준비 중이며 현재 실결제가 진행되지 않는다는 문구로 명확화
+- 한도 계산, API 및 결제 동작은 변경하지 않음
+- `docs/COPILOT_APP_SPRINT.md` 큐 #7 완료 표시
+
+### 검증
+- `npx tsc --noEmit`
+- `npm run lint`
+
+### PR
+- `[Daily Dev 2026-11-21] chat free usage copy` (Closes #103)

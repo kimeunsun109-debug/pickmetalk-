@@ -18,7 +18,7 @@
 | 4 | — | **Web Push 1단계** ✅ | `WebPushEnableButton` 오류 UX, 구독 실패 시 안내 (`docs/PHOTO_PUSH.md` 1절) |
 | 5 | — | **채팅 온보딩 copy polish** ✅ | `components/chat` 온보딩/킥라인 텍스트, 이미지 변경 없음 |
 | 6 | — | **일일 메시지 한도 UI** ✅ | 설정 화면에 리셋 시각·한도 설명 명확화 (`FREE_DAILY_MESSAGE_LIMIT`) |
-| 7 | #103 | **채팅 무료 한도 안내** | `FreeUsageBanner`·`PremiumModal`·`messages/ko.json` — 10/5회·한도 도달 문구에 **KST 자정 리셋** 안내, 결제 미연동은 `paymentPreparing` 톤 유지 |
+| 7 | #103 | **채팅 무료 한도 안내** ✅ | `FreeUsageBanner`·`PremiumModal`·`messages/ko.json` — 10/5회·한도 도달 문구에 **KST 자정 리셋** 안내, 결제 미연동은 `paymentPreparing` 톤 유지 |
 | 8 | #104 | **단일 기기 세션 UX** | `DeviceSessionGuard` 끊김 오버레이 문구 다듬기 + 로그인 CTA; 로직 변경 없음 |
 | 9 | #105 | **Premium CTA 스텁 정리** | `PremiumModal`·설정 Premium 카드: `POST /api/premium/checkout` 503 시 사용자 안내 일관화 (`docs/PAYMENT.md`) |
 
